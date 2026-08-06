@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew *)",
+      "Bash(curl -s https://repo1.maven.org/*)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}
