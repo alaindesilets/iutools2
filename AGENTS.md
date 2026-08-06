@@ -1,0 +1,159 @@
+# About iutools-morph-kt
+
+A Kotlin Multiplatform port of the morphological analyzer core from
+[iutools](https://github.com/iutools/iutools) (Java), which decomposes
+Inuktitut words into their constituent morphemes (e.g. `atuagaq` →
+`{atua:atuaq/1v}{gaq:gaq/1vn}`). Only the analyzer itself was ported — the
+original project's spellchecker, concordancer, dictionary/Elasticsearch, and
+web/servlet layers are explicitly out of scope.
+
+The goal is to ship this as a real mobile app (Android/iOS), not just a
+library — a CLI and a Compose UI both exist as ways of exercising the same
+shared analyzer core.
+
+## Technical constraints
+
+- Target platforms: JVM (CLI, dev/test), Android, iOS. No web browser
+  target — this is not a web app.
+- Kotlin Multiplatform + Compose Multiplatform is the chosen architecture:
+  one shared analyzer core, one shared UI codebase, native app shells per
+  platform (no separate hand-written native UIs).
+- Kotlin/Native (iOS) has a much smaller stdlib surface than JVM/Android —
+  no `java.util.*`, no `java.io.*`, no `@JvmField`/`@JvmStatic`/
+  `@JvmOverloads`. Code in `commonMain` must build for all three targets;
+  don't assume something that compiles for JVM/Android will compile for
+  iOS too.
+
+## Architecture
+
+Gradle modules:
+- **`:core`** — the analyzer itself, as a Kotlin Multiplatform library
+  (`core/src/commonMain/kotlin/org/iutools/**`). This is the single source
+  of truth; `:cli` and `:composeApp` both depend on it and add no analyzer
+  logic of their own. Linguistic data (CSV files) is embedded as generated
+  Kotlin source under `core/src/commonMain/kotlin/org/iutools/linguisticdata/dataCSV/generated/`
+  rather than loaded as a runtime resource — deliberate, not an oversight,
+  see the file headers for why.
+- **`:cli`** — JVM-only command-line entry point (`--word`/`--interactive`/
+  `--pipeline`, modeled on the original iutools CLI's own option names) plus
+  the full ported accuracy/regression test suite.
+- **`:composeApp`** — the graphical app (Jetpack Compose / Compose
+  Multiplatform).
+- **`iosApp`** (once it exists) — thin native Xcode wrapper embedding the
+  Kotlin/Native framework; no analyzer or UI logic of its own.
+
+The real entry point into the analyzer is
+`org.iutools.morph.r2l.MorphologicalAnalyzer_R2L.decomposeWord()`.
+
+### Scoping methodology (keep using this for any further porting work)
+
+Before porting or keeping any code from the original Java project, confirm
+it's actually reachable from `decomposeWord()` — grep first, don't assume.
+This project's history has repeatedly found large chunks of faithfully-
+portable-but-dead code (unused analyzer variants, display/debug-only
+formatting methods, etc.) this way; when in doubt, prune rather than port,
+and say so in a comment at the point of pruning.
+
+## Design and Coding Guidelines
+
+### Separate data, business logic, and presentation
+
+As much as possible, keep business logic independent of the visual
+appearance of the page or dialog. In this project specifically: `:core`
+must never depend on Compose or any UI type — `:composeApp` calls into
+`:core`, never the reverse.
+
+### Comments versus proper naming
+
+- Use comments sparingly.
+- If you feel the need to write a comment to explain the purpose of a
+  method, function, attribute, variable, see if changing the name might
+  not achieve the same clarity.
+- If you feel the need to write a comment to explain a section of a
+  function/method, see if you can achieve the same clarity by turning that
+  section into a function/method, and giving it a clear name.
+- Appropriate use of comments:
+  - Put a comment at the top of each package, file, class (compulsory).
+  - If a section of a function/method does something that is not clear,
+    and it is difficult to clarify that section by turning it into a
+    properly named function/method, then by all means, write a comment.
+  - If there is something non-obvious about the rationale for why a
+    particular section is written the way it is, then by all means, write
+    a comment — this project relies on this heavily for platform-
+    portability workarounds (e.g. why a property was renamed to avoid a
+    JVM/Kotlin-Native declaration clash) and pruning decisions (why some
+    original Java code was dropped rather than ported).
+
+## Preserving data integrity
+
+This isn't a project with production databases or deployed installations,
+but the equivalent concern here is the linguistic data (CSV files under
+`core/.../dataCSV/generated/`) and the accuracy-test gold standard
+(`cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_*.kt`):
+
+- Never hand-retype Inuktitut/linguistic data or large data files. Either
+  copy bytes directly, or if a format conversion is needed, do it with a
+  small script and verify the result byte-for-byte / string-for-string
+  against the original — don't trust a manual transcription.
+- Don't touch the gold-standard test data or its "current expectations"
+  files to make a failing test pass. If the analyzer's behavior changed on
+  purpose, that's a real finding to report, not something to quietly paper
+  over by editing the fixture.
+
+## Git History
+
+- Commit messages should focus on the PURPOSE of the commit, not the HOW.
+  If at all possible, write the message in terms that an end user might
+  recognize. For example, "First draft of an Android UI for the
+  morphological analyzer" is preferable to "Restructure into KMP modules,
+  add Android GUI" — the former says what changed from a user's
+  perspective; the latter describes implementation mechanics that are
+  already visible in the diff. If the implementation detail is worth
+  recording, put it in the commit body, not the subject line — the subject
+  stays purpose-focused, the body can explain the mechanics.
+- Don't commit automatically after every change — ask, unless explicitly
+  told to commit freely for a given stretch of work.
+- Large, exploratory, or likely-to-be-reverted work (e.g. a platform port
+  that isn't finished) belongs on its own branch, not on `main` — `main`
+  should stay in a state that actually builds and runs.
+
+## Testing
+
+- **The non-negotiable regression gate for any change to `:core`**: run
+  `./gradlew :cli:test` and confirm the Hansard accuracy suite still shows
+  the same outcome histogram (as of this writing: 670 first-decomposition-
+  correct / 247 correct-but-not-first / 2 correct-not-present / 0 no-
+  decomps, out of 919 evaluated words). Any change to that histogram is a
+  real behavioral change and must be called out explicitly, not silently
+  absorbed.
+- Make sure to write automated or semi-automated tests for every new
+  behavior you code. When you fix a bug, start by writing a test that
+  fails (because of that bug), then fix the bug. That way we are sure the
+  bug won't reappear later.
+- The human's role shifts from sole author of the code and tests to
+  curator of what the AI produces. Whenever you create or modify tests,
+  ask the human to scrutinize them carefully.
+
+## Instructions for AI coding agents
+
+### How to behave towards human devs
+
+- Don't be a sycophant. If you disagree with a decision being taken by a
+  human dev, say so.
+- But stay diplomatic.
+- And in the end, the human has the final word.
+- Before running a command that will prompt the human for approval,
+  explain WHY you want to run it (not just what it does) — enough for them
+  to make an informed decision, not just a mechanical description of the
+  command itself.
+
+### What language to use
+
+- Speak to the human dev in whatever language he/she prefers.
+- But all dev-facing text (code, comments, documentation) should be
+  written in English, irrespective of the language the app's UI uses to
+  speak to its own users.
+- For example, the app's GUI may be French-only, and the dev may speak to
+  you in French too, but the code itself should still be written in
+  English — English is the lingua franca of the software development
+  world.
