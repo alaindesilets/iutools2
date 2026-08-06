@@ -1,8 +1,7 @@
 package org.iutools.morph.r2l
 
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
 import org.apache.logging.log4j.LogManager
+import org.iutools.lib.SimpleLruCache
 import org.iutools.linguisticdata.Affix
 import org.iutools.linguisticdata.Base
 import org.iutools.linguisticdata.LinguisticData
@@ -858,8 +857,7 @@ class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
     companion object {
         private const val USE_SYLLABICS = false
 
-        private val decompsCache: Cache<String, Array<Decomposition>> =
-            Caffeine.newBuilder().maximumSize(10000).build()
+        private val decompsCache = SimpleLruCache<String, Array<Decomposition>>(10000)
 
         @JvmStatic
         @JvmOverloads

@@ -117,8 +117,8 @@ class DecompositionState(
             // Replace multiple spaces by a single one
             decompStr = decompStr.replace(Regex("\\s+"), " ")
             if (format == MorphFormat.NO_BRACES) {
-                decompStr = decompStr.replace(Regex("}\\s*\\{"), " ")
-                decompStr = decompStr.replace(Regex("(^\\s*\\{\\s*|\\s*}\\s*$)"), "")
+                decompStr = decompStr.replace(Regex("\\}\\s*\\{"), " ")
+                decompStr = decompStr.replace(Regex("(^\\s*\\{\\s*|\\s*\\}\\s*$)"), "")
             } else {
                 // Insert braces before and after single spaces
                 decompStr = decompStr.replace(" ", "} {")

@@ -21,3 +21,9 @@ dist/
 
 # macOS
 .DS_Store
+
+# Android / local machine paths
+local.properties
+*.apk
+*.aab
+
