@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +46,8 @@ import org.iutools.morph.MorphologicalAnalyzerException
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
 import java.util.concurrent.TimeoutException
 
+private const val PREVIEW_LIMIT = 3
+
 private data class MorphemeRow(
     val surfaceForm: String,
     val morphemeId: String,
@@ -51,7 +58,12 @@ private data class MorphemeRow(
 private sealed interface DecomposeState {
     data object Idle : DecomposeState
     data object Loading : DecomposeState
-    data class Success(val word: String, val decompositions: List<List<MorphemeRow>>) : DecomposeState
+    data class Success(
+        val word: String,
+        val lenient: Boolean,
+        val decompositions: List<List<MorphemeRow>>,
+        val hasMore: Boolean,
+    ) : DecomposeState
     data class Failure(val message: String) : DecomposeState
 }
 
@@ -74,6 +86,36 @@ private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
     }
 }
 
+/**
+ * Runs the analysis on a background thread. When [expandAll] is false, the
+ * analyzer is told to stop as soon as it has found one more decomposition
+ * than we display (PREVIEW_LIMIT + 1) -- enough to know whether a "More"
+ * button is warranted, without paying for an exhaustive search up front.
+ */
+private suspend fun analyze(
+    analyzer: MorphologicalAnalyzer_R2L,
+    word: String,
+    lenient: Boolean,
+    expandAll: Boolean,
+): DecomposeState = withContext(Dispatchers.Default) {
+    try {
+        val fetchLimit = if (expandAll) Int.MAX_VALUE else PREVIEW_LIMIT + 1
+        val decomps = analyzer.stopAfterN(fetchLimit).decomposeWord(word, lenient)
+        val hasMore = !expandAll && decomps.size > PREVIEW_LIMIT
+        val displayed = if (hasMore) decomps.take(PREVIEW_LIMIT) else decomps.toList()
+        DecomposeState.Success(
+            word = word,
+            lenient = lenient,
+            decompositions = displayed.map { it.toMorphemeRows() },
+            hasMore = hasMore,
+        )
+    } catch (e: TimeoutException) {
+        DecomposeState.Failure("La commande a expiré (timeout).")
+    } catch (e: MorphologicalAnalyzerException) {
+        DecomposeState.Failure("Erreur d'analyse : ${e.message}")
+    }
+}
+
 @Composable
 fun DecomposerScreen() {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
@@ -82,23 +124,36 @@ fun DecomposerScreen() {
     var word by remember { mutableStateOf("") }
     var lenient by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
+    val listState = rememberLazyListState()
+    var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
 
     fun decompose() {
         val wordToAnalyze = word.trim()
         if (wordToAnalyze.isEmpty()) return
+        val lenientAtSearch = lenient
         state = DecomposeState.Loading
         scope.launch {
-            val result = withContext(Dispatchers.Default) {
-                try {
-                    val decomps = analyzer.decomposeWord(wordToAnalyze, lenient)
-                    DecomposeState.Success(wordToAnalyze, decomps.map { it.toMorphemeRows() })
-                } catch (e: TimeoutException) {
-                    DecomposeState.Failure("La commande a expiré (timeout).")
-                } catch (e: MorphologicalAnalyzerException) {
-                    DecomposeState.Failure("Erreur d'analyse : ${e.message}")
-                }
-            }
-            state = result
+            state = analyze(analyzer, wordToAnalyze, lenientAtSearch, expandAll = false)
+        }
+    }
+
+    fun loadMore(previous: DecomposeState.Success) {
+        // Once the expanded list renders, jump to the first decomposition
+        // that wasn't already visible (index PREVIEW_LIMIT, i.e. the 4th)
+        // instead of leaving the user scrolled to the top of what they've
+        // already seen.
+        scrollToIndexOnExpand = PREVIEW_LIMIT
+        state = DecomposeState.Loading
+        scope.launch {
+            state = analyze(analyzer, previous.word, previous.lenient, expandAll = true)
+        }
+    }
+
+    LaunchedEffect(state) {
+        val index = scrollToIndexOnExpand
+        if (index != null && state is DecomposeState.Success) {
+            scrollToIndexOnExpand = null
+            listState.animateScrollToItem(index)
         }
     }
 
@@ -116,6 +171,8 @@ fun DecomposerScreen() {
                 onValueChange = { word = it },
                 label = { Text("Mot à analyser") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { decompose() }),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -152,9 +209,15 @@ fun DecomposerScreen() {
                     if (s.decompositions.isEmpty()) {
                         Text("Aucune décomposition trouvée pour « ${s.word} ».")
                     } else {
-                        Text("${s.decompositions.size} décomposition(s) pour « ${s.word} » :")
+                        Text(
+                            if (s.hasMore) {
+                                "Décompositions pour « ${s.word} » (${PREVIEW_LIMIT} premières affichées) :"
+                            } else {
+                                "${s.decompositions.size} décomposition(s) pour « ${s.word} » :"
+                            }
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        LazyColumn {
+                        LazyColumn(state = listState) {
                             itemsIndexed(s.decompositions) { index, rows ->
                                 if (s.decompositions.size > 1) {
                                     Text(
@@ -165,6 +228,16 @@ fun DecomposerScreen() {
                                 }
                                 MorphemeTable(rows)
                                 Spacer(modifier = Modifier.height(12.dp))
+                            }
+                            if (s.hasMore) {
+                                item {
+                                    TextButton(
+                                        onClick = { loadMore(s) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Plus")
+                                    }
+                                }
                             }
                         }
                     }

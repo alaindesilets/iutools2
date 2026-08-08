@@ -882,17 +882,32 @@ class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
     /**
      * Add decompositions to the list of decomps found so far.
      */
-    @Throws(MorphologicalAnalyzerDoneException::class)
+    @Throws(MorphologicalAnalyzerDoneException::class, LinguisticDataException::class)
     private fun onNewDecompFound(newDecomp: DecompositionState) {
         if (newDecomp.isComplete()) {
             _decompsSoFar.add(newDecomp)
         }
-        if (_stopAfterNDecomps != null && _decompsSoFar.size >= _stopAfterNDecomps!!) {
-            // We are done.
-            // Throw a MorphologicalAnalyzerDoneException so we stop processing
-            // The exception will be caught at the level of doDecompose(), which will return
-            // the list of decomps found so far.
-            throw MorphologicalAnalyzerDoneException()
+        val stopAfterNDecomps = _stopAfterNDecomps
+        if (stopAfterNDecomps != null) {
+            // _decompsSoFar's size is NOT the number of final decompositions
+            // this word will end up with: DecompositionState has no
+            // equals()/hashCode() override, so the HashSet never
+            // deduplicates raw search candidates -- that only happens
+            // afterwards, in doDecompose()'s removeCombinedSuffixes()/
+            // removeMultiples() pipeline. Stopping on the raw count could
+            // yield fewer final decompositions than requested (even fewer
+            // than the word's true total), so we run that same pipeline
+            // here to check the count it actually implies.
+            val distinctSoFar = DecompositionState.removeMultiples(
+                DecompositionState.removeCombinedSuffixes(_decompsSoFar.toTypedArray())
+            )
+            if ((distinctSoFar?.size ?: 0) >= stopAfterNDecomps) {
+                // We are done.
+                // Throw a MorphologicalAnalyzerDoneException so we stop processing
+                // The exception will be caught at the level of doDecompose(), which will return
+                // the list of decomps found so far.
+                throw MorphologicalAnalyzerDoneException()
+            }
         }
     }
 }
