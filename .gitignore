@@ -4,6 +4,7 @@ out/
 
 # Gradle
 .gradle/
+.gradle-home/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
