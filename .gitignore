@@ -19,6 +19,9 @@ dist/
 .idea/
 *.iml
 .vscode/
+# JDT/Gradle-extension project-sync artifact: copies .kt "resources" it
+# can't compile into a classic Eclipse-style bin/ output folder.
+cli/bin/
 
 # macOS
 .DS_Store
