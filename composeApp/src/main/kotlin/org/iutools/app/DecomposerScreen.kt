@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ import org.iutools.linguisticdata.Morpheme
 import org.iutools.morph.Decomposition
 import org.iutools.morph.MorphologicalAnalyzerException
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
+import java.util.Locale
 import java.util.concurrent.TimeoutException
 
 private const val PREVIEW_LIMIT = 3
@@ -51,9 +53,16 @@ private const val PREVIEW_LIMIT = 3
 private data class MorphemeRow(
     val surfaceForm: String,
     val morphemeId: String,
-    val meaning: String,
+    // Null when neither language has a meaning on file -- the UI falls back
+    // to a localized placeholder, since this function has no Compose context.
+    val meaning: String?,
     val fullRecord: Morpheme?,
 )
+
+private sealed interface FailureReason {
+    data object Timeout : FailureReason
+    data class AnalysisError(val detail: String?) : FailureReason
+}
 
 private sealed interface DecomposeState {
     data object Idle : DecomposeState
@@ -64,23 +73,21 @@ private sealed interface DecomposeState {
         val decompositions: List<List<MorphemeRow>>,
         val hasMore: Boolean,
     ) : DecomposeState
-    data class Failure(val message: String) : DecomposeState
+    data class Failure(val reason: FailureReason) : DecomposeState
 }
 
 private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
     val linguisticData = LinguisticData.getInstance()
     val surfaceForms = surfaceForms()
     val morphemeIds = getMorphemes()
+    val preferFrench = Locale.getDefault().language == "fr"
     return surfaceForms.indices.map { i ->
         val morphemeId = morphemeIds[i]
         val morpheme = linguisticData.getMorpheme(morphemeId)
-        val meaning = morpheme?.frenchMeaning?.takeIf { it.isNotBlank() }
-            ?: morpheme?.englishMeaning?.takeIf { it.isNotBlank() }
-            ?: "(sens inconnu)"
         MorphemeRow(
             surfaceForm = surfaceForms[i],
             morphemeId = morphemeId,
-            meaning = meaning,
+            meaning = morpheme?.preferredMeaning(preferFrench),
             fullRecord = morpheme,
         )
     }
@@ -110,9 +117,9 @@ private suspend fun analyze(
             hasMore = hasMore,
         )
     } catch (e: TimeoutException) {
-        DecomposeState.Failure("La commande a expiré (timeout).")
+        DecomposeState.Failure(FailureReason.Timeout)
     } catch (e: MorphologicalAnalyzerException) {
-        DecomposeState.Failure("Erreur d'analyse : ${e.message}")
+        DecomposeState.Failure(FailureReason.AnalysisError(e.message))
     }
 }
 
@@ -160,7 +167,7 @@ fun DecomposerScreen() {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Text(
-                text = "Décomposeur morphologique inuktitut",
+                text = stringResource(R.string.screen_title),
                 style = MaterialTheme.typography.titleLarge,
             )
 
@@ -169,7 +176,7 @@ fun DecomposerScreen() {
             OutlinedTextField(
                 value = word,
                 onValueChange = { word = it },
-                label = { Text("Mot à analyser") },
+                label = { Text(stringResource(R.string.word_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { decompose() }),
@@ -182,7 +189,7 @@ fun DecomposerScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Analyse tolérante (lenient-decomps)")
+                Text(stringResource(R.string.lenient_switch_label))
                 Switch(checked = lenient, onCheckedChange = { lenient = it })
             }
 
@@ -193,7 +200,7 @@ fun DecomposerScreen() {
                 enabled = word.isNotBlank() && state != DecomposeState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Décomposer")
+                Text(stringResource(R.string.decompose_button))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -202,18 +209,22 @@ fun DecomposerScreen() {
                 is DecomposeState.Idle -> {}
                 is DecomposeState.Loading -> CircularProgressIndicator()
                 is DecomposeState.Failure -> Text(
-                    text = s.message,
+                    text = when (val reason = s.reason) {
+                        is FailureReason.Timeout -> stringResource(R.string.error_timeout)
+                        is FailureReason.AnalysisError ->
+                            stringResource(R.string.error_analysis, reason.detail ?: "")
+                    },
                     color = MaterialTheme.colorScheme.error,
                 )
                 is DecomposeState.Success -> {
                     if (s.decompositions.isEmpty()) {
-                        Text("Aucune décomposition trouvée pour « ${s.word} ».")
+                        Text(stringResource(R.string.no_decompositions, s.word))
                     } else {
                         Text(
                             if (s.hasMore) {
-                                "Décompositions pour « ${s.word} » (${PREVIEW_LIMIT} premières affichées) :"
+                                stringResource(R.string.decompositions_header_partial, s.word, PREVIEW_LIMIT)
                             } else {
-                                "${s.decompositions.size} décomposition(s) pour « ${s.word} » :"
+                                stringResource(R.string.decompositions_header_full, s.decompositions.size, s.word)
                             }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -221,7 +232,7 @@ fun DecomposerScreen() {
                             itemsIndexed(s.decompositions) { index, rows ->
                                 if (s.decompositions.size > 1) {
                                     Text(
-                                        text = "Décomposition ${index + 1}",
+                                        text = stringResource(R.string.decomposition_number, index + 1),
                                         style = MaterialTheme.typography.titleSmall,
                                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                     )
@@ -235,7 +246,7 @@ fun DecomposerScreen() {
                                         onClick = { loadMore(s) },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        Text("Plus")
+                                        Text(stringResource(R.string.more_button))
                                     }
                                 }
                             }
@@ -255,13 +266,13 @@ private fun MorphemeTable(rows: List<MorphemeRow>) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(
-                text = "Morphème",
+                text = stringResource(R.string.table_header_morpheme),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "Sens",
+                text = stringResource(R.string.table_header_meaning),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
@@ -276,7 +287,7 @@ private fun MorphemeTable(rows: List<MorphemeRow>) {
                     .padding(vertical = 8.dp),
             ) {
                 Text(text = row.surfaceForm, modifier = Modifier.weight(1f))
-                Text(text = row.meaning, modifier = Modifier.weight(1f))
+                Text(text = row.meaning ?: stringResource(R.string.unknown_meaning), modifier = Modifier.weight(1f))
             }
             HorizontalDivider()
         }
@@ -292,15 +303,15 @@ private fun MorphemeDetailDialog(row: MorphemeRow, onDismiss: () -> Unit) {
     val morpheme = row.fullRecord
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fermer") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
         title = { Text(row.surfaceForm) },
         text = {
             Column {
-                DetailField("Identifiant", row.morphemeId)
-                DetailField("Forme canonique", morpheme?.morpheme)
-                DetailField("Sens (français)", morpheme?.frenchMeaning)
-                DetailField("Sens (anglais)", morpheme?.englishMeaning)
-                DetailField("Dialecte", morpheme?.dialect)
+                DetailField(stringResource(R.string.detail_id), row.morphemeId)
+                DetailField(stringResource(R.string.detail_canonical_form), morpheme?.morpheme)
+                DetailField(stringResource(R.string.detail_meaning_french), morpheme?.frenchMeaning)
+                DetailField(stringResource(R.string.detail_meaning_english), morpheme?.englishMeaning)
+                DetailField(stringResource(R.string.detail_dialect), morpheme?.dialect)
             }
         },
     )

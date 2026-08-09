@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="screen_title">Décomposeur morphologique inuktitut</string>
+    <string name="word_label">Mot à analyser</string>
+    <string name="lenient_switch_label">Analyse tolérante (lenient-decomps)</string>
+    <string name="decompose_button">Décomposer</string>
+    <string name="error_timeout">La commande a expiré (timeout).</string>
+    <string name="error_analysis">Erreur d\'analyse : %1$s</string>
+    <string name="no_decompositions">Aucune décomposition trouvée pour « %1$s ».</string>
+    <string name="decompositions_header_partial">Décompositions pour « %1$s » (%2$d premières affichées) :</string>
+    <string name="decompositions_header_full">%1$d décomposition(s) pour « %2$s » :</string>
+    <string name="decomposition_number">Décomposition %1$d</string>
+    <string name="more_button">Plus</string>
+    <string name="table_header_morpheme">Morphème</string>
+    <string name="table_header_meaning">Sens</string>
+    <string name="close_button">Fermer</string>
+    <string name="detail_id">Identifiant</string>
+    <string name="detail_canonical_form">Forme canonique</string>
+    <string name="detail_meaning_french">Sens (français)</string>
+    <string name="detail_meaning_english">Sens (anglais)</string>
+    <string name="detail_dialect">Dialecte</string>
+    <string name="unknown_meaning">(sens inconnu)</string>
+</resources>

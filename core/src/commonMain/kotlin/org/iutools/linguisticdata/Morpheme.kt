@@ -15,6 +15,17 @@ abstract class Morpheme : Cloneable {
     @JvmField var morpheme: String? = null
     @JvmField var englishMeaning: String? = null
     @JvmField var frenchMeaning: String? = null
+
+    // Shared here (rather than in :composeApp) because any bilingual
+    // consumer of this data -- the app UI today, potentially :cli later --
+    // needs the same French/English selection-with-fallback policy. Falls
+    // back to the other language's meaning if the preferred one is
+    // missing/blank, rather than showing nothing.
+    fun preferredMeaning(preferFrench: Boolean): String? {
+        val primary = if (preferFrench) frenchMeaning else englishMeaning
+        val fallback = if (preferFrench) englishMeaning else frenchMeaning
+        return primary?.takeIf { it.isNotBlank() } ?: fallback?.takeIf { it.isNotBlank() }
+    }
     @JvmField var nb: String? = null
     @JvmField var sources: Array<String>? = null
     @JvmField var num: Int? = null
