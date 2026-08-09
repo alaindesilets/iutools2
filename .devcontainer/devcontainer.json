@@ -4,14 +4,24 @@
     "dockerfile": "Dockerfile",
     "args": {
       "TZ": "${localEnv:TZ:America/Toronto}"
-    }
+    },
+    // Build the whole container as x86_64 rather than native ARM64, so
+    // Google's x86_64-only Android build tools (aapt2 in particular) run
+    // as genuinely native binaries inside it. Relies on Docker Desktop's
+    // "Use Rosetta for x86/amd64 emulation on Apple Silicon" setting for
+    // reasonable performance -- check that's enabled in Docker Desktop's
+    // settings if this ends up slow. See project memory
+    // "android-build-blocker-devcontainer" for why this replaced an
+    // earlier, more fragile qemu-user-static/binfmt attempt.
+    "options": ["--platform=linux/amd64"]
   },
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "runArgs": [
     "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
+    "--cap-add=NET_RAW",
+    "--platform=linux/amd64"
   ],
   "customizations": {
     "vscode": {
@@ -19,6 +29,8 @@
         "anthropic.claude-code",
         "fwcd.kotlin",
         "vscjava.vscode-gradle",
+        "redhat.java",
+        "vscjava.vscode-java-test",
         "eamodio.gitlens"
       ],
       "settings": {
@@ -31,7 +43,15 @@
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=gradle-cache-${devcontainerId},target=/home/vscode/.gradle,type=volume",
-    "source=android-sdk-${devcontainerId},target=/opt/android-sdk,type=volume"
+    "source=android-sdk-${devcontainerId},target=/opt/android-sdk,type=volume",
+    // Re-mount .devcontainer read-only, nested inside the (writable)
+    // workspace bind above. Without this, Claude running inside the
+    // container could edit devcontainer.json/Dockerfile/init-firewall.sh —
+    // no immediate effect, but a weakened config would silently take over
+    // on the next container rebuild. This only restricts writes through the
+    // container's mount point; the files are still normal, freely editable
+    // files on the host.
+    "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
