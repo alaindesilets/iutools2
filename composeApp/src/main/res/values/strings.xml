@@ -3,6 +3,7 @@
     <string name="screen_title">Inuktitut morphological decomposer</string>
     <string name="word_label">Word to analyze</string>
     <string name="lenient_switch_label">Lenient analysis (lenient-decomps)</string>
+    <string name="ui_language_label">Interface language</string>
     <string name="decompose_button">Decompose</string>
     <string name="error_timeout">The request timed out.</string>
     <string name="error_analysis">Analysis error: %1$s</string>

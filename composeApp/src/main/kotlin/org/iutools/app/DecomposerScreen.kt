@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import android.content.res.Configuration
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -26,6 +27,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -50,12 +56,20 @@ import java.util.concurrent.TimeoutException
 
 private const val PREVIEW_LIMIT = 3
 
+// The in-app switch overrides the UI language independently of the device's
+// system locale. endonym: each language's name is shown in itself, so it
+// doesn't need translating.
+private enum class AppLanguage(val locale: Locale, val endonym: String) {
+    ENGLISH(Locale.ENGLISH, "English"),
+    FRENCH(Locale.FRENCH, "Français"),
+}
+
+private fun defaultAppLanguage(): AppLanguage =
+    if (Locale.getDefault().language == "fr") AppLanguage.FRENCH else AppLanguage.ENGLISH
+
 private data class MorphemeRow(
     val surfaceForm: String,
     val morphemeId: String,
-    // Null when neither language has a meaning on file -- the UI falls back
-    // to a localized placeholder, since this function has no Compose context.
-    val meaning: String?,
     val fullRecord: Morpheme?,
 )
 
@@ -80,15 +94,12 @@ private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
     val linguisticData = LinguisticData.getInstance()
     val surfaceForms = surfaceForms()
     val morphemeIds = getMorphemes()
-    val preferFrench = Locale.getDefault().language == "fr"
     return surfaceForms.indices.map { i ->
         val morphemeId = morphemeIds[i]
-        val morpheme = linguisticData.getMorpheme(morphemeId)
         MorphemeRow(
             surfaceForm = surfaceForms[i],
             morphemeId = morphemeId,
-            meaning = morpheme?.preferredMeaning(preferFrench),
-            fullRecord = morpheme,
+            fullRecord = linguisticData.getMorpheme(morphemeId),
         )
     }
 }
@@ -130,14 +141,31 @@ fun DecomposerScreen() {
 
     var word by remember { mutableStateOf("") }
     var lenient by remember { mutableStateOf(false) }
+    var uiLanguage by remember { mutableStateOf(defaultAppLanguage()) }
     var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
     val listState = rememberLazyListState()
     var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
+    // Overrides stringResource()'s language for everything below, independently
+    // of the device's system locale.
+    val baseContext = LocalContext.current
+    val baseConfiguration = LocalConfiguration.current
+    val localizedConfiguration = remember(uiLanguage, baseConfiguration) {
+        Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) }
+    }
+    val localizedContext = remember(uiLanguage, baseContext) {
+        baseContext.createConfigurationContext(localizedConfiguration)
+    }
 
     fun decompose() {
         val wordToAnalyze = word.trim()
         if (wordToAnalyze.isEmpty()) return
         val lenientAtSearch = lenient
+        keyboardController?.hide()
+        focusManager.clearFocus()
         state = DecomposeState.Loading
         scope.launch {
             state = analyze(analyzer, wordToAnalyze, lenientAtSearch, expandAll = false)
@@ -164,8 +192,29 @@ fun DecomposerScreen() {
         }
     }
 
+    CompositionLocalProvider(
+        LocalContext provides localizedContext,
+        LocalConfiguration provides localizedConfiguration,
+    ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(stringResource(R.string.ui_language_label))
+                Row {
+                    AppLanguage.entries.forEach { language ->
+                        TextButton(onClick = { uiLanguage = language }) {
+                            Text(
+                                text = language.endonym,
+                                fontWeight = if (language == uiLanguage) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
+
             Text(
                 text = stringResource(R.string.screen_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -237,7 +286,7 @@ fun DecomposerScreen() {
                                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                     )
                                 }
-                                MorphemeTable(rows)
+                                MorphemeTable(rows, preferFrench = uiLanguage == AppLanguage.FRENCH)
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             if (s.hasMore) {
@@ -256,11 +305,12 @@ fun DecomposerScreen() {
             }
         }
     }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MorphemeTable(rows: List<MorphemeRow>) {
+private fun MorphemeTable(rows: List<MorphemeRow>, preferFrench: Boolean) {
     var selectedRow by remember { mutableStateOf<MorphemeRow?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -287,7 +337,10 @@ private fun MorphemeTable(rows: List<MorphemeRow>) {
                     .padding(vertical = 8.dp),
             ) {
                 Text(text = row.surfaceForm, modifier = Modifier.weight(1f))
-                Text(text = row.meaning ?: stringResource(R.string.unknown_meaning), modifier = Modifier.weight(1f))
+                Text(
+                    text = row.fullRecord?.preferredMeaning(preferFrench) ?: stringResource(R.string.unknown_meaning),
+                    modifier = Modifier.weight(1f),
+                )
             }
             HorizontalDivider()
         }

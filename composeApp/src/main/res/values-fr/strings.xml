@@ -3,6 +3,7 @@
     <string name="screen_title">Décomposeur morphologique inuktitut</string>
     <string name="word_label">Mot à analyser</string>
     <string name="lenient_switch_label">Analyse tolérante (lenient-decomps)</string>
+    <string name="ui_language_label">Langue de l\'interface</string>
     <string name="decompose_button">Décomposer</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>
