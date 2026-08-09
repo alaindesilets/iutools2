@@ -38,9 +38,14 @@ Gradle modules:
   `--pipeline`, modeled on the original iutools CLI's own option names) plus
   the full ported accuracy/regression test suite.
 - **`:composeApp`** — the graphical app (Jetpack Compose / Compose
-  Multiplatform).
+  Multiplatform). Named `composeApp` (rather than e.g. `:app`/`:mobile`)
+  because that's the module name JetBrains' official Kotlin Multiplatform
+  wizard (kmp.jetbrains.com) generates by default for the Compose
+  Multiplatform UI module, paired with an `iosApp` module (see below) — not
+  a project-specific naming choice.
 - **`iosApp`** (once it exists) — thin native Xcode wrapper embedding the
-  Kotlin/Native framework; no analyzer or UI logic of its own.
+  Kotlin/Native framework; no analyzer or UI logic of its own. Also the
+  default name from the same KMP wizard scaffold.
 
 The real entry point into the analyzer is
 `org.iutools.morph.r2l.MorphologicalAnalyzer_R2L.decomposeWord()`.
