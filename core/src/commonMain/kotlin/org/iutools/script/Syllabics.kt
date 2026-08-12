@@ -1,14 +1,18 @@
 package org.iutools.script
 
 /*
- * Only what's reachable from decomposeWord() was ported: `containsInuktitut`
+ * What's reachable from decomposeWord() was ported first: `containsInuktitut`
  * (checked once, at the very start of MorphologicalAnalyzer_R2L.decomposeWord,
  * to decide whether to transliterate syllabic input) and `transcodeToRoman`
  * (the actual transliteration). Everything downstream of that point always
  * runs in Roman orthography (USE_SYLLABICS=false is hardcoded in the
  * analyzer), so the AIPA/ITAI conversion helpers, `syllabicsToRomanICI`
  * (only used by the excluded SpellChecker), and the digit/char accessor
- * methods (`getSyl`, `getCharacter`, `allInuktitut`) were dropped.
+ * methods (`getSyl`, `getCharacter`) were dropped.
+ *
+ * `allInuktitut` and `syllabicCharsRatio` were added later, for the app's
+ * user-facing display-script setting (Roman/Syllabic/as-entered) -- they're
+ * used by TransCoder.kt, not by decomposeWord() itself.
  */
 object Syllabics {
 
@@ -95,6 +99,26 @@ object Syllabics {
             if (isInuktitutCharacter(c)) return true
         }
         return false
+    }
+
+    @JvmStatic
+    fun allInuktitut(word: String): Boolean {
+        for (c in word) {
+            if (!isInuktitutCharacter(c)) return false
+        }
+        return true
+    }
+
+    @JvmStatic
+    fun syllabicCharsRatio(text: String): Double {
+        var totalChars = 0
+        var iuChars = 0
+        for (c in text) {
+            if (c.isWhitespace()) continue
+            totalChars++
+            if (isInuktitutCharacter(c)) iuChars++
+        }
+        return iuChars.toDouble() / totalChars
     }
 
     @JvmStatic

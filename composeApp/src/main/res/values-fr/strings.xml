@@ -4,6 +4,11 @@
     <string name="word_label">Mot à analyser</string>
     <string name="lenient_switch_label">Analyse tolérante (lenient-decomps)</string>
     <string name="ui_language_label">Langue de l\'interface</string>
+    <string name="settings_button">Réglages</string>
+    <string name="display_script_label">Script d\'affichage</string>
+    <string name="display_script_roman">Romain</string>
+    <string name="display_script_syllabic">Syllabique</string>
+    <string name="display_script_as_entered">Script tel qu\'entré</string>
     <string name="decompose_button">Décomposer</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>

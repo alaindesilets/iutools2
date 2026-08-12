@@ -51,6 +51,8 @@ import org.iutools.linguisticdata.Morpheme
 import org.iutools.morph.Decomposition
 import org.iutools.morph.MorphologicalAnalyzerException
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
+import org.iutools.script.Script
+import org.iutools.script.TransCoder
 import java.util.Locale
 import java.util.concurrent.TimeoutException
 
@@ -59,13 +61,28 @@ private const val PREVIEW_LIMIT = 3
 // The in-app switch overrides the UI language independently of the device's
 // system locale. endonym: each language's name is shown in itself, so it
 // doesn't need translating.
-private enum class AppLanguage(val locale: Locale, val endonym: String) {
+enum class AppLanguage(val locale: Locale, val endonym: String) {
     ENGLISH(Locale.ENGLISH, "English"),
     FRENCH(Locale.FRENCH, "Français"),
 }
 
-private fun defaultAppLanguage(): AppLanguage =
+fun defaultAppLanguage(): AppLanguage =
     if (Locale.getDefault().language == "fr") AppLanguage.FRENCH else AppLanguage.ENGLISH
+
+// Chooses which script Inuktitut surface text (morpheme forms, canonical
+// forms) is displayed in. AS_ENTERED follows whatever script the analyzed
+// word was originally typed in (tracked per-analysis on DecomposeState.Success),
+// falling back to Roman -- see displayForm().
+enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
+
+private fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
+    val target = when (script) {
+        DisplayScript.ROMAN -> Script.ROMAN
+        DisplayScript.SYLLABIC -> Script.SYLLABIC
+        DisplayScript.AS_ENTERED -> if (enteredScript == Script.SYLLABIC) Script.SYLLABIC else Script.ROMAN
+    }
+    return TransCoder.ensureScript(target, text)
+}
 
 private data class MorphemeRow(
     val surfaceForm: String,
@@ -86,6 +103,7 @@ private sealed interface DecomposeState {
         val lenient: Boolean,
         val decompositions: List<List<MorphemeRow>>,
         val hasMore: Boolean,
+        val enteredScript: Script,
     ) : DecomposeState
     data class Failure(val reason: FailureReason) : DecomposeState
 }
@@ -126,6 +144,7 @@ private suspend fun analyze(
             lenient = lenient,
             decompositions = displayed.map { it.toMorphemeRows() },
             hasMore = hasMore,
+            enteredScript = TransCoder.textScript(word),
         )
     } catch (e: TimeoutException) {
         DecomposeState.Failure(FailureReason.Timeout)
@@ -138,10 +157,13 @@ private suspend fun analyze(
 fun DecomposerScreen() {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
+    val baseContext = LocalContext.current
 
     var word by remember { mutableStateOf("") }
     var lenient by remember { mutableStateOf(false) }
-    var uiLanguage by remember { mutableStateOf(defaultAppLanguage()) }
+    var uiLanguage by remember { mutableStateOf(AppSettings.loadLanguage(baseContext)) }
+    var displayScript by remember { mutableStateOf(AppSettings.loadDisplayScript(baseContext)) }
+    var showSettings by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
     val listState = rememberLazyListState()
     var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
@@ -151,7 +173,6 @@ fun DecomposerScreen() {
 
     // Overrides stringResource()'s language for everything below, independently
     // of the device's system locale.
-    val baseContext = LocalContext.current
     val baseConfiguration = LocalConfiguration.current
     val localizedConfiguration = remember(uiLanguage, baseConfiguration) {
         Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) }
@@ -200,19 +221,27 @@ fun DecomposerScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
             ) {
-                Text(stringResource(R.string.ui_language_label))
-                Row {
-                    AppLanguage.entries.forEach { language ->
-                        TextButton(onClick = { uiLanguage = language }) {
-                            Text(
-                                text = language.endonym,
-                                fontWeight = if (language == uiLanguage) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        }
-                    }
+                TextButton(onClick = { showSettings = true }) {
+                    Text("⚙ " + stringResource(R.string.settings_button))
                 }
+            }
+
+            if (showSettings) {
+                SettingsDialog(
+                    uiLanguage = uiLanguage,
+                    onLanguageSelected = {
+                        uiLanguage = it
+                        AppSettings.saveLanguage(baseContext, it)
+                    },
+                    displayScript = displayScript,
+                    onDisplayScriptSelected = {
+                        displayScript = it
+                        AppSettings.saveDisplayScript(baseContext, it)
+                    },
+                    onDismiss = { showSettings = false },
+                )
             }
 
             Text(
@@ -286,7 +315,12 @@ fun DecomposerScreen() {
                                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                     )
                                 }
-                                MorphemeTable(rows, preferFrench = uiLanguage == AppLanguage.FRENCH)
+                                MorphemeTable(
+                                    rows,
+                                    preferFrench = uiLanguage == AppLanguage.FRENCH,
+                                    displayScript = displayScript,
+                                    enteredScript = s.enteredScript,
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             if (s.hasMore) {
@@ -308,9 +342,63 @@ fun DecomposerScreen() {
     }
 }
 
+@Composable
+private fun SettingsDialog(
+    uiLanguage: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    displayScript: DisplayScript,
+    onDisplayScriptSelected: (DisplayScript) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
+        title = { Text(stringResource(R.string.settings_button)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.ui_language_label), style = MaterialTheme.typography.labelMedium)
+                Row {
+                    AppLanguage.entries.forEach { language ->
+                        TextButton(onClick = { onLanguageSelected(language) }) {
+                            Text(
+                                text = language.endonym,
+                                fontWeight = if (language == uiLanguage) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(stringResource(R.string.display_script_label), style = MaterialTheme.typography.labelMedium)
+                Column {
+                    val labelFor = mapOf(
+                        DisplayScript.ROMAN to R.string.display_script_roman,
+                        DisplayScript.SYLLABIC to R.string.display_script_syllabic,
+                        DisplayScript.AS_ENTERED to R.string.display_script_as_entered,
+                    )
+                    DisplayScript.entries.forEach { script ->
+                        TextButton(onClick = { onDisplayScriptSelected(script) }) {
+                            Text(
+                                text = stringResource(labelFor.getValue(script)),
+                                fontWeight = if (script == displayScript) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MorphemeTable(rows: List<MorphemeRow>, preferFrench: Boolean) {
+private fun MorphemeTable(
+    rows: List<MorphemeRow>,
+    preferFrench: Boolean,
+    displayScript: DisplayScript,
+    enteredScript: Script,
+) {
     var selectedRow by remember { mutableStateOf<MorphemeRow?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -336,7 +424,7 @@ private fun MorphemeTable(rows: List<MorphemeRow>, preferFrench: Boolean) {
                     .combinedClickable(onClick = {}, onLongClick = { selectedRow = row })
                     .padding(vertical = 8.dp),
             ) {
-                Text(text = row.surfaceForm, modifier = Modifier.weight(1f))
+                Text(text = displayForm(row.surfaceForm, displayScript, enteredScript), modifier = Modifier.weight(1f))
                 Text(
                     text = row.fullRecord?.preferredMeaning(preferFrench) ?: stringResource(R.string.unknown_meaning),
                     modifier = Modifier.weight(1f),
@@ -347,21 +435,34 @@ private fun MorphemeTable(rows: List<MorphemeRow>, preferFrench: Boolean) {
     }
 
     selectedRow?.let { row ->
-        MorphemeDetailDialog(row = row, onDismiss = { selectedRow = null })
+        MorphemeDetailDialog(
+            row = row,
+            displayScript = displayScript,
+            enteredScript = enteredScript,
+            onDismiss = { selectedRow = null },
+        )
     }
 }
 
 @Composable
-private fun MorphemeDetailDialog(row: MorphemeRow, onDismiss: () -> Unit) {
+private fun MorphemeDetailDialog(
+    row: MorphemeRow,
+    displayScript: DisplayScript,
+    enteredScript: Script,
+    onDismiss: () -> Unit,
+) {
     val morpheme = row.fullRecord
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
-        title = { Text(row.surfaceForm) },
+        title = { Text(displayForm(row.surfaceForm, displayScript, enteredScript)) },
         text = {
             Column {
                 DetailField(stringResource(R.string.detail_id), row.morphemeId)
-                DetailField(stringResource(R.string.detail_canonical_form), morpheme?.morpheme)
+                DetailField(
+                    stringResource(R.string.detail_canonical_form),
+                    morpheme?.morpheme?.let { displayForm(it, displayScript, enteredScript) },
+                )
                 DetailField(stringResource(R.string.detail_meaning_french), morpheme?.frenchMeaning)
                 DetailField(stringResource(R.string.detail_meaning_english), morpheme?.englishMeaning)
                 DetailField(stringResource(R.string.detail_dialect), morpheme?.dialect)
