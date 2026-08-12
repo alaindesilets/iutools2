@@ -26,4 +26,14 @@
     <string name="detail_meaning_english">Sens (anglais)</string>
     <string name="detail_dialect">Dialecte</string>
     <string name="unknown_meaning">(sens inconnu)</string>
+
+    <!-- Spike Guess Meaning (Phase 1 : clavardage simple, sans contenu injecté) -->
+    <string name="guess_meaning_button">Guess Meaning</string>
+    <string name="guess_meaning_title">Guess Meaning (spike)</string>
+    <string name="chat_input_label">Message</string>
+    <string name="chat_send_button">Envoyer</string>
+    <string name="chat_missing_api_key">Aucune clé API Anthropic configurée. Ajoute anthropicApiKey dans local.properties et reconstruis l\'appli.</string>
+    <string name="chat_error">Erreur : %1$s</string>
+    <string name="chat_error_unauthorized">Ta clé API Anthropic a été refusée (invalide, révoquée ou expirée). Génère-en une nouvelle sur platform.claude.com (Settings → API Keys), mets à jour anthropicApiKey dans local.properties, puis reconstruis l\'appli.</string>
+    <string name="chat_metrics">%1$d ms · %2$d entrée / %3$d sortie (jetons)</string>
 </resources>

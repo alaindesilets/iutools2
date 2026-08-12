@@ -1,6 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Guess Meaning spike (llm-guess-meaning-spike branch only): the Anthropic
+// API key lives in local.properties (already gitignored, already used for
+// sdk.dir) rather than in source -- read here and exposed to the app via a
+// generated BuildConfig field, never as a string literal in Kotlin source.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -13,6 +26,12 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField(
+            "String",
+            "ANTHROPIC_API_KEY",
+            "\"${localProperties.getProperty("anthropicApiKey", "")}\"",
+        )
     }
 
     compileOptions {
@@ -22,11 +41,23 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+        }
+    }
+
+    // The Apache HttpComponents jars pulled in transitively by the
+    // Anthropic SDK each bundle their own identical META-INF/DEPENDENCIES
+    // (a plain-text license/dependency listing, unused at runtime) --
+    // AGP refuses to package duplicates by default, so drop it explicitly
+    // rather than picking one arbitrarily.
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
         }
     }
 }
@@ -42,6 +73,10 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+
+    // Guess Meaning spike: Anthropic's official Java SDK (Kotlin uses the
+    // Java SDK -- there is no separate Kotlin SDK).
+    implementation("com.anthropic:anthropic-java:2.34.0")
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)

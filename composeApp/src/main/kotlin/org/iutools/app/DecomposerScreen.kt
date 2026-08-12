@@ -154,7 +154,7 @@ private suspend fun analyze(
 }
 
 @Composable
-fun DecomposerScreen() {
+fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
     val baseContext = LocalContext.current
@@ -221,8 +221,11 @@ fun DecomposerScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                TextButton(onClick = onOpenGuessMeaning) {
+                    Text("🔮 " + stringResource(R.string.guess_meaning_button))
+                }
                 TextButton(onClick = { showSettings = true }) {
                     Text("⚙ " + stringResource(R.string.settings_button))
                 }
