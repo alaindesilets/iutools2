@@ -37,6 +37,13 @@ combinant plusieurs heuristiques :
 
 On arrête dès qu'une hypothèse de sens semble bonne.
 
+*(Note : cette heuristique d'arrêt anticipé décrivait le comportement du LLM dans la
+simulation manuelle originale, où c'était Claude qui décidait où chercher, une source à
+la fois. Le mécanisme retenu pour ce spike ne cherche plus séquentiellement — voir
+« Décision de séquencement » plus bas — donc elle ne s'applique plus telle quelle au
+mécanisme de recherche ; le compromis assumé à la place est expliqué dans cette même
+section.)*
+
 L'ordre exact des heuristiques et le prompt système ont été validés manuellement lors
 d'une simulation avec Claude (rôle-jeu : Claude demandait une décomposition, l'humain
 la fournissait en collant le résultat d'Uqailaut, Claude enchaînait avec des recherches
@@ -69,19 +76,44 @@ son code d'intégration peut être écrit de façon fiable dès maintenant. Comp
 trois fournisseurs en parallèle triplerait le travail de la Phase 1 pour un gain
 marginal à ce stade — envisageable plus tard si utile.
 
-**Simplification importante découverte en cours de route** : Claude a son propre outil
-de recherche web côté serveur (`web_search`) et de récupération de page (`web_fetch`),
-tous deux avec un paramètre `allowed_domains` appliqué par Anthropic elle-même — pas
-seulement suggéré dans le prompt. Ça correspond exactement à ce que l'outil `web_access`
-personnalisé du plan original devait faire (allowlist de domaines imposée par du code,
-pas juste par une instruction). Pour les Phases 3 et 5 (dictionnaires, sites du
-gouvernement du Nunavut), il n'y a donc probablement **rien à coder** — juste déclarer
-l'outil natif avec la bonne liste de domaines. La seule source qui reste possiblement
-un cas particulier est le Hansard (Phase 4), voir cette phase pour le détail. Ce n'est
-**pas** du MCP : c'est un outil natif de l'API Messages (`tools: [{"type":
-"web_search_20260209", ...}]`), au même titre qu'un outil personnalisé — MCP reste hors
-scope pour tout le spike (voir la note dans « Idées pour des implémentations
-futures »).
+**Révision de l'architecture de recherche (après coup, en observant les coûts réels du
+spike)** : le plan avait d'abord prévu de déclarer les outils natifs `web_search`/
+`web_fetch` d'Anthropic et de laisser Claude piloter lui-même la recherche de façon
+agentique (décider où chercher, interpréter, décider s'il faut chercher ailleurs) — avec
+`allowed_domains` appliqué par Anthropic elle-même, pas juste suggéré dans le prompt.
+Cette approche a un vrai avantage : si l'interface d'une ressource change, un LLM
+autonome peut potentiellement s'adapter tout seul. Mais deux inconvénients sont devenus
+évidents dès les Phases 1-2 : (1) chaque aller-retour d'outil coûte des tokens de sortie
+(5× plus chers que les tokens d'entrée sur Opus), donc un comportement agentique
+multi-étapes est probablement le plus gros facteur de coût du spike ; (2) ça reproduit
+exactement le risque déjà identifié pour la Phase 6 — le tool-calling agentique est
+nettement moins fiable sur un petit modèle local que sur Claude, donc bâtir tout le
+workflow autour de ça aurait inutilement compliqué le futur saut vers un modèle embarqué.
+
+**Nouvelle approche : recherche pilotée par l'appli, pas par le LLM.** L'appli Kotlin
+va elle-même chercher dans toutes les sources pertinentes (en parallèle, pour limiter la
+latence totale), rassembler les résultats bruts, et les inclure au complet dans un seul
+message envoyé à Claude, qui rend un verdict en un seul appel — aucun outil agentique,
+aucun aller-retour. Avantages : coût prévisible (un appel par mot, pas une boucle
+ouverte), et **ça élimine le principal risque de la Phase 6** — un modèle local n'a plus
+besoin de tool-calling fiable, juste de lire un bloc de texte déjà rassemblé et de
+répondre, exactement comme Claude : une tâche de lecture/synthèse, largement à la portée
+d'un petit modèle.
+
+Deux compromis assumés avec ce changement :
+- Si l'interface d'une ressource change, le code Kotlin qui la consulte va se casser
+  silencieusement plutôt que de s'adapter tout seul — voir « Notification de panne » dans
+  la spec technique pour le mécanisme prévu (à terme, hors scope de ce spike) pour
+  détecter et corriger ça rapidement.
+- On renonce à l'heuristique « arrêter dès qu'une réponse semble bonne » — l'appli va
+  toujours chercher dans toutes les sources activées, systématiquement, à chaque mot ;
+  plus simple à coder (aucune logique d'arrêt anticipé à écrire), et le coût des tokens
+  d'entrée « inutiles » qui en résulte reste probablement bien inférieur au coût des
+  tokens de sortie agentiques qu'on évite en retour.
+
+Ce n'est **pas** du MCP : c'est du code Kotlin ordinaire (client HTTP + extraction de
+texte) par source, pas un protocole d'outils — MCP reste hors scope pour tout le spike
+(voir la note dans « Idées pour des implémentations futures »).
 
 ## Objectif de ce spike
 
@@ -115,74 +147,75 @@ natif), et génère automatiquement un prompt combinant : l'analyse morphologiqu
 seule** (pas encore de recherche web à ce stade). Le message n'est pas envoyé
 automatiquement — voir « Comportement du bouton » dans la spec technique ci-dessous.
 
-### Phase 3 — Recherche dans les dictionnaires en ligne (outil natif `web_search`/`web_fetch`)
+### Phase 3 — Recherche dans les dictionnaires en ligne (fetchers Kotlin par source)
 
-Mise à jour du prompt pour indiquer à Claude qu'il peut chercher dans les dictionnaires
-en ligne spécifiés (Tusaalanga, Uqausiit, Spalding — Asuilaak si son URL est
-confirmée), et déclaration de l'outil natif `web_search_20260209` (et/ou
-`web_fetch_20260209`) avec `allowed_domains` restreint à ces domaines précis.
+L'appli interroge elle-même chaque dictionnaire (Tusaalanga, Uqausiit, Spalding —
+Asuilaak si son URL est confirmée) via un petit module Kotlin par source (« fetcher ») :
+construit la requête (URL de recherche ou appel équivalent, selon ce que le site
+accepte), récupère la page/réponse, et en extrait le texte pertinent (définition(s)
+trouvée(s) pour le mot, ou absence de résultat). Les résultats de tous les dictionnaires
+sont ensuite ajoutés au message envoyé à Claude, en plus de la décomposition
+morphologique (Phase 2) — Claude ne fait plus aucune recherche lui-même à cette étape,
+il ne fait que lire et interpréter ce qui lui est fourni.
 
-**Suggestion** : valider d'abord le mécanisme complet (déclaration de l'outil, appel
-par Claude, interprétation du résultat) sur **un seul dictionnaire** (Tusaalanga
+**Suggestion** : valider d'abord le mécanisme complet (fetcher, extraction, injection
+dans le message, interprétation par Claude) sur **un seul dictionnaire** (Tusaalanga
 suggéré) avant de brancher les autres. Si quelque chose bloque, ça isole si le
-problème vient du mécanisme lui-même ou d'une particularité d'un site donné. Ajouter
-les dictionnaires restants devient ensuite un travail mécanique : ajouter le domaine à
-`allowed_domains` et une ligne au prompt.
+problème vient du mécanisme général ou d'une particularité d'un site donné. Ajouter
+les dictionnaires restants devient ensuite un travail mécanique : un nouveau fetcher
++ une entrée dans la liste des sources à interroger.
+
+**Exécution en parallèle** : une fois plus d'une source active, lancer les fetchers en
+parallèle (coroutines Kotlin, `async`/`awaitAll`) plutôt qu'en séquence, pour garder une
+latence totale raisonnable malgré le nombre de sources consultées à chaque mot.
 
 ### Phase 4 — Recherche dans le Hansard
 
-Ajout des instructions dans le prompt indiquant à Claude qu'il peut aussi chercher dans
-le Hansard via l'outil de recherche existant sur
-https://www.inuktitutcomputing.ca/NunavutHansard/.
+Même principe qu'en Phase 3 : un fetcher Kotlin dédié pour
+https://www.inuktitutcomputing.ca/NunavutHansard/, dont le résultat est ajouté au
+message envoyé à Claude.
 
-⚠️ **`web_fetch` ne récupère que des URLs déjà présentes dans la conversation** — il ne
-peut pas remplir et soumettre un formulaire de recherche pour le compte du modèle. Avant
-d'implémenter cette phase, il faut donc **inspecter comment ce site traite les
-requêtes** (outils de développement du navigateur) :
+Avant de l'implémenter, il faut **inspecter comment ce site traite les requêtes**
+(outils de développement du navigateur) :
 - **Si le formulaire de recherche accepte une URL avec paramètres de requête** (ex.
-  `?q=motrecherche`), `web_fetch` avec ce domaine dans `allowed_domains` suffit —
-  Claude peut construire l'URL lui-même et la récupérer.
-- **Sinon** (formulaire JS/POST sans équivalent URL), il faut un petit outil client
-  personnalisé spécifique à ce site (pas générique, pas MCP, et certainement pas
-  l'outil Computer Use d'Anthropic — bien trop lourd, pensé pour l'automatisation
-  d'interfaces graphiques générales, pas pour un seul formulaire de recherche connu).
+  `?q=motrecherche`), le fetcher se limite à construire cette URL et à parser la
+  réponse HTML.
+- **Sinon** (formulaire JS/POST sans équivalent URL), le fetcher doit reproduire
+  l'appel réel (méthode POST, en-têtes attendus, etc.) — un peu plus de travail, mais
+  toujours du code HTTP ordinaire, pas d'automatisation d'interface graphique.
 
-Cette phase reste volontairement en dernier parmi les sources de recherche (avant la
-Phase 5, qui est plus simple) : contrairement aux dictionnaires (qui retournent une
-définition assez directe), le Hansard retourne des **paires de phrases iu-en** — il
-faut que le modèle repère lui-même l'équivalent anglais du mot inuktitut recherché à
-l'intérieur de la phrase anglaise correspondante. C'est un raisonnement d'alignement
-plus exigeant qu'une simple recherche de définition.
+Cette phase reste volontairement après les dictionnaires (avant la Phase 5, qui est
+plus simple) : contrairement aux dictionnaires (définition assez directe), le Hansard
+retourne des **paires de phrases iu-en** — Claude doit repérer lui-même l'équivalent
+anglais du mot inuktitut recherché à l'intérieur de la phrase anglaise correspondante,
+à partir du texte brut que lui fournit le fetcher. C'est un raisonnement d'alignement
+plus exigeant qu'une simple lecture de définition, mais qui reste un problème de
+lecture/interprétation pour Claude, pas de recherche.
 
-💡 Si cette étape d'alignement s'avère difficile pour le modèle en pratique, une piste
-à considérer : exposer l'analyseur morphologique comme un outil personnalisé
-additionnel (`morph_analysis`) que Claude pourrait invoquer — non pas sur le mot cible
-lui-même (déjà décomposé en Phase 2), mais sur les **mots inuktitut entourant le mot
-cible** dans la phrase source. Les gloses anglaises de ces mots voisins serviraient
-d'indices lexicaux. À n'ajouter que si l'observation empirique montre que c'est
+💡 Piste si cette étape d'alignement s'avère difficile en pratique : inclure aussi,
+dans le message envoyé à Claude, la décomposition morphologique des mots inuktitut
+environnants dans la phrase source (pas juste le mot cible) — ça donnerait des indices
+lexicaux supplémentaires. À n'ajouter que si l'observation empirique montre que c'est
 nécessaire.
 
 ### Phase 5 — Recherche sur les sites du gouvernement du Nunavut
 
-Déclaration de l'outil `web_search_20260209` avec `allowed_domains` incluant
-`gov.nu.ca`, et mise à jour du prompt pour indiquer à Claude qu'il peut aussi chercher
-sur les sites du gouvernement du Nunavut pour trouver une page bilingue contenant le
-mot recherché — la quatrième heuristique du workflow d'origine.
+Même principe qu'aux Phases 3-4 : un fetcher Kotlin qui interroge (probablement via une
+recherche restreinte au domaine, ex. `site:gov.nu.ca ...`, ou le moteur de recherche
+interne du site s'il y en a un) et retourne les pages bilingues pertinentes trouvées ;
+résultat ajouté au message envoyé à Claude — la quatrième heuristique du workflow
+d'origine.
 
 Contrairement au Hansard (Phase 4), ces pages ne sont généralement pas des paires de
 phrases alignées mot à mot — plutôt des pages de contenu bilingue (politiques,
 programmes, glossaires ponctuels) où le mot peut apparaître dans des contextes variés.
 Le défi ici est plutôt de **trouver** une page pertinente que d'aligner des phrases.
 
-**Ce qui change par rapport au plan original** : la restriction au domaine
-`gov.nu.ca` est déjà gérée par `allowed_domains` sur l'outil natif — pas besoin de
-construire une requête Google `site:gov.nu.ca ...` à la main. Ce qui reste pertinent du
-plan original, c'est l'heuristique de *qualité* de recherche (maximiser les chances de
-tomber sur une page ayant une traduction anglaise ou française du mot, pas juste une
-page qui contient le mot isolément). Une classe du projet iutools original implémente
-déjà ce type d'heuristique — **ne pas la réimplémenter en Kotlin** ; retrouver sa
-logique et la décrire en langage naturel dans le prompt système, pour que Claude
-l'applique lui-même en formulant ses recherches via `web_search`.
+**L'heuristique de qualité de recherche** (maximiser les chances de tomber sur une page
+ayant une traduction anglaise ou française du mot, pas juste une page qui contient le
+mot isolément) se code maintenant directement dans le fetcher, en Kotlin. Une classe du
+projet iutools original implémente déjà ce type d'heuristique — la retrouver et **porter
+sa logique**, pas la réinventer.
 
 ### Phase 6 — Explorer un modèle local plutôt que Claude
 
@@ -190,7 +223,16 @@ Une fois le workflow validé de bout en bout avec Claude (Phases 1-5), revisiter
 proposition initiale : est-ce qu'un modèle plus petit, embarqué sur le téléphone, peut
 exécuter le même workflow avec une qualité acceptable ?
 
-**Ce qui est différent ici par rapport aux Phases 1-5** :
+**Simplification majeure apportée par la nouvelle architecture des Phases 3-5** :
+comme la recherche est maintenant pilotée par l'appli Kotlin (fetchers) plutôt que par
+le LLM (tool-calling agentique), cette phase **réutilise directement** les fetchers déjà
+écrits et validés en Phases 3-5 — rien à reconstruire côté recherche. Le principal
+risque qu'on redoutait pour cette phase (fiabilité du tool-calling natif de MediaPipe
+pour de petits modèles Gemma) **disparaît presque entièrement** : le modèle local n'a
+plus qu'à lire un bloc de texte déjà rassemblé et donner un verdict, exactement comme
+Claude — une tâche de lecture/synthèse, pas d'orchestration d'outils.
+
+**Ce qui reste différent ici par rapport aux Phases 1-5** :
 - **SDK d'inférence** : MediaPipe LLM Inference API (`com.google.mediapipe:tasks-genai`)
   plutôt que l'API Anthropic.
 - **Modèle recommandé pour commencer : Gemma 3n E2B** (repli sur Gemma 3 1B si même
@@ -200,25 +242,10 @@ exécuter le même workflow avec une qualité acceptable ?
 - **Test mémoire bloquant, pas juste indicatif** : si le modèle choisi ne rentre pas
   confortablement en mémoire libre sur l'appareil de test réel, c'est un blocage dur
   pour cette phase — pas un chiffre à noter et ignorer.
-- **Fiabilité du tool-calling à valider explicitement, tôt** : contrairement à Claude
-  (dont le tool-calling est un mécanisme mature et bien documenté), le support du
-  function-calling natif de MediaPipe pour de petits modèles Gemma est moins établi.
-  Faire un test minimal de tool-calling dès le début de cette phase (pas seulement
-  après avoir rebâti tout le reste en assumant que ça va marcher).
-- **`web_access` redevient un vrai outil à construire** : un modèle local n'a pas
-  accès aux outils serveur d'Anthropic (`web_search`/`web_fetch` avec allowlist
-  imposée par Anthropic). Il faut donc, cette fois, vraiment implémenter l'outil
-  `web_access` avec l'allowlist de domaines codée en dur côté client — c'est le
-  travail que les Phases 3-5 ont évité de faire en s'appuyant sur les outils natifs de
-  Claude. Pour le Hansard spécifiquement, réutiliser ce qui a été découvert en Phase 4
-  sur la façon dont ce site traite les requêtes.
-- **Pas de MCP ici non plus** : le tool-calling natif de MediaPipe (s'il s'avère
-  fiable) ou un mécanisme maison léger suffisent, pour les mêmes raisons qu'en Phases
-  1-5 — MCP résout un problème d'interopérabilité entre outils/vendeurs différents,
-  pas pertinent pour des outils propres à cette appli.
 - **Comparaison directe avec les Phases 1-5** : pour un même mot testé dans les deux
-  versions, comparer qualité de l'hypothèse finale, fiabilité du tool-calling, latence,
-  et bien sûr le fait que ça tourne sans connexion réseau ni coût récurrent.
+  versions, comparer qualité de l'hypothèse finale, latence, et bien sûr le fait que
+  l'appel au modèle tourne sans connexion réseau ni coût récurrent (les fetchers,
+  eux, continuent d'appeler des sites externes dans les deux versions).
 
 ## Hors scope pour ce spike
 
@@ -283,6 +310,19 @@ l'appli) :
   heuristiques de recherche décrites dans le prompt
 - Un indicateur de chargement pendant l'appel réseau (latence typique d'une requête
   Claude avec plusieurs allers-retours d'outils — peut prendre plusieurs secondes)
+
+**Cache par mot (nouvel item, à faire après la Phase 2)** : si l'utilisateur soumet à
+nouveau un mot déjà analysé précédemment (même mot, même réglage lenient/strict), l'appli
+n'appelle pas Claude une deuxième fois — elle réaffiche directement la conversation
+précédente pour ce mot dans le chat, sans requête réseau. Objectif double : éviter de
+payer/attendre pour une réponse déjà obtenue, et permettre de comparer facilement les
+résultats d'un mot testé à plusieurs reprises pendant le développement (plusieurs des mots
+cités dans ce plan comme cas de test, ex. ᐃᓕᓐᓂᐊᕐᓂᖅ/ilinniarniq, reviendront probablement
+souvent). Si cette conversation ne satisfait plus l'utilisateur, il peut ajouter une
+précision dans le champ de saisie et l'envoyer normalement : le nouveau message est alors
+soumis à Claude avec la conversation précédente comme contexte (historique complet), et le
+`system` prompt **actuel** — qui peut avoir changé depuis le premier appel (ex. après un
+ajustement des instructions) — plutôt que celui utilisé à l'origine.
 
 **Outils natifs `web_search`/`web_fetch`** : déclarés directement dans le tableau
 `tools` de chaque requête, avec `allowed_domains` restreint aux sites pertinents à la

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fallback color behind the adaptive-icon foreground (see
+         mipmap-anydpi-v26/ic_launcher.xml): the foreground artwork is
+         fully opaque and covers the whole canvas, so this is only ever
+         visible at the edges some launchers reveal during parallax
+         scrolling. Matches the source artwork's own background color. -->
+    <color name="ic_launcher_background">#FCFCFD</color>
+</resources>

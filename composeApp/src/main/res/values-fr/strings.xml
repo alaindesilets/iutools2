@@ -10,6 +10,7 @@
     <string name="display_script_syllabic">Syllabique</string>
     <string name="display_script_as_entered">Script tel qu\'entré</string>
     <string name="decompose_button">Décomposer</string>
+    <string name="multi_word_dialog_title">Quel mot veux-tu analyser ?</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>
     <string name="no_decompositions">Aucune décomposition trouvée pour « %1$s ».</string>
@@ -27,7 +28,7 @@
     <string name="detail_dialect">Dialecte</string>
     <string name="unknown_meaning">(sens inconnu)</string>
 
-    <!-- Spike Guess Meaning (Phase 1 : clavardage simple, sans contenu injecté) -->
+    <!-- Spike Guess Meaning (Phase 2 : message pré-rempli à partir d'une décomposition) -->
     <string name="guess_meaning_button">Guess Meaning</string>
     <string name="guess_meaning_title">Guess Meaning (spike)</string>
     <string name="chat_input_label">Message</string>
@@ -35,5 +36,15 @@
     <string name="chat_missing_api_key">Aucune clé API Anthropic configurée. Ajoute anthropicApiKey dans local.properties et reconstruis l\'appli.</string>
     <string name="chat_error">Erreur : %1$s</string>
     <string name="chat_error_unauthorized">Ta clé API Anthropic a été refusée (invalide, révoquée ou expirée). Génère-en une nouvelle sur platform.claude.com (Settings → API Keys), mets à jour anthropicApiKey dans local.properties, puis reconstruis l\'appli.</string>
-    <string name="chat_metrics">%1$d ms · %2$d entrée / %3$d sortie (jetons)</string>
+    <string name="chat_metrics">%1$.1f s · Jetons consommés : %2$d (lus), %3$d (écrits)</string>
+    <string name="back_button">Retour</string>
+    <string name="chat_system_prompt_label">Prompt système (versions debug seulement)</string>
+    <string name="chat_role_you">Toi</string>
+    <string name="chat_role_claude">Claude</string>
+    <string name="guess_meaning_seed_word_label">Mot :</string>
+    <string name="guess_meaning_seed_decomposition_header">Décomposition(s) morphologique(s) de l\'analyseur Uqailaut :</string>
+    <string name="guess_meaning_seed_decomposition_number">Décomposition %1$d :</string>
+    <string name="guess_meaning_seed_unknown_morpheme">(inconnu)</string>
+    <string name="guess_meaning_seed_question">Que pourrait signifier ce mot ?</string>
+    <string name="chat_system_prompt">Tu aides à deviner le sens d\'un mot inuktitut à partir de sa décomposition morphologique, produite par l\'analyseur Uqailaut (un analyseur morphologique inuktitut à base de règles). Tu n\'as pas d\'outil de recherche web ni de dictionnaire dans cette conversation, travaille uniquement à partir de la décomposition en morphèmes.\n\nChaque morphème est donné avec sa forme de surface, son identifiant au dictionnaire, et son sens connu, quand il est disponible. Certains morphèmes peuvent être marqués \"(inconnu)\", dans ce cas, utilise tes propres connaissances de la morphologie inuktitut et des morphèmes environnants pour faire une hypothèse éclairée.\n\nQuand plusieurs décompositions candidates sont données, ce sont des alternatives considérées par l\'analyseur, pas nécessairement toutes correctes, évalue-les les unes par rapport aux autres.\n\nPour ta première réponse à propos d\'un mot donné, garde ton raisonnement bref (une ou deux phrases maximum) -- garde une explication plus détaillée pour plus tard, au cas où l\'utilisateur en demande une. Si tu n\'es pas certain d\'un candidat, une courte mention suffit, pas besoin d\'élaborer tout de suite.\n\nTermine toujours ta réponse par une section intitulée exactement \"Candidate meanings:\", suivie d\'une courte liste à puces (5 maximum) de mots anglais simples ou de courtes expressions anglaises qui pourraient représenter le sens du mot, du plus au moins probable.\n\nSi l\'utilisateur demande ensuite plus de détails, une explication, ou pourquoi tu as choisi ces candidats, donne une explication plus complète dans cette réponse de suivi de comment tu y es arrivé à partir des morphèmes.\n\nRéponds en français partout, sauf pour la section \"Candidate meanings:\" qui doit rester en anglais.</string>
 </resources>

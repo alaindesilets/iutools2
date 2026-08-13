@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -84,7 +85,9 @@ private fun displayForm(text: String, script: DisplayScript, enteredScript: Scri
     return TransCoder.ensureScript(target, text)
 }
 
-private data class MorphemeRow(
+// internal (not private): constructed directly in DecomposerScreenTest.kt to
+// exercise guessMeaningSeedPrompt() without needing a real analyzer run.
+internal data class MorphemeRow(
     val surfaceForm: String,
     val morphemeId: String,
     val fullRecord: Morpheme?,
@@ -122,6 +125,67 @@ private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
     }
 }
 
+// Localized scaffold text for guessMeaningSeedPrompt() -- resolved once via
+// stringResource() in the composable that builds the seed prompt (see the
+// "Guess Meaning" button in DecomposerScreen), since guessMeaningSeedPrompt()
+// itself runs inside a button click handler, not a @Composable context.
+// internal (not private): constructed directly in DecomposerScreenTest.kt.
+internal data class GuessMeaningSeedLabels(
+    val word: String,
+    val decompositionHeader: String,
+    val decompositionNumberTemplate: String,
+    val unknownMorpheme: String,
+    val question: String,
+)
+
+/**
+ * Builds the text that seeds the Guess Meaning chat's input field: the
+ * analyzed word plus its morphological decomposition(s), formatted for a
+ * human (and an LLM) to read -- not sent automatically, the user can still
+ * edit it before pressing Send. The instructions asking Claude to guess the
+ * meaning live in GuessMeaningScreen's system prompt instead, kept separate
+ * from this user-message content per the spike plan. Both this seed and that
+ * system prompt follow the app's UI language, per Alain's request, so
+ * Claude's replies do too.
+ *
+ * Takes [word]/[decompositions] directly rather than a DecomposeState.Success
+ * -- it only ever reads those two fields, and this keeps it testable
+ * (DecomposerScreenTest.kt) without needing a full DecomposeState instance.
+ */
+internal fun guessMeaningSeedPrompt(
+    word: String,
+    decompositions: List<List<MorphemeRow>>,
+    preferFrench: Boolean,
+    labels: GuessMeaningSeedLabels,
+): String {
+    val decompositionsText = decompositions.mapIndexed { index, rows ->
+        val header = if (decompositions.size > 1) {
+            String.format(labels.decompositionNumberTemplate, index + 1) + "\n"
+        } else {
+            ""
+        }
+        val morphemes = rows.joinToString("\n") { row ->
+            val meaning = row.fullRecord?.preferredMeaning(preferFrench) ?: labels.unknownMorpheme
+            "- ${row.surfaceForm} (${row.morphemeId}): $meaning"
+        }
+        header + morphemes
+    }.joinToString("\n\n")
+
+    return """
+        ${labels.word} $word
+
+        ${labels.decompositionHeader}
+
+        $decompositionsText
+
+        ${labels.question}
+    """.trimIndent()
+}
+
+// internal (not private): unit-tested directly in DecomposerScreenTest.kt.
+internal fun splitIntoWords(text: String): List<String> =
+    text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+
 /**
  * Runs the analysis on a background thread. When [expandAll] is false, the
  * analyzer is told to stop as soon as it has found one more decomposition
@@ -154,7 +218,7 @@ private suspend fun analyze(
 }
 
 @Composable
-fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
+fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> }) {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
     val baseContext = LocalContext.current
@@ -167,6 +231,7 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
     var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
     val listState = rememberLazyListState()
     var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
+    var multiWordChoices by remember { mutableStateOf<List<String>?>(null) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -184,6 +249,14 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
     fun decompose() {
         val wordToAnalyze = word.trim()
         if (wordToAnalyze.isEmpty()) return
+        val individualWords = splitIntoWords(wordToAnalyze)
+        if (individualWords.size > 1) {
+            // The analyzer only ever decomposes a single word -- rather than feeding
+            // it a multi-word string and getting a confusing failure, ask which word
+            // was meant, then resubmit as if only that word had been typed.
+            multiWordChoices = individualWords
+            return
+        }
         val lenientAtSearch = lenient
         keyboardController?.hide()
         focusManager.clearFocus()
@@ -191,6 +264,12 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
         scope.launch {
             state = analyze(analyzer, wordToAnalyze, lenientAtSearch, expandAll = false)
         }
+    }
+
+    fun selectWord(chosen: String) {
+        multiWordChoices = null
+        word = chosen
+        decompose()
     }
 
     fun loadMore(previous: DecomposeState.Success) {
@@ -223,10 +302,37 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                TextButton(onClick = onOpenGuessMeaning) {
-                    Text("🔮 " + stringResource(R.string.guess_meaning_button))
+                // Only offered once a morphological analysis has been produced --
+                // Guess Meaning seeds its prompt from that analysis (see
+                // guessMeaningSeedPrompt()), so it has nothing to work from before then.
+                val currentState = state
+                if (currentState is DecomposeState.Success && currentState.decompositions.isNotEmpty()) {
+                    val guessMeaningSeedLabels = GuessMeaningSeedLabels(
+                        word = stringResource(R.string.guess_meaning_seed_word_label),
+                        decompositionHeader = stringResource(R.string.guess_meaning_seed_decomposition_header),
+                        decompositionNumberTemplate = stringResource(R.string.guess_meaning_seed_decomposition_number),
+                        unknownMorpheme = stringResource(R.string.guess_meaning_seed_unknown_morpheme),
+                        question = stringResource(R.string.guess_meaning_seed_question),
+                    )
+                    TextButton(
+                        onClick = {
+                            onOpenGuessMeaning(
+                                GuessMeaningCacheKey(currentState.word, currentState.lenient),
+                                guessMeaningSeedPrompt(
+                                    currentState.word,
+                                    currentState.decompositions,
+                                    uiLanguage == AppLanguage.FRENCH,
+                                    guessMeaningSeedLabels,
+                                ),
+                            )
+                        },
+                    ) {
+                        Text("🔮 " + stringResource(R.string.guess_meaning_button))
+                    }
+                } else {
+                    Spacer(modifier = Modifier)
                 }
-                TextButton(onClick = { showSettings = true }) {
+                TextButton(onClick = { showSettings = true }, modifier = Modifier.testTag("settings_button")) {
                     Text("⚙ " + stringResource(R.string.settings_button))
                 }
             }
@@ -247,6 +353,14 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
                 )
             }
 
+            multiWordChoices?.let { choices ->
+                MultiWordChoiceDialog(
+                    words = choices,
+                    onSelect = { selectWord(it) },
+                    onDismiss = { multiWordChoices = null },
+                )
+            }
+
             Text(
                 text = stringResource(R.string.screen_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -261,7 +375,7 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { decompose() }),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("word_input"),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -279,7 +393,7 @@ fun DecomposerScreen(onOpenGuessMeaning: () -> Unit = {}) {
             Button(
                 onClick = { decompose() },
                 enabled = word.isNotBlank() && state != DecomposeState.Loading,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("decompose_button"),
             ) {
                 Text(stringResource(R.string.decompose_button))
             }
@@ -355,7 +469,11 @@ private fun SettingsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
+        confirmButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("settings_dialog_close_button")) {
+                Text(stringResource(R.string.close_button))
+            }
+        },
         title = { Text(stringResource(R.string.settings_button)) },
         text = {
             Column {
@@ -394,6 +512,31 @@ private fun SettingsDialog(
     )
 }
 
+@Composable
+private fun MultiWordChoiceDialog(
+    words: List<String>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
+        title = { Text(stringResource(R.string.multi_word_dialog_title)) },
+        text = {
+            Column {
+                words.forEach { candidateWord ->
+                    TextButton(
+                        onClick = { onSelect(candidateWord) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(candidateWord, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+        },
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MorphemeTable(
@@ -420,7 +563,7 @@ private fun MorphemeTable(
             )
         }
         HorizontalDivider()
-        rows.forEach { row ->
+        rows.forEachIndexed { index, row ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -430,7 +573,7 @@ private fun MorphemeTable(
                 Text(text = displayForm(row.surfaceForm, displayScript, enteredScript), modifier = Modifier.weight(1f))
                 Text(
                     text = row.fullRecord?.preferredMeaning(preferFrench) ?: stringResource(R.string.unknown_meaning),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("morpheme_meaning_$index"),
                 )
             }
             HorizontalDivider()

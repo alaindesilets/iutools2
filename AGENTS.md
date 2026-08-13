@@ -139,6 +139,70 @@ but the equivalent concern here is the linguistic data (CSV files under
   curator of what the AI produces. Whenever you create or modify tests,
   ask the human to scrutinize them carefully.
 
+### Division of labor: what the AI runs vs. what the human runs
+
+An AI agent working in this repo has no emulator/device (no KVM in the
+devcontainer sandbox), so it must run everything it can from the command
+line, every time, and hand off only what genuinely needs a device:
+
+- **AI runs after every batch of changes**: `./gradlew :composeApp:compileDebugKotlin`
+  (or the relevant module's compile task) and the JVM/Robolectric unit
+  tests below — no device needed for either. If the change touched
+  `:core`, also `./gradlew :cli:test` (the non-negotiable gate above). The
+  AI should say explicitly, at the end of each batch, which of the human's
+  Android Studio test configurations (see below) covers what it could
+  *not* run itself.
+- **Human runs**: anything needing a real emulator/device — launching the
+  app and clicking through it, verifying real network calls (e.g. the
+  Guess Meaning spike's Claude API calls), and any future on-device
+  instrumented (`androidTest`) tests, which don't exist yet as of this
+  writing (only JVM `test` source sets exist, in `:cli` and `:composeApp`).
+
+**Android Studio's test dropdown, mapped to Gradle** (root project name is
+`iutools-morph-kt`, hence the `iutools-morph-kt.*` label prefix): there is
+no single dropdown entry that runs every test in the whole project at
+once — run both rows below when work spans both modules (`:core` has no
+test source set of its own; its tests live in `:cli`).
+
+| Android Studio entry | Equivalent Gradle command | Scope |
+|---|---|---|
+| "Tests in 'iutools-morph-kt.cli.test'" or "cli - ALL tests" (same scope, two ways to launch it) | `./gradlew :cli:test` | `:cli` (includes the Hansard gold-standard suite) |
+| "Tests in 'org.iutools.app'" | `./gradlew :composeApp:testDebugUnitTest` | `:composeApp` only |
+
+Rule of thumb: run whichever module's tests actually changed
+(`:composeApp`-only work → "Tests in 'org.iutools.app'"; any `:core`
+change → "cli - ALL tests"); run both if a change spans modules.
+
+### Semi-automated tests, for what neither pure automation nor a manual
+### checklist covers well
+
+Some behavior is hard to assert programmatically (visual/layout correctness,
+things that only manifest on a real device) but still benefits from a test
+*driving* the app into the right state, rather than a human doing every step
+by hand each time. Alain has used this pattern successfully before (the
+serve-tracking app): an instrumented (on-device) test that sets up a
+specific scenario, then pauses at a checkpoint with an on-screen prompt
+("Does the table show 2 rows? Tap Yes/No") for a human to visually confirm
+before the test continues or records a result.
+
+This is the right tool specifically when a *pure* UI test proves genuinely
+impractical to automate fully — for example, `LanguageSwitchUiTest.kt`
+originally attempted a second test (type a word, run the real analyzer,
+confirm the rendered meaning switches language) that hit a real background-
+coroutine-never-resumes issue specific to Robolectric's simulated
+environment (see that file's header comment) — exactly the kind of case
+where running for real on a device sidesteps the test-harness problem
+entirely, and a pause-for-human-confirmation checkpoint covers what pure
+semantics-tree assertions struggled with.
+
+Not yet set up in this project (no `androidTest` source set exists yet as
+of this writing) — noted here as the pattern to reach for when a UI
+behavior needs on-device verification but a fully-manual checklist would be
+too repetitive to redo by hand every time. Setting it up needs a human to
+be the first verifier that it compiles and runs (no emulator in the AI's
+sandbox), unlike the JVM `test` source sets above, which the AI can iterate
+on entirely by itself.
+
 ## Instructions for AI coding agents
 
 ### How to behave towards human devs

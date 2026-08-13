@@ -10,6 +10,7 @@
     <string name="display_script_syllabic">Syllabic</string>
     <string name="display_script_as_entered">Script as entered</string>
     <string name="decompose_button">Decompose</string>
+    <string name="multi_word_dialog_title">Which word do you want to analyze?</string>
     <string name="error_timeout">The request timed out.</string>
     <string name="error_analysis">Analysis error: %1$s</string>
     <string name="no_decompositions">No decomposition found for “%1$s”.</string>
@@ -27,7 +28,7 @@
     <string name="detail_dialect">Dialect</string>
     <string name="unknown_meaning">(unknown meaning)</string>
 
-    <!-- Guess Meaning spike (Phase 1: plain chat, no injected content yet) -->
+    <!-- Guess Meaning spike (Phase 2: prompt seeded from a decomposition) -->
     <string name="guess_meaning_button">Guess Meaning</string>
     <string name="guess_meaning_title">Guess Meaning (spike)</string>
     <string name="chat_input_label">Message</string>
@@ -35,5 +36,15 @@
     <string name="chat_missing_api_key">No Anthropic API key configured. Add anthropicApiKey to local.properties and rebuild.</string>
     <string name="chat_error">Error: %1$s</string>
     <string name="chat_error_unauthorized">Your Anthropic API key was rejected (invalid, revoked, or expired). Generate a new one at platform.claude.com (Settings → API Keys), update anthropicApiKey in local.properties, then rebuild the app.</string>
-    <string name="chat_metrics">%1$d ms · %2$d in / %3$d out tokens</string>
+    <string name="chat_metrics">%1$.1f s · Tokens consumed: %2$d (read), %3$d (written)</string>
+    <string name="back_button">Back</string>
+    <string name="chat_system_prompt_label">System prompt (debug builds only)</string>
+    <string name="chat_role_you">You</string>
+    <string name="chat_role_claude">Claude</string>
+    <string name="guess_meaning_seed_word_label">Word:</string>
+    <string name="guess_meaning_seed_decomposition_header">Morphological decomposition(s) from the Uqailaut analyzer:</string>
+    <string name="guess_meaning_seed_decomposition_number">Decomposition %1$d:</string>
+    <string name="guess_meaning_seed_unknown_morpheme">(unknown)</string>
+    <string name="guess_meaning_seed_question">What might this word mean?</string>
+    <string name="chat_system_prompt">You are helping guess the meaning of an Inuktitut word from its morphological decomposition, produced by the Uqailaut analyzer (a rule-based Inuktitut morphological analyzer). You do not have web search or dictionary lookup tools in this conversation, work from the morpheme decomposition alone.\n\nEach morpheme is given as its surface form, its dictionary ID, and its known meaning, when available. Some morphemes may be marked \"(unknown)\", in that case, use your own knowledge of Inuktitut morphology and the surrounding morphemes to make an informed guess.\n\nWhen more than one candidate decomposition is given, they are alternatives the analyzer considered, not all necessarily correct, weigh them against each other.\n\nFor your first reply about a given word, keep your reasoning brief (at most 1-2 sentences) -- save a longer, more detailed explanation for later, in case the user asks for one. If you\'re not confident in a candidate, a short note saying so is enough, no need to elaborate yet.\n\nAlways end your answer with a section titled exactly \"Candidate meanings:\", followed by a short bulleted list (at most 5) of single English words or short phrases that could stand in for the word\'s meaning, ordered from most to least likely.\n\nIf the user later asks for more detail, an explanation, or why you chose those candidates, give a fuller explanation in that follow-up reply of how you arrived at them from the morphemes.\n\nRespond in English throughout.</string>
 </resources>
