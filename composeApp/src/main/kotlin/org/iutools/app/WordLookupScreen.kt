@@ -59,6 +59,13 @@ import org.iutools.script.Script
 import org.iutools.script.TransCoder
 import java.util.Locale
 import java.util.concurrent.TimeoutException
+// Property-reference delegation (`var x by screenState::x`, see
+// WordLookupScreenState) needs these alongside the androidx.compose.runtime
+// getValue/setValue already imported above (those are for MutableState
+// delegates; these are for KMutableProperty0 delegates -- Kotlin picks the
+// right overload per delegate type, no conflict).
+import kotlin.getValue
+import kotlin.setValue
 
 private const val PREVIEW_LIMIT = 3
 
@@ -91,7 +98,9 @@ enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
 // captured at lookup time, since (unlike DecomposeState.Success) a dictionary lookup
 // can succeed even when decomposition fails, so there's no other enteredScript to
 // read it off of.
-private data class DictionaryLookupResult(
+// internal (not private): referenced by WordLookupScreenState below, which
+// needs to be internal itself -- see that class's header comment.
+internal data class DictionaryLookupResult(
     val title: String,
     val word: String,
     val meaning: String,
@@ -115,12 +124,16 @@ internal data class MorphemeRow(
     val fullRecord: Morpheme?,
 )
 
-private sealed interface FailureReason {
+// internal (not private): DecomposeState below (internal for the same
+// reason as DictionaryLookupResult) carries a FailureReason.
+internal sealed interface FailureReason {
     data object Timeout : FailureReason
     data class AnalysisError(val detail: String?) : FailureReason
 }
 
-private sealed interface DecomposeState {
+// internal (not private): referenced by WordLookupScreenState below, which
+// needs to be internal itself -- see that class's header comment.
+internal sealed interface DecomposeState {
     data object Idle : DecomposeState
     data object Loading : DecomposeState
     data class Success(
@@ -239,30 +252,64 @@ private suspend fun analyze(
     }
 }
 
+// Holds everything about the current word lookup that should survive
+// navigating to Guess Meaning and back -- MainActivity.kt switches between
+// WordLookupScreen and GuessMeaningScreen with a plain `when` (no
+// Navigation Compose, see its header comment), which destroys and
+// recreates WordLookupScreen's composition on every switch. Plain
+// `remember { mutableStateOf(...) }` fields don't survive that -- state
+// needs to live in an object created by the CALLER (MainActivity, whose own
+// composition scope isn't destroyed by the `when` branch it contains), then
+// passed in, or "Guess Meaning" -> back would land on an empty search
+// screen instead of the word's card as it was -- exactly what Alain
+// reported.
+internal class WordLookupScreenState {
+    var word by mutableStateOf("")
+    var lenient by mutableStateOf(false)
+    var showSettings by mutableStateOf(false)
+    var decomposeState by mutableStateOf<DecomposeState>(DecomposeState.Idle)
+    var multiWordChoices by mutableStateOf<List<String>?>(null)
+    var dictionaryResults by mutableStateOf<List<DictionaryLookupResult>>(emptyList())
+    var dictionaryLoading by mutableStateOf(false)
+    var dictionaryFetchError by mutableStateOf<String?>(null)
+    var hansardResult by mutableStateOf<NunavutHansardResult?>(null)
+    var hansardLoading by mutableStateOf(false)
+    var lastSearchedWord by mutableStateOf("")
+}
+
+// internal (not private/public): takes an internal WordLookupScreenState
+// parameter (see that class's header comment), so this can't be public.
 @Composable
-fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> }) {
+internal fun WordLookupScreen(
+    screenState: WordLookupScreenState = remember { WordLookupScreenState() },
+    onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> },
+) {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
     val baseContext = LocalContext.current
 
-    var word by remember { mutableStateOf("") }
-    var lenient by remember { mutableStateOf(false) }
+    // Delegates to screenState's properties (by property reference, not by
+    // value) -- every read/write below still looks like a local `var`, but
+    // actually lives in screenState, so it survives this composable being
+    // torn down and recreated. See WordLookupScreenState's header comment.
+    var word by screenState::word
+    var lenient by screenState::lenient
     var uiLanguage by remember { mutableStateOf(AppSettings.loadLanguage(baseContext)) }
     var displayScript by remember { mutableStateOf(AppSettings.loadDisplayScript(baseContext)) }
-    var showSettings by remember { mutableStateOf(false) }
-    var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
-    var multiWordChoices by remember { mutableStateOf<List<String>?>(null) }
+    var showSettings by screenState::showSettings
+    var state by screenState::decomposeState
+    var multiWordChoices by screenState::multiWordChoices
     // Every dictionary source is checked, and Guess Meaning only offered once all of
     // them have answered -- see dictionaryLoading below. Spalding is a local/instant
     // lookup; Tusaalanga is a real network fetch (no distribution rights for its
     // content, must stay live -- see TusaalangaFetcher.kt), so this list fills in over
     // two separate updates, not one.
-    var dictionaryResults by remember { mutableStateOf<List<DictionaryLookupResult>>(emptyList()) }
-    var dictionaryLoading by remember { mutableStateOf(false) }
+    var dictionaryResults by screenState::dictionaryResults
+    var dictionaryLoading by screenState::dictionaryLoading
     // Tusaalanga's fetch failure (network/HTTP error, not just "word not found") --
     // debug-build-only, same purpose as the system-prompt inspection panel in
     // GuessMeaningScreen.kt: alerts a developer the fetcher broke, not end-user UX.
-    var dictionaryFetchError by remember { mutableStateOf<String?>(null) }
+    var dictionaryFetchError by screenState::dictionaryFetchError
 
     // Bilingual Hansard examples (see NunavutHansardLocalIndex.kt): searched
     // automatically once every dictionary has answered with nothing, or on
@@ -271,9 +318,9 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     // coroutine and runHansardSearch() below. lastSearchedWord is the word
     // that search was/will be run against, captured separately from the
     // (possibly since-edited) word text field, for that on-demand button.
-    var hansardResult by remember { mutableStateOf<NunavutHansardResult?>(null) }
-    var hansardLoading by remember { mutableStateOf(false) }
-    var lastSearchedWord by remember { mutableStateOf("") }
+    var hansardResult by screenState::hansardResult
+    var hansardLoading by screenState::hansardLoading
+    var lastSearchedWord by screenState::lastSearchedWord
 
     suspend fun runHansardSearch(searchWord: String) {
         hansardLoading = true

@@ -22,6 +22,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 var screen by remember { mutableStateOf(Screen.WordLookup) }
+                // Created here, not inside WordLookupScreen itself, so it survives
+                // switching to Screen.GuessMeaning and back -- see
+                // WordLookupScreenState's header comment for why that switch would
+                // otherwise wipe the word's card (reported by Alain: "Guess Meaning"
+                // then back landed on an empty search screen).
+                val wordLookupScreenState = remember { WordLookupScreenState() }
                 var guessMeaningSeed by remember { mutableStateOf("") }
                 var guessMeaningCacheKey by remember { mutableStateOf<GuessMeaningCacheKey?>(null) }
                 // In-memory only (lost on process death), keyed by word+lenient: lets
@@ -37,6 +43,7 @@ class MainActivity : ComponentActivity() {
                 }
                 when (screen) {
                     Screen.WordLookup -> WordLookupScreen(
+                        screenState = wordLookupScreenState,
                         onOpenGuessMeaning = { cacheKey, seed ->
                             guessMeaningCacheKey = cacheKey
                             guessMeaningSeed = seed
