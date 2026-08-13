@@ -13,10 +13,10 @@ import org.robolectric.annotation.Config
 import java.util.Locale
 
 /*
- * Regression coverage for the Guess Meaning spike's string resources -- these
- * were hand-edited several times this session (format placeholders, XML
- * escaping of quotes/apostrophes), so a typo silently breaking the English or
- * French resource, or the two drifting out of sync, is a real risk. Same
+ * Regression coverage for the Guess Meaning feature's string resources --
+ * these get hand-edited often (format placeholders, XML escaping of
+ * quotes/apostrophes), so a typo silently breaking the English or French
+ * resource, or the two drifting out of sync, is a real risk. Same
  * Robolectric/locale-switching pattern as UiStringLocalizationTest.kt.
  */
 @RunWith(RobolectricTestRunner::class)

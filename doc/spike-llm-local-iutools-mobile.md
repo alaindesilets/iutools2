@@ -242,42 +242,66 @@ complètement l'approche et en a fait le point de départ le plus simple :
   Ré-exécuter `tools/parse_spalding_dictionary.py` (et revoir le diff) si la page
   source change un jour.
 
-**TODO (pas encore fait) : respecter le script d'affichage choisi (Roman/Syllabique/tel
-qu'entré) pour le mot-vedette de Spalding.** Les mots de Spalding sont écrits en romain
-dans la source ; si l'utilisateur a choisi l'affichage syllabique dans les Réglages, le
-mot-vedette affiché (`entry.word` dans `DictionaryResultSection`) devrait être converti
-en syllabique lui aussi — actuellement toujours affiché tel quel (romain), sans passer
-par `displayForm()` (la fonction déjà utilisée pour les formes de surface et formes
-canoniques dans le tableau de décomposition). Portée volontairement limitée au
-mot-vedette lui-même : le texte de la définition (`entry.meaning`) reste en anglais
-(prose du dictionnaire), y compris ses renvois croisés vers d'autres mots inuktitut
-intégrés dans cette prose (ex. « cf. ii ») — les convertir aussi demanderait de détecter
-quels mots dans le texte anglais sont des mots inuktitut, nettement plus complexe, hors
-scope pour l'instant. Note : contrairement au tableau de décomposition, une recherche
-Spalding n'a pas toujours de `DecomposeState.Success.enteredScript` disponible (le
-lookup Spalding tourne même quand la décomposition échoue) — il faudra calculer le
-script d'entrée séparément, probablement via `TransCoder.textScript(word)` appliqué
-directement au mot tapé.
+**✅ Fait : le script d'affichage choisi (Roman/Syllabique/tel qu'entré) est respecté
+pour le mot-vedette de Spalding.** Les mots de Spalding sont écrits en romain dans la
+source ; le mot-vedette affiché (`entry.word` dans `DictionaryResultSection`) est
+converti selon le réglage via `displayForm()` (la même fonction déjà utilisée pour les
+formes de surface et formes canoniques dans le tableau de décomposition). Portée
+volontairement limitée au mot-vedette lui-même : le texte de la définition
+(`entry.meaning`) reste en anglais (prose du dictionnaire), y compris ses renvois
+croisés vers d'autres mots inuktitut intégrés dans cette prose (ex. « cf. ii ») — les
+convertir aussi demanderait de détecter quels mots dans le texte anglais sont des mots
+inuktitut, nettement plus complexe, laissé tel quel pour l'instant (signalé par Alain
+après avoir testé avec « akuniq »). Contrairement au tableau de décomposition, une
+recherche Spalding n'a pas toujours de `DecomposeState.Success.enteredScript` disponible
+(le lookup Spalding tourne même quand la décomposition échoue) : le script d'entrée est
+donc capturé séparément au moment du lookup, via `TransCoder.textScript(word)` appliqué
+directement au mot tapé, et transporté dans `DictionaryLookupResult.enteredScript`. Testé
+par `DisplayScriptSwitchUiTest.kt` (bascule Roman→Syllabique sur un vrai résultat
+Spalding, sans coder en dur la chaîne syllabique attendue).
 
 **Test à écrire pour ça** : un test qui confirme que le mot-vedette affiché pour une
 entrée Spalding change effectivement de script (romain ↔ syllabique) selon le réglage
 choisi — même esprit que `LanguageSwitchUiTest.kt` pour la langue de l'interface, mais
 pour le script d'affichage.
 
-Uqausiit et Tusaalanga restent de vrais fetchers réseau à implémenter ensuite. Pour
-Tusaalanga, Alain a confirmé le mécanisme de requête : `https://tusaalanga.ca/glossary?l=N`
-retourne la liste complète des mots commençant par la lettre `N` — une URL à
-paramètres (pas de formulaire JS/POST à reproduire), mais organisée par lettre plutôt
-que par mot exact. Le fetcher devrait donc : déterminer la première lettre du mot
-recherché, récupérer la page de cette lettre, puis chercher le mot exact dans la liste
-retournée. Reste à inspecter en direct : la structure HTML de cette liste, et combien de
-lettres/pages ça représente au total — si le glossaire est petit (comme Spalding),
-**la même approche « parser une fois, embarquer en JSON »** pourrait s'appliquer ici
-aussi plutôt que de refaire un appel réseau par lettre à chaque mot recherché ; à
-confirmer une fois la taille réelle connue. Uqausiit, lui, reste entièrement à inspecter
-(mécanisme de requête inconnu) ; à faire après Tusaalanga (son dictionnaire d'affixes
-complète bien la décomposition morphologique, mais Tusaalanga est plus proche d'être
-prêt à coder).
+**⚠️ Pourquoi Tusaalanga (et Uqausiit) restent des requêtes en ligne, contrairement à
+Spalding — une question de droits, pas juste de technique.** Benoît Farley, qui
+participe aussi à ce projet, a obtenu les droits d'utiliser le contenu de Spalding —
+d'où le choix de le parser une fois et de l'embarquer dans l'appli. **Ce droit n'existe
+pas pour Tusaalanga** (ni, à confirmer, pour Uqausiit) : leur contenu doit rester
+interrogé en direct sur le site d'origine à chaque recherche, jamais copié ni embarqué
+dans l'appli — même si le glossaire s'avérait petit. C'est une contrainte ferme, pas une
+question d'optimisation ou de taille de données ; l'approche « parser une fois,
+embarquer en JSON » de Spalding est **spécifique à Spalding** et ne doit pas être
+reproduite pour ces sources sans confirmation explicite des droits.
+
+Uqausiit et Tusaalanga restent donc de vrais fetchers réseau à implémenter, appelés à
+chaque recherche.
+
+**✅ Fait : le fetcher Tusaalanga (`TusaalangaFetcher.kt`).** Structure confirmée en
+inspectant une vraie page (`https://tusaalanga.ca/glossary?l=A`, obtenue via un
+rebuild du devcontainer ajoutant `tusaalanga.ca` à la liste blanche du firewall — voir
+`.devcontainer/init-firewall.sh` ; ce domaine est copié dans l'image Docker au moment
+du build, un simple bind-mount en lecture seule ne suffit pas, Alain a dû relancer
+« Rebuild Container »). Chaque ligne du tableau retourné est un bloc
+`<div id="romanized">…</div><div id="syllabic">…</div><div id="term">…</div>` — pas de
+pagination à l'intérieur d'une lettre. Le fetcher : détermine la première lettre du mot
+recherché, récupère `?l=<LETTRE>` en direct (à chaque recherche, `java.net.HttpURLConnection`
+sur `Dispatchers.IO`, pas de nouvelle dépendance), puis cherche une correspondance exacte
+(insensible à la casse) sur le mot romanisé. `TusaalangaResult` distingue trois cas
+(`Found`/`NotFound`/`FetchFailed`) pour que l'appli puisse afficher une erreur de
+récupération (panne réseau/HTTP) séparément d'un simple mot absent du glossaire — voir
+plus bas. `TusaalangaFetcherTest.kt` couvre `parseEntries()` sur une fixture copiée
+verbatim d'une vraie page (y compris une entité HTML, `&#039;`, pour vérifier le
+décodage), plus un vrai test réseau (`fetch_findsRealKnownWord`, mot « aaggiisi ») —
+exécutable dans ce sandbox spécifiquement parce que `tusaalanga.ca` y est maintenant
+autorisé ; normalement un test que seul Alain peut rouler (voir « Division of labor »
+dans AGENTS.md).
+
+Uqausiit, lui, reste entièrement à inspecter (mécanisme de requête inconnu) ; c'est
+la prochaine source réseau à faire (son dictionnaire d'affixes complète bien la
+décomposition morphologique).
 
 **On commence par une seule source** : valider d'abord le mécanisme complet (parsing +
 JSON embarqué pour Spalding, court-circuit sur correspondance exacte, gestion d'erreur,
@@ -287,18 +311,21 @@ particularité d'une source donnée. Ajouter les dictionnaires restants devient 
 travail mécanique : un nouveau fetcher + une entrée dans la liste des sources à
 interroger.
 
-⚠️ **La structure de la liste par lettre de Tusaalanga, et le mécanisme de requête
-d'Uqausiit au complet, restent à inspecter en direct** (outils de développement du
-navigateur, même démarche que prévue pour le Hansard en Phase 4) avant d'écrire leurs
-fetchers — impossible à faire depuis le bac à sable de développement de ce spike, qui
-bloque l'accès Internet général.
+⚠️ **Le mécanisme de requête d'Uqausiit au complet reste à inspecter en direct** (outils
+de développement du navigateur, même démarche que prévue pour le Hansard en Phase 4)
+avant d'écrire son fetcher. Pour Tusaalanga, ce n'est plus bloquant : le sandbox de
+développement peut maintenant atteindre `tusaalanga.ca` (voir plus haut) — reste à
+confirmer si le même accès sera nécessaire/possible pour `uqausiit.ca` le moment venu.
 
-**Exécution en parallèle** : une fois plus d'une source réseau active, lancer leurs
-fetchers en parallèle (coroutines Kotlin, `async`/`awaitAll`) plutôt qu'en séquence,
-pour garder une latence totale raisonnable malgré le nombre de sources consultées à
-chaque mot. Pas besoin d'annulation anticipée : l'appli attend simplement toutes les
-réponses du palier en cours avant de décider (voir « Court-circuit sur correspondance
-exacte » plus haut) — plus simple à coder qu'une logique de course avec annulation.
+**Exécution en parallèle** : pour l'instant, Spalding (lookup local instantané) est fait
+de façon synchrone et Tusaalanga (seul fetcher réseau actif) tourne dans sa propre
+coroutine — pas encore besoin d'`async`/`awaitAll` avec une seule source réseau. Une
+fois Uqausiit branché (deuxième source réseau), lancer les fetchers réseau en parallèle
+plutôt qu'en séquence, pour garder une latence totale raisonnable malgré le nombre de
+sources consultées à chaque mot. Pas besoin d'annulation anticipée : l'appli attend
+simplement toutes les réponses du palier en cours avant de décider (voir « Court-circuit
+sur correspondance exacte » plus haut) — plus simple à coder qu'une logique de course
+avec annulation.
 
 ### Phase 4 — Recherche dans le Hansard
 

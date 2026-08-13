@@ -14,14 +14,14 @@ import androidx.compose.runtime.setValue
 // Two screens, no navigation library: a bare enum + mutableStateOf is
 // enough for this app's size, and avoids pulling in Navigation Compose for
 // what's currently a single back-and-forth.
-private enum class Screen { Decomposer, GuessMeaning }
+private enum class Screen { WordLookup, GuessMeaning }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                var screen by remember { mutableStateOf(Screen.Decomposer) }
+                var screen by remember { mutableStateOf(Screen.WordLookup) }
                 var guessMeaningSeed by remember { mutableStateOf("") }
                 var guessMeaningCacheKey by remember { mutableStateOf<GuessMeaningCacheKey?>(null) }
                 // In-memory only (lost on process death), keyed by word+lenient: lets
@@ -33,10 +33,10 @@ class MainActivity : ComponentActivity() {
                 // without this, the hardware/gesture back action falls through past
                 // our own screen switching and closes the whole app instead.
                 BackHandler(enabled = screen == Screen.GuessMeaning) {
-                    screen = Screen.Decomposer
+                    screen = Screen.WordLookup
                 }
                 when (screen) {
-                    Screen.Decomposer -> DecomposerScreen(
+                    Screen.WordLookup -> WordLookupScreen(
                         onOpenGuessMeaning = { cacheKey, seed ->
                             guessMeaningCacheKey = cacheKey
                             guessMeaningSeed = seed
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                         val cacheKey = guessMeaningCacheKey
                         val cachedMessages = cacheKey?.let { guessMeaningConversations[it] } ?: emptyList()
                         GuessMeaningScreen(
-                            onBack = { screen = Screen.Decomposer },
+                            onBack = { screen = Screen.WordLookup },
                             // A cached conversation already carries the original seed as its
                             // first turn -- only pre-fill the input field from scratch when
                             // there's nothing cached yet for this word.

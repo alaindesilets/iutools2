@@ -4,10 +4,10 @@ import android.content.Context
 import org.json.JSONArray
 
 /*
- * Phase 3 of the Guess Meaning spike (see doc/spike-llm-local-iutools-mobile.md):
- * the Spalding dictionary (inuktitutcomputing.ca) is a single static HTML
- * page, not a per-word search -- so rather than fetching it over the
- * network on every lookup, it's parsed once (tools/parse_spalding_dictionary.py,
+ * See doc/spike-llm-local-iutools-mobile.md for the overall Guess Meaning
+ * design: the Spalding dictionary (inuktitutcomputing.ca) is a single
+ * static HTML page, not a per-word search -- so rather than fetching it over
+ * the network on every lookup, it's parsed once (tools/parse_spalding_dictionary.py,
  * not part of the app itself) into res/raw/spalding.json (8373 headwords),
  * and a lookup here is a local, instant, network-free operation with no
  * runtime failure mode of its own. Re-run that script (and review the
@@ -27,7 +27,7 @@ data class SpaldingEntry(val word: String, val meaning: String)
 object SpaldingDictionary {
     private var entriesByWord: Map<String, SpaldingEntry>? = null
 
-    /** Exact-match lookup only -- see the "Court-circuit" section of Phase 3. */
+    /** Exact-match lookup only -- see the "Court-circuit" section of the plan doc. */
     fun lookup(context: Context, word: String): SpaldingEntry? = entries(context)[word]
 
     private fun entries(context: Context): Map<String, SpaldingEntry> {

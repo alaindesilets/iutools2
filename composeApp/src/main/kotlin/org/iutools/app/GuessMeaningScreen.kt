@@ -47,16 +47,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /*
- * Guess Meaning spike (see doc/spike-llm-local-iutools-mobile.md):
- * Phase 1 proved the app can call Claude from Android, handle the API key
- * safely, and surface per-request latency/token metrics as a Phase 6
- * comparison baseline. Phase 2 adds the morphological content: DecomposerScreen
- * generates a seed message (see guessMeaningSeedPrompt() there) from the word's
- * decomposition and passes it in as [initialInput] -- still editable, still sent
- * manually, per the spike plan's "Comportement du bouton" section. No web
- * search/dictionary tools yet (Phase 3+); the system prompt (chat_system_prompt
- * string resource, one per language) says so explicitly so Claude doesn't
- * assume it can look anything up. It also always asks for the reasoning in
+ * Guess Meaning: calls Claude directly from Android, handling the API key
+ * safely and surfacing per-request latency/token metrics -- a baseline for
+ * the future on-device local-model comparison discussed in
+ * doc/spike-llm-local-iutools-mobile.md. WordLookupScreen generates a seed
+ * message (see guessMeaningSeedPrompt() there) from the word's decomposition
+ * and passes it in as [initialInput] -- still editable, still sent manually,
+ * per that doc's "Comportement du bouton" section. Claude is never given web
+ * search or dictionary lookup tools in this chat, by design: every
+ * dictionary source is pre-fetched by WordLookupScreen before Guess Meaning
+ * is even offered (see its dictionaryResults gating), so this conversation
+ * only ever reasons from a morpheme decomposition, never drives tool calls
+ * of its own. The system prompt (chat_system_prompt string resource, one
+ * per language) says so explicitly so Claude doesn't assume it can look
+ * anything up. It also always asks for the reasoning in
  * the user's UI language, so Claude's replies match it too -- except the
  * closing "Candidate meanings:" list, deliberately kept in English in both
  * languages per Alain's request (a stable cross-language gloss, matching how
@@ -212,9 +216,8 @@ fun GuessMeaningScreen(
 
             // Debug builds only: the system prompt drives Claude's behavior just as
             // much as the visible message, but it's never part of the conversation
-            // itself (see the "system prompt vs. user message" discussion in the
-            // spike notes) -- normal users shouldn't see internal prompt-engineering
-            // text, but it needs to stay inspectable while developing/tuning it. Shown
+            // itself -- normal users shouldn't see internal prompt-engineering text,
+            // but it needs to stay inspectable while developing/tuning it. Shown
             // as the first item of the same scrollable list as the chat itself (below)
             // rather than in its own height-capped box, so seeing the whole thing just
             // takes the same familiar scroll gesture as the rest of the conversation.

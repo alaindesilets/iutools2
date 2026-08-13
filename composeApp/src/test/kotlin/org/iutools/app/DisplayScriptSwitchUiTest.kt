@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 /*
  * Rendered-UI check that the display-script setting (Roman/Syllabic/As entered)
  * actually reaches a dictionary result's headword -- per the TODO in
- * doc/spike-llm-local-iutools-mobile.md's Phase 3 Spalding section.
+ * doc/spike-llm-local-iutools-mobile.md's Spalding section.
  *
  * Deliberately built on the Spalding lookup, not the morphological analyzer's
  * decomposition table: Spalding lookups are synchronous (a local Map read, see
@@ -42,12 +42,15 @@ class DisplayScriptSwitchUiTest {
 
     @Test
     fun dictionaryResultWord_switchesToSyllabic_whenSyllabicIsChosen() {
-        composeTestRule.setContent { DecomposerScreen() }
+        composeTestRule.setContent { WordLookupScreen() }
 
         composeTestRule.onNodeWithTag("word_input").performTextInput("igalaaq")
         composeTestRule.onNodeWithTag("find_word_button").performClick()
 
-        composeTestRule.onNodeWithTag("dictionary_result_word").assertTextEquals("igalaaq")
+        // Index 0: dictionary results render in the order they're found in, and
+        // Spalding is always populated synchronously (before Tusaalanga's async
+        // fetch can complete), so it's always first when both are present.
+        composeTestRule.onNodeWithTag("dictionary_result_word_0").assertTextEquals("igalaaq")
 
         composeTestRule.onNodeWithTag("settings_button").performClick()
         composeTestRule.onNodeWithText("Syllabic").performClick()
@@ -56,7 +59,7 @@ class DisplayScriptSwitchUiTest {
         // just changed proved unreliable under this Robolectric/Compose-test setup.
         composeTestRule.onNodeWithTag("settings_dialog_close_button").performClick()
 
-        val syllabicText = composeTestRule.onNodeWithTag("dictionary_result_word")
+        val syllabicText = composeTestRule.onNodeWithTag("dictionary_result_word_0")
             .fetchSemanticsNode()
             .config.getOrNull(SemanticsProperties.Text)
             ?.joinToString(separator = "") { it.text }

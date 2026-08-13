@@ -12,6 +12,9 @@
     <string name="find_word_button">Trouver le mot</string>
     <string name="multi_word_dialog_title">Quel mot veux-tu analyser ?</string>
     <string name="spalding_result_title">Trouvé dans le dictionnaire Spalding</string>
+    <string name="tusaalanga_result_title">Trouvé dans le glossaire Tusaalanga</string>
+    <string name="dictionary_checking_label">Vérification des dictionnaires…</string>
+    <string name="dictionary_fetch_error">Échec de la recherche Tusaalanga (débogage seulement) : %1$s</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>
     <string name="no_decompositions">Aucune décomposition trouvée pour « %1$s ».</string>
@@ -29,9 +32,9 @@
     <string name="detail_dialect">Dialecte</string>
     <string name="unknown_meaning">(sens inconnu)</string>
 
-    <!-- Spike Guess Meaning (Phase 2 : message pré-rempli à partir d'une décomposition) -->
+    <!-- Guess Meaning : demande à Claude de deviner le sens d'un mot, message pré-rempli à partir de sa décomposition -->
     <string name="guess_meaning_button">Guess Meaning</string>
-    <string name="guess_meaning_title">Guess Meaning (spike)</string>
+    <string name="guess_meaning_title">Guess Meaning</string>
     <string name="chat_input_label">Message</string>
     <string name="chat_send_button">Envoyer</string>
     <string name="chat_missing_api_key">Aucune clé API Anthropic configurée. Ajoute anthropicApiKey dans local.properties et reconstruis l\'appli.</string>

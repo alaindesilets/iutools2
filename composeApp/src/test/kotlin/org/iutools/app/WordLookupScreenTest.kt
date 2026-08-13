@@ -8,7 +8,7 @@ import org.junit.Test
 /*
  * Plain JUnit (no Robolectric/Android framework needed): guessMeaningSeedPrompt()
  * and splitIntoWords() are pure functions once their localized labels are
- * already resolved -- see the visibility note on both in DecomposerScreen.kt.
+ * already resolved -- see the visibility note on both in WordLookupScreen.kt.
  */
 
 // Minimal concrete Morpheme: the abstract methods below are irrelevant to
@@ -34,7 +34,7 @@ private val labels = GuessMeaningSeedLabels(
     question = "What might this word mean?",
 )
 
-class DecomposerScreenTest {
+class WordLookupScreenTest {
 
     @Test
     fun guessMeaningSeedPrompt_singleDecomposition_hasNoDecompositionNumberHeader() {

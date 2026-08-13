@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * nothing). Root cause is almost certainly Dispatchers.Main not being wired
  * to something Robolectric can pump correctly under the test's own
  * TestDispatcher; fixing it properly would mean making the analyzer/
- * dispatcher injectable into DecomposerScreen, a bigger production-code
+ * dispatcher injectable into WordLookupScreen, a bigger production-code
  * change than this test coverage pass warranted. See
  * LinguisticDataMeaningTest.kt instead: same real risk (CSV-derived
  * bilingual text), covered directly and synchronously, no UI/coroutines
@@ -50,7 +50,7 @@ class LanguageSwitchUiTest {
 
     @Test
     fun settingsDialog_switchesStaticKotlinLabels_whenFrenchIsChosen() {
-        composeTestRule.setContent { DecomposerScreen() }
+        composeTestRule.setContent { WordLookupScreen() }
 
         composeTestRule.onNodeWithTag("settings_button").performClick()
         composeTestRule.onNodeWithText("Français").performClick()

@@ -79,10 +79,19 @@ fun defaultAppLanguage(): AppLanguage =
 // falling back to Roman -- see displayForm().
 enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
 
-// Pairs a dictionary hit with the script the user typed it in -- captured at lookup
-// time, since (unlike DecomposeState.Success) a dictionary lookup can succeed even
-// when decomposition fails, so there's no other enteredScript to read it off of.
-private data class DictionaryLookupResult(val entry: SpaldingEntry, val enteredScript: Script)
+// One hit from one dictionary source (Spalding, Tusaalanga, ...). Carries its own
+// display title (source name, already localized) rather than a source enum, since
+// DictionaryResultSection just needs to print it -- no other code branches on which
+// source a result came from. Pairs the hit with the script the user typed it in --
+// captured at lookup time, since (unlike DecomposeState.Success) a dictionary lookup
+// can succeed even when decomposition fails, so there's no other enteredScript to
+// read it off of.
+private data class DictionaryLookupResult(
+    val title: String,
+    val word: String,
+    val meaning: String,
+    val enteredScript: Script,
+)
 
 private fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
     val target = when (script) {
@@ -93,7 +102,7 @@ private fun displayForm(text: String, script: DisplayScript, enteredScript: Scri
     return TransCoder.ensureScript(target, text)
 }
 
-// internal (not private): constructed directly in DecomposerScreenTest.kt to
+// internal (not private): constructed directly in WordLookupScreenTest.kt to
 // exercise guessMeaningSeedPrompt() without needing a real analyzer run.
 internal data class MorphemeRow(
     val surfaceForm: String,
@@ -135,9 +144,9 @@ private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
 
 // Localized scaffold text for guessMeaningSeedPrompt() -- resolved once via
 // stringResource() in the composable that builds the seed prompt (see the
-// "Guess Meaning" button in DecomposerScreen), since guessMeaningSeedPrompt()
+// "Guess Meaning" button in WordLookupScreen), since guessMeaningSeedPrompt()
 // itself runs inside a button click handler, not a @Composable context.
-// internal (not private): constructed directly in DecomposerScreenTest.kt.
+// internal (not private): constructed directly in WordLookupScreenTest.kt.
 internal data class GuessMeaningSeedLabels(
     val word: String,
     val decompositionHeader: String,
@@ -152,13 +161,13 @@ internal data class GuessMeaningSeedLabels(
  * human (and an LLM) to read -- not sent automatically, the user can still
  * edit it before pressing Send. The instructions asking Claude to guess the
  * meaning live in GuessMeaningScreen's system prompt instead, kept separate
- * from this user-message content per the spike plan. Both this seed and that
- * system prompt follow the app's UI language, per Alain's request, so
- * Claude's replies do too.
+ * from this user-message content. Both this seed and that system prompt
+ * follow the app's UI language, per Alain's request, so Claude's replies do
+ * too.
  *
  * Takes [word]/[decompositions] directly rather than a DecomposeState.Success
  * -- it only ever reads those two fields, and this keeps it testable
- * (DecomposerScreenTest.kt) without needing a full DecomposeState instance.
+ * (WordLookupScreenTest.kt) without needing a full DecomposeState instance.
  */
 internal fun guessMeaningSeedPrompt(
     word: String,
@@ -190,7 +199,7 @@ internal fun guessMeaningSeedPrompt(
     """.trimIndent()
 }
 
-// internal (not private): unit-tested directly in DecomposerScreenTest.kt.
+// internal (not private): unit-tested directly in WordLookupScreenTest.kt.
 internal fun splitIntoWords(text: String): List<String> =
     text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
 
@@ -226,7 +235,7 @@ private suspend fun analyze(
 }
 
 @Composable
-fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> }) {
+fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> }) {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
     val baseContext = LocalContext.current
@@ -240,9 +249,17 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     val listState = rememberLazyListState()
     var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
     var multiWordChoices by remember { mutableStateOf<List<String>?>(null) }
-    // TODO: becomes a List<DictionaryLookupResult> (or a per-source structure) once
-    // more than one dictionary is wired up -- see Phase 3's "palier 1" in the plan doc.
-    var dictionaryResult by remember { mutableStateOf<DictionaryLookupResult?>(null) }
+    // Every dictionary source is checked, and Guess Meaning only offered once all of
+    // them have answered -- see dictionaryLoading below. Spalding is a local/instant
+    // lookup; Tusaalanga is a real network fetch (no distribution rights for its
+    // content, must stay live -- see TusaalangaFetcher.kt), so this list fills in over
+    // two separate updates, not one.
+    var dictionaryResults by remember { mutableStateOf<List<DictionaryLookupResult>>(emptyList()) }
+    var dictionaryLoading by remember { mutableStateOf(false) }
+    // Tusaalanga's fetch failure (network/HTTP error, not just "word not found") --
+    // debug-build-only, same purpose as the system-prompt inspection panel in
+    // GuessMeaningScreen.kt: alerts a developer the fetcher broke, not end-user UX.
+    var dictionaryFetchError by remember { mutableStateOf<String?>(null) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -257,7 +274,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         baseContext.createConfigurationContext(localizedConfiguration)
     }
 
-    fun findWord() {
+    fun findWord(spaldingResultTitle: String, tusaalangaResultTitle: String) {
         val wordToAnalyze = word.trim()
         if (wordToAnalyze.isEmpty()) return
         val individualWords = splitIntoWords(wordToAnalyze)
@@ -272,19 +289,42 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         keyboardController?.hide()
         focusManager.clearFocus()
 
-        // Dictionaries first -- Spalding is the only one wired up so far (local,
-        // instant, see SpaldingDictionary.kt); more will run here (in parallel once
-        // there's more than one) as Phase 3's "palier 1" grows. Checked regardless of
-        // whether a decomposition is found below: a word can be a real dictionary
-        // entry even when the analyzer can't decompose it -- this used to be a dead
-        // end (no decomposition meant the dictionaries never even got checked, since
-        // that lookup only ran inside the Guess Meaning button's own onClick).
+        // Dictionaries first. Checked regardless of whether a decomposition is found
+        // below: a word can be a real dictionary entry even when the analyzer can't
+        // decompose it -- this used to be a dead end (no decomposition meant the
+        // dictionaries never even got checked, since that lookup only ran inside the
+        // Guess Meaning button's own onClick).
         //
         // enteredScript captured here (not read off DecomposeState.Success, which
-        // won't exist if decomposition fails) so the dictionary word can still be
+        // won't exist if decomposition fails) so dictionary words can still be
         // displayed in the user's chosen script even when there's no decomposition.
-        dictionaryResult = SpaldingDictionary.lookup(baseContext, wordToAnalyze)?.let { entry ->
-            DictionaryLookupResult(entry, TransCoder.textScript(wordToAnalyze))
+        val enteredScript = TransCoder.textScript(wordToAnalyze)
+
+        // Spalding is a local/instant lookup, so it's populated synchronously here
+        // (not inside the coroutine below) -- DisplayScriptSwitchUiTest.kt relies on
+        // this being visible the moment findWord() returns, no waiting needed.
+        val spaldingHit = SpaldingDictionary.lookup(baseContext, wordToAnalyze)?.let { entry ->
+            DictionaryLookupResult(spaldingResultTitle, entry.word, entry.meaning, enteredScript)
+        }
+        dictionaryResults = listOfNotNull(spaldingHit)
+        dictionaryFetchError = null
+        dictionaryLoading = true
+
+        // Tusaalanga is a real network call (see TusaalangaFetcher.kt for why it can't
+        // be embedded like Spalding) -- runs separately and appends to whatever
+        // Spalding already found, rather than blocking on it.
+        scope.launch {
+            val tusaalanga = TusaalangaFetcher.fetch(wordToAnalyze)
+            if (tusaalanga is TusaalangaResult.Found) {
+                dictionaryResults = dictionaryResults + DictionaryLookupResult(
+                    tusaalangaResultTitle,
+                    tusaalanga.entry.word,
+                    tusaalanga.entry.meaning,
+                    enteredScript,
+                )
+            }
+            dictionaryFetchError = (tusaalanga as? TusaalangaResult.FetchFailed)?.message
+            dictionaryLoading = false
         }
 
         state = DecomposeState.Loading
@@ -293,10 +333,10 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         }
     }
 
-    fun selectWord(chosen: String) {
+    fun selectWord(chosen: String, spaldingResultTitle: String, tusaalangaResultTitle: String) {
         multiWordChoices = null
         word = chosen
-        findWord()
+        findWord(spaldingResultTitle, tusaalangaResultTitle)
     }
 
     fun loadMore(previous: DecomposeState.Success) {
@@ -325,6 +365,12 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            // Resolved here (not inside findWord() itself, which isn't @Composable) so
+            // dictionary result titles follow uiLanguage -- passed into findWord()/
+            // selectWord() at each call site below.
+            val spaldingResultTitle = stringResource(R.string.spalding_result_title)
+            val tusaalangaResultTitle = stringResource(R.string.tusaalanga_result_title)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -332,11 +378,12 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                 // Only offered once a morphological analysis has been produced (Guess
                 // Meaning seeds its prompt from that analysis, see
                 // guessMeaningSeedPrompt(), so it has nothing to work from before then)
-                // AND no dictionary already answered the question directly -- see
-                // "palier 1" / "Court-circuit sur correspondance exacte" in Phase 3 of
-                // the plan doc.
+                // AND every dictionary source has answered with no hit -- see
+                // "Court-circuit sur correspondance exacte" in the plan doc.
+                // dictionaryLoading gates this so the button doesn't flash on screen
+                // before Tusaalanga's (async) answer has had a chance to arrive.
                 val currentState = state
-                if (dictionaryResult == null &&
+                if (!dictionaryLoading && dictionaryResults.isEmpty() &&
                     currentState is DecomposeState.Success &&
                     currentState.decompositions.isNotEmpty()
                 ) {
@@ -389,7 +436,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
             multiWordChoices?.let { choices ->
                 MultiWordChoiceDialog(
                     words = choices,
-                    onSelect = { selectWord(it) },
+                    onSelect = { selectWord(it, spaldingResultTitle, tusaalangaResultTitle) },
                     onDismiss = { multiWordChoices = null },
                 )
             }
@@ -407,7 +454,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                 label = { Text(stringResource(R.string.word_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { findWord() }),
+                keyboardActions = KeyboardActions(onDone = { findWord(spaldingResultTitle, tusaalangaResultTitle) }),
                 modifier = Modifier.fillMaxWidth().testTag("word_input"),
             )
 
@@ -424,7 +471,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = { findWord() },
+                onClick = { findWord(spaldingResultTitle, tusaalangaResultTitle) },
                 enabled = word.isNotBlank() && state != DecomposeState.Loading,
                 modifier = Modifier.fillMaxWidth().testTag("find_word_button"),
             ) {
@@ -436,9 +483,27 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
             // Dictionary results come first, per Alain's request -- a word can be a
             // real dictionary entry even when the analyzer below finds no
             // decomposition for it (or vice versa); both are shown, independently.
-            dictionaryResult?.let { result ->
-                DictionaryResultSection(result, displayScript)
+            if (dictionaryResults.isNotEmpty()) {
+                DictionaryResultSection(dictionaryResults, displayScript)
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+            if (dictionaryLoading) {
+                Text(stringResource(R.string.dictionary_checking_label), style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            // Debug-build-only: alerts a developer that the Tusaalanga fetch itself
+            // broke (network/HTTP error), not that the word simply wasn't found --
+            // not meant for a normal user's build, same reasoning as the debug-only
+            // system-prompt panel in GuessMeaningScreen.kt.
+            if (BuildConfig.DEBUG) {
+                dictionaryFetchError?.let { error ->
+                    Text(
+                        text = stringResource(R.string.dictionary_fetch_error, error),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             when (val s = state) {
@@ -579,32 +644,39 @@ private fun MultiWordChoiceDialog(
 }
 
 @Composable
-private fun DictionaryResultSection(result: DictionaryLookupResult, displayScript: DisplayScript) {
+private fun DictionaryResultSection(results: List<DictionaryLookupResult>, displayScript: DisplayScript) {
     // Shown inline in the main results area now (not a dialog): dictionary and
-    // decomposition results are peers, not an interruption. Spalding's entries
-    // bundle a headword with all its related variants in one block of prose --
-    // real data runs from ~500 to 7000+ characters, so this gets its own scroll
-    // region rather than pushing the rest of the screen down indefinitely.
+    // decomposition results are peers, not an interruption. Entries can run from a
+    // couple hundred characters (Tusaalanga) to 7000+ (Spalding, which bundles a
+    // headword with all its related variants in one block of prose), so this gets
+    // its own scroll region rather than pushing the rest of the screen down
+    // indefinitely -- shared across every source found, not one region each.
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 300.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = stringResource(R.string.spalding_result_title),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = displayForm(result.entry.word, displayScript, result.enteredScript),
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.testTag("dictionary_result_word"),
-        )
-        // The definition itself is always English prose (including any cross-
-        // references to other Inuktitut words it contains) -- script conversion only
-        // applies to the clean, isolated headword above, per the plan doc's TODO.
-        Text(text = result.entry.meaning)
+        results.forEachIndexed { index, result ->
+            Text(
+                text = result.title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = displayForm(result.word, displayScript, result.enteredScript),
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("dictionary_result_word_$index"),
+            )
+            // The definition itself is always English prose (including any cross-
+            // references to other Inuktitut words it contains) -- script conversion
+            // only applies to the clean, isolated headword above, per the plan doc's
+            // Spalding TODO (same limitation applies to Tusaalanga's prose).
+            Text(text = result.meaning)
+            if (index != results.lastIndex) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
     }
 }
 
