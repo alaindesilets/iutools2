@@ -1,4 +1,4 @@
-rootProject.name = "iutools-morph-kt"
+rootProject.name = "iutools-mobile"
 
 pluginManagement {
     repositories {

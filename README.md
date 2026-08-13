@@ -1,18 +1,18 @@
-# iutools-morph-kt
+# iutools-mobile
 
-A Kotlin Multiplatform port of the morphological analyzer core from
-[iutools](https://github.com/iutools/iutools) (Java), which decomposes
-Inuktitut words into their constituent morphemes:
+A port of some of the tools and libraries of the [iutools](https://github.com/iutools/iutools) project. These are tools to help learners, speakers and writers of Inuktitut, the language of the Inuit people of Canada.
 
-```
-atuagaq → {atua:atuaq/1v}{gaq:gaq/1vn}
-```
+As of this writing, we have ported:
 
-Only the analyzer itself was ported — the original project's spellchecker,
-concordancer, dictionary/Elasticsearch, and web/servlet layers are out of
-scope here. The goal is a real mobile app (Android/iOS), not just a
-library: a command-line tool and a Compose UI both exist as ways of
-exercising the same shared analyzer core.
+- The morphologcal analyzer, which decomposes an inuktitut word into its constituents (morphemes)
+- Lookup in several dictionaries (Spalding and Tusaalanga)
+
+We are also working on porting look up on:
+
+- The Nunavut Hansard (parallel Inuktitut-English corpus)
+- Bilingual web pages on the Government of Nunavut sites
+
+We are also working on developing a brand new AI powered feature, which can venture guesses as to the meaning of a word, when no dictionary entries are found.
 
 For architecture, module layout, coding guidelines, and everything else
 relevant to working on this codebase (including for AI coding agents), see

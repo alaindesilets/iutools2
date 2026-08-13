@@ -1,11 +1,19 @@
-# About iutools-morph-kt
+# About iutools-mobile
 
-A Kotlin Multiplatform port of the morphological analyzer core from
-[iutools](https://github.com/iutools/iutools) (Java), which decomposes
+Started as a Kotlin Multiplatform port of the morphological analyzer core
+from [iutools](https://github.com/iutools/iutools) (Java), which decomposes
 Inuktitut words into their constituent morphemes (e.g. `atuagaq` →
-`{atua:atuaq/1v}{gaq:gaq/1vn}`). Only the analyzer itself was ported — the
-original project's spellchecker, concordancer, dictionary/Elasticsearch, and
-web/servlet layers are explicitly out of scope.
+`{atua:atuaq/1v}{gaq:gaq/1vn}`). That analyzer (`:core`) remains the single
+source of truth for morphological analysis, but the app has grown beyond a
+pure port: it also looks words up directly in dictionaries (Spalding,
+parsed once and embedded locally; Tusaalanga, queried live over the network
+— see `:composeApp`'s `SpaldingDictionary`/`TusaalangaFetcher`), and, when
+no dictionary has the word, can ask an LLM (Claude) to guess its meaning
+from the morphological decomposition ("Guess Meaning"). These are new
+features built for this app, not ports of anything from the original
+iutools project — its own spellchecker, concordancer, dictionary/
+Elasticsearch, and web/servlet layers remain explicitly out of scope, and
+nothing from them was reused.
 
 The goal is to ship this as a real mobile app (Android/iOS), not just a
 library — a CLI and a Compose UI both exist as ways of exercising the same
@@ -159,14 +167,14 @@ line, every time, and hand off only what genuinely needs a device:
   writing (only JVM `test` source sets exist, in `:cli` and `:composeApp`).
 
 **Android Studio's test dropdown, mapped to Gradle** (root project name is
-`iutools-morph-kt`, hence the `iutools-morph-kt.*` label prefix): there is
+`iutools-mobile`, hence the `iutools-mobile.*` label prefix): there is
 no single dropdown entry that runs every test in the whole project at
 once — run both rows below when work spans both modules (`:core` has no
 test source set of its own; its tests live in `:cli`).
 
 | Android Studio entry | Equivalent Gradle command | Scope |
 |---|---|---|
-| "Tests in 'iutools-morph-kt.cli.test'" or "cli - ALL tests" (same scope, two ways to launch it) | `./gradlew :cli:test` | `:cli` (includes the Hansard gold-standard suite) |
+| "Tests in 'iutools-mobile.cli.test'" or "cli - ALL tests" (same scope, two ways to launch it) | `./gradlew :cli:test` | `:cli` (includes the Hansard gold-standard suite) |
 | "Tests in 'org.iutools.app'" | `./gradlew :composeApp:testDebugUnitTest` | `:composeApp` only |
 
 Rule of thumb: run whichever module's tests actually changed

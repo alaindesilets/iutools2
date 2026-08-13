@@ -1,5 +1,5 @@
 {
-  "name": "iutools-morph-kt (Claude Code sandbox)",
+  "name": "iutools-mobile (Claude Code sandbox)",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
