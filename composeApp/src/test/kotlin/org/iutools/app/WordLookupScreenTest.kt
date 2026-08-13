@@ -102,4 +102,29 @@ class WordLookupScreenTest {
     fun splitIntoWords_blank_returnsEmptyList() {
         assertEquals(emptyList<String>(), splitIntoWords("   "))
     }
+
+    @Test
+    fun highlightRange_wordInMiddleOfSentence_returnsItsRange() {
+        assertEquals(6..10, highlightRange("qanuq ippit uvanga", "ippit"))
+    }
+
+    @Test
+    fun highlightRange_wordAtStartOfSentence_returnsItsRange() {
+        assertEquals(0..4, highlightRange("ippit qanuq", "ippit"))
+    }
+
+    @Test
+    fun highlightRange_wordNotPresent_returnsNull() {
+        assertEquals(null, highlightRange("qanuq ippit", "notthere"))
+    }
+
+    @Test
+    fun highlightRange_caseInsensitive_stillMatches() {
+        assertEquals(0..4, highlightRange("IPPIT qanuq", "ippit"))
+    }
+
+    @Test
+    fun highlightRange_blankWord_returnsNull() {
+        assertEquals(null, highlightRange("qanuq ippit", ""))
+    }
 }

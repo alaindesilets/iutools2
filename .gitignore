@@ -31,3 +31,12 @@ local.properties
 *.apk
 *.aab
 
+# Nunavut Hansard corpus: source archive (202 MiB) and the generated SQLite
+# index (250-350 MiB) are build inputs/outputs for tools/build_hansard_index.py,
+# never committed -- see tools/README-hansard.md for how to (re)generate and
+# push them to a device.
+/Nunavut-Hansard-Inuktitut-English-Parallel-Corpus-*.tgz
+/tools/hansard-corpus/
+/tools/hansard.db
+/tools/hansard.db.gz
+

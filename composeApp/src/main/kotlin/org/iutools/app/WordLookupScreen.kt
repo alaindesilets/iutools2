@@ -1,6 +1,7 @@
 package org.iutools.app
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,9 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.content.res.Configuration
@@ -31,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,10 +41,13 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.iutools.linguisticdata.LinguisticData
@@ -61,6 +61,11 @@ import java.util.Locale
 import java.util.concurrent.TimeoutException
 
 private const val PREVIEW_LIMIT = 3
+
+// How many Hansard examples HansardExamplesSection shows before its own
+// "More" reveals the rest (all of which are already fetched -- see
+// NunavutHansardLocalIndex.MAX_EXAMPLES -- this just paginates the display).
+private const val HANSARD_PREVIEW_LIMIT = 5
 
 // The in-app switch overrides the UI language independently of the device's
 // system locale. endonym: each language's name is shown in itself, so it
@@ -246,8 +251,6 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     var displayScript by remember { mutableStateOf(AppSettings.loadDisplayScript(baseContext)) }
     var showSettings by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<DecomposeState>(DecomposeState.Idle) }
-    val listState = rememberLazyListState()
-    var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
     var multiWordChoices by remember { mutableStateOf<List<String>?>(null) }
     // Every dictionary source is checked, and Guess Meaning only offered once all of
     // them have answered -- see dictionaryLoading below. Spalding is a local/instant
@@ -260,6 +263,23 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     // debug-build-only, same purpose as the system-prompt inspection panel in
     // GuessMeaningScreen.kt: alerts a developer the fetcher broke, not end-user UX.
     var dictionaryFetchError by remember { mutableStateOf<String?>(null) }
+
+    // Bilingual Hansard examples (see NunavutHansardLocalIndex.kt): searched
+    // automatically once every dictionary has answered with nothing, or on
+    // demand (see the "Find bilingual examples of use" button below) when a
+    // dictionary already found something -- see findWord()'s dictionary
+    // coroutine and runHansardSearch() below. lastSearchedWord is the word
+    // that search was/will be run against, captured separately from the
+    // (possibly since-edited) word text field, for that on-demand button.
+    var hansardResult by remember { mutableStateOf<NunavutHansardResult?>(null) }
+    var hansardLoading by remember { mutableStateOf(false) }
+    var lastSearchedWord by remember { mutableStateOf("") }
+
+    suspend fun runHansardSearch(searchWord: String) {
+        hansardLoading = true
+        hansardResult = NunavutHansardLocalIndex.fetch(baseContext, searchWord)
+        hansardLoading = false
+    }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -288,6 +308,9 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         val lenientAtSearch = lenient
         keyboardController?.hide()
         focusManager.clearFocus()
+        lastSearchedWord = wordToAnalyze
+        hansardResult = null
+        hansardLoading = false
 
         // Dictionaries first. Checked regardless of whether a decomposition is found
         // below: a word can be a real dictionary entry even when the analyzer can't
@@ -325,6 +348,13 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
             }
             dictionaryFetchError = (tusaalanga as? TusaalangaResult.FetchFailed)?.message
             dictionaryLoading = false
+            // Only searched automatically when no dictionary found anything --
+            // otherwise it's offered as an on-demand "Find bilingual examples
+            // of use" button instead (see the button below), rather than
+            // running both lookups every time.
+            if (dictionaryResults.isEmpty()) {
+                runHansardSearch(wordToAnalyze)
+            }
         }
 
         state = DecomposeState.Loading
@@ -340,22 +370,9 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     }
 
     fun loadMore(previous: DecomposeState.Success) {
-        // Once the expanded list renders, jump to the first decomposition
-        // that wasn't already visible (index PREVIEW_LIMIT, i.e. the 4th)
-        // instead of leaving the user scrolled to the top of what they've
-        // already seen.
-        scrollToIndexOnExpand = PREVIEW_LIMIT
         state = DecomposeState.Loading
         scope.launch {
             state = analyze(analyzer, previous.word, previous.lenient, expandAll = true)
-        }
-    }
-
-    LaunchedEffect(state) {
-        val index = scrollToIndexOnExpand
-        if (index != null && state is DecomposeState.Success) {
-            scrollToIndexOnExpand = null
-            listState.animateScrollToItem(index)
         }
     }
 
@@ -364,7 +381,13 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         LocalConfiguration provides localizedConfiguration,
     ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // One continuous scroll for the whole screen, per Alain's request --
+        // previously each result section (dictionary/Hansard/decompositions)
+        // scrolled independently in its own bounded box, which meant a swipe
+        // starting outside that box's bounds did nothing.
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        ) {
             // Resolved here (not inside findWord() itself, which isn't @Composable) so
             // dictionary result titles follow uiLanguage -- passed into findWord()/
             // selectWord() at each call site below.
@@ -506,6 +529,8 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                 }
             }
 
+            // Decompositions come before the Hansard bilingual examples, per
+            // Alain's request.
             when (val s = state) {
                 is DecomposeState.Idle -> {}
                 is DecomposeState.Loading -> CircularProgressIndicator()
@@ -518,46 +543,72 @@ fun WordLookupScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                     color = MaterialTheme.colorScheme.error,
                 )
                 is DecomposeState.Success -> {
-                    if (s.decompositions.isEmpty()) {
-                        Text(stringResource(R.string.no_decompositions, s.word))
-                    } else {
-                        Text(
-                            if (s.hasMore) {
-                                stringResource(R.string.decompositions_header_partial, s.word, PREVIEW_LIMIT)
-                            } else {
-                                stringResource(R.string.decompositions_header_full, s.decompositions.size, s.word)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyColumn(state = listState) {
-                            itemsIndexed(s.decompositions) { index, rows ->
-                                if (s.decompositions.size > 1) {
-                                    Text(
-                                        text = stringResource(R.string.decomposition_number, index + 1),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                    )
-                                }
-                                MorphemeTable(
-                                    rows,
-                                    preferFrench = uiLanguage == AppLanguage.FRENCH,
-                                    displayScript = displayScript,
-                                    enteredScript = s.enteredScript,
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-                            if (s.hasMore) {
-                                item {
-                                    TextButton(
-                                        onClick = { loadMore(s) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text(stringResource(R.string.more_button))
-                                    }
-                                }
-                            }
-                        }
+                    DecompositionSection(
+                        success = s,
+                        preferFrench = uiLanguage == AppLanguage.FRENCH,
+                        displayScript = displayScript,
+                        onLoadMore = { loadMore(s) },
+                    )
+                }
+            }
+            if (state is DecomposeState.Success) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // A dictionary hit doesn't auto-search the Hansard (see findWord()) --
+            // offered as an on-demand button instead, shown in the same spot the
+            // results would otherwise appear.
+            if (hansardResult == null && !hansardLoading && !dictionaryLoading && dictionaryResults.isNotEmpty()) {
+                TextButton(
+                    onClick = { scope.launch { runHansardSearch(lastSearchedWord) } },
+                    modifier = Modifier.testTag("hansard_examples_button"),
+                ) {
+                    Text(stringResource(R.string.hansard_examples_button))
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            if (hansardLoading) {
+                Text(stringResource(R.string.hansard_checking_label), style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            hansardResult?.let { result ->
+                when (result) {
+                    is NunavutHansardResult.Found -> {
+                        HansardExamplesSection(result.word, result.examples, displayScript)
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
+                    NunavutHansardResult.NotFound -> {
+                        Text(stringResource(R.string.hansard_no_examples, lastSearchedWord))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    // Shown for every build, not just debug -- unlike
+                    // dictionaryFetchError above, a real end user (not just a
+                    // dev) can genuinely hit these: the DB just hasn't been
+                    // downloaded yet, or the app was updated past the schema
+                    // version they downloaded earlier. Same download flow
+                    // fixes both -- see NunavutHansardDownloader.kt.
+                    NunavutHansardResult.IndexMissing, is NunavutHansardResult.IndexVersionMismatch -> {
+                        HansardDownloadSection(onDownloaded = { runHansardSearch(lastSearchedWord) })
+                        if (BuildConfig.DEBUG) {
+                            val debugDetail = if (result is NunavutHansardResult.IndexVersionMismatch) {
+                                stringResource(R.string.hansard_index_version_mismatch, result.found, result.expected)
+                            } else {
+                                stringResource(R.string.hansard_index_missing)
+                            }
+                            Text(
+                                text = debugDetail,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+            if (BuildConfig.DEBUG) {
+                NunavutHansardLocalIndex.debugStatus(baseContext)?.let { status ->
+                    Text(text = "Hansard DB: $status", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -649,8 +700,13 @@ private fun DictionaryResultSection(results: List<DictionaryLookupResult>, displ
     // decomposition results are peers, not an interruption. Entries can run from a
     // couple hundred characters (Tusaalanga) to 7000+ (Spalding, which bundles a
     // headword with all its related variants in one block of prose), so this gets
-    // its own scroll region rather than pushing the rest of the screen down
+    // its own bounded scroll region rather than pushing the rest of the screen down
     // indefinitely -- shared across every source found, not one region each.
+    // Deliberately NOT folded into the single continuous page the way
+    // DecompositionSection/HansardExamplesSection were (see WordLookupScreen's
+    // outer Column) -- Alain's request to make scrolling continuous was scoped
+    // to those two, and an unbounded 7000-char Spalding entry inline would
+    // dominate the page exactly as this comment already warned against.
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -677,6 +733,201 @@ private fun DictionaryResultSection(results: List<DictionaryLookupResult>, displ
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
+    }
+}
+
+// internal (not private): unit-tested directly -- pure string search, no
+// Compose dependency.
+internal fun highlightRange(sentence: String, word: String): IntRange? {
+    if (word.isBlank()) return null
+    val start = sentence.indexOf(word, ignoreCase = true)
+    return if (start < 0) null else start until (start + word.length)
+}
+
+@Composable
+private fun CollapsibleSectionHeader(text: String, expanded: Boolean, onToggle: () -> Unit, testTag: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).testTag(testTag),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text = text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        // A plain glyph, not a Material Icon -- ExpandMore/ExpandLess live in
+        // the "extended" icon set, not the core one this project depends on,
+        // and pulling in that whole extra artifact for one chevron isn't
+        // worth it (same reasoning as the emoji-in-Text glyphs used
+        // elsewhere in this screen, e.g. "⚙ "/"🔮 ").
+        Text(text = if (expanded) "▾" else "▸", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun DecompositionSection(
+    success: DecomposeState.Success,
+    preferFrench: Boolean,
+    displayScript: DisplayScript,
+    onLoadMore: () -> Unit,
+) {
+    if (success.decompositions.isEmpty()) {
+        Text(stringResource(R.string.no_decompositions, success.word))
+        return
+    }
+    // Keyed on the word so a fresh search starts expanded again, rather than
+    // carrying over whatever collapse state the previous word's section was
+    // left in.
+    var expanded by remember(success.word) { mutableStateOf(true) }
+    CollapsibleSectionHeader(
+        text = if (success.hasMore) {
+            stringResource(R.string.decompositions_header_partial, success.word, PREVIEW_LIMIT)
+        } else {
+            stringResource(R.string.decompositions_header_full, success.decompositions.size, success.word)
+        },
+        expanded = expanded,
+        onToggle = { expanded = !expanded },
+        testTag = "decomposition_section_header",
+    )
+    if (!expanded) return
+    Spacer(modifier = Modifier.height(8.dp))
+    success.decompositions.forEachIndexed { index, rows ->
+        if (success.decompositions.size > 1) {
+            Text(
+                text = stringResource(R.string.decomposition_number, index + 1),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+            )
+        }
+        MorphemeTable(rows, preferFrench = preferFrench, displayScript = displayScript, enteredScript = success.enteredScript)
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+    if (success.hasMore) {
+        TextButton(onClick = onLoadMore, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.more_button))
+        }
+    }
+}
+
+@Composable
+private fun HansardExamplesSection(word: String, examples: List<BilingualExample>, displayScript: DisplayScript) {
+    // Keyed on the word, same reasoning as DecompositionSection: a fresh
+    // search starts expanded and re-collapsed to the first
+    // HANSARD_PREVIEW_LIMIT examples, not wherever the previous word's
+    // section was left.
+    var expanded by remember(word) { mutableStateOf(true) }
+    var visibleCount by remember(word) { mutableStateOf(minOf(HANSARD_PREVIEW_LIMIT, examples.size)) }
+    CollapsibleSectionHeader(
+        text = stringResource(R.string.hansard_examples_header),
+        expanded = expanded,
+        onToggle = { expanded = !expanded },
+        testTag = "hansard_section_header",
+    )
+    if (!expanded) return
+    Spacer(modifier = Modifier.height(8.dp))
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    // The corpus's Inuktitut side is always syllabics (unlike a
+    // dictionary hit, there's no per-entry enteredScript to read -- see
+    // NunavutHansardLocalIndex.kt) -- and unlike a dictionary definition,
+    // the whole line here is Inuktitut prose, not a headword plus English
+    // commentary, so script conversion applies to the full sentence, not
+    // just an isolated word.
+    val displayedWord = displayForm(word, displayScript, Script.SYLLABIC)
+    examples.take(visibleCount).forEachIndexed { index, example ->
+        val displayedSentence = displayForm(example.inuktitut, displayScript, Script.SYLLABIC)
+        // Highlighting the searched word gives a visual hint of roughly
+        // where its English equivalent falls in the translation
+        // (beginning/middle/end), per Alain's request -- same idea as
+        // inuktitutcomputing.ca's own highlighted-word search (see
+        // NunavutHansardLocalIndex.kt's header comment for why this
+        // feature no longer depends on that site, but the UX idea is
+        // still a good one). Best-effort: converting the sentence and
+        // the word to the display script separately, then re-locating
+        // the word by substring search, can occasionally miss (e.g.
+        // word-boundary spelling changes in the romanization) -- same
+        // imprecision the original site's plain string search had.
+        val annotatedSentence = remember(displayedSentence, displayedWord, highlightColor) {
+            buildAnnotatedString {
+                append(displayedSentence)
+                highlightRange(displayedSentence, displayedWord)?.let { range ->
+                    addStyle(
+                        SpanStyle(background = highlightColor, fontWeight = FontWeight.Bold),
+                        range.first,
+                        range.last + 1,
+                    )
+                }
+            }
+        }
+        Text(text = annotatedSentence, modifier = Modifier.testTag("hansard_example_iu_$index"))
+        Text(text = example.english, style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+    // Purely a display reveal, no new fetch -- every example up to
+    // NunavutHansardLocalIndex.MAX_EXAMPLES is already in `examples`.
+    if (visibleCount < examples.size) {
+        TextButton(
+            onClick = { visibleCount = minOf(visibleCount + HANSARD_PREVIEW_LIMIT, examples.size) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.more_button))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+    Text(
+        text = stringResource(R.string.hansard_attribution),
+        style = MaterialTheme.typography.labelSmall,
+    )
+}
+
+@Composable
+private fun HansardDownloadSection(onDownloaded: suspend () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var progress by remember { mutableStateOf<HansardDownloadProgress?>(null) }
+
+    fun startDownload() {
+        scope.launch {
+            var last: HansardDownloadProgress? = null
+            NunavutHansardDownloader.download(context).collect {
+                progress = it
+                last = it
+            }
+            if (last is HansardDownloadProgress.Done) {
+                onDownloaded()
+            }
+        }
+    }
+
+    when (val p = progress) {
+        null, is HansardDownloadProgress.Failed -> {
+            p?.let { failed ->
+                Text(
+                    text = stringResource(R.string.hansard_download_failed, failed.message),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            // A filled Button, not TextButton -- this is the only way to get
+            // the feature working at all (unlike e.g. the on-demand "Find
+            // bilingual examples" button elsewhere, where TextButton's
+            // plain-text styling is fine since dictionary results are
+            // already on screen). Confirmed by a real screenshot: a
+            // TextButton here read as inert text, not something tappable.
+            Button(
+                onClick = { startDownload() },
+                modifier = Modifier.fillMaxWidth().testTag("hansard_download_button"),
+            ) {
+                Text(stringResource(R.string.hansard_download_button))
+            }
+            Text(
+                text = stringResource(R.string.hansard_download_hint),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        is HansardDownloadProgress.InProgress -> {
+            val percent = if (p.totalBytes > 0) (p.bytesDownloaded * 100 / p.totalBytes).toInt() else 0
+            Text(stringResource(R.string.hansard_download_progress, percent))
+        }
+        HansardDownloadProgress.Decompressing -> Text(stringResource(R.string.hansard_download_decompressing))
+        // Momentary -- onDownloaded() above re-runs the Hansard search, whose
+        // result replaces this whole section once it lands.
+        HansardDownloadProgress.Done -> {}
     }
 }
 
