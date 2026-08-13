@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="screen_title">Inuktitut morphological decomposer</string>
-    <string name="word_label">Word to analyze</string>
+    <string name="screen_title">Find information about a word</string>
+    <string name="word_label">Enter the word</string>
     <string name="lenient_switch_label">Lenient analysis (lenient-decomps)</string>
     <string name="ui_language_label">Interface language</string>
     <string name="settings_button">Settings</string>
@@ -9,8 +9,9 @@
     <string name="display_script_roman">Roman</string>
     <string name="display_script_syllabic">Syllabic</string>
     <string name="display_script_as_entered">Script as entered</string>
-    <string name="decompose_button">Decompose</string>
+    <string name="find_word_button">Find Word</string>
     <string name="multi_word_dialog_title">Which word do you want to analyze?</string>
+    <string name="spalding_result_title">Found in the Spalding dictionary</string>
     <string name="error_timeout">The request timed out.</string>
     <string name="error_analysis">Analysis error: %1$s</string>
     <string name="no_decompositions">No decomposition found for “%1$s”.</string>

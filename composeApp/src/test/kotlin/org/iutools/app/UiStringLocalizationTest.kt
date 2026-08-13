@@ -33,16 +33,16 @@ class UiStringLocalizationTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val config = Configuration(context.resources.configuration)
         config.setLocale(locale)
-        return context.createConfigurationContext(config).getString(R.string.decompose_button)
+        return context.createConfigurationContext(config).getString(R.string.find_word_button)
     }
 
     @Test
-    fun decomposeButtonLabel_switchesLanguage_withLocale() {
+    fun findWordButtonLabel_switchesLanguage_withLocale() {
         val englishLabel = stringFor(Locale.ENGLISH)
         val frenchLabel = stringFor(Locale.FRENCH)
 
-        assertEquals("Decompose", englishLabel)
-        assertEquals("Décomposer", frenchLabel)
+        assertEquals("Find Word", englishLabel)
+        assertEquals("Trouver le mot", frenchLabel)
         assertNotEquals(englishLabel, frenchLabel)
     }
 }

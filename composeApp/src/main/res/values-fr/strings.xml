@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="screen_title">Décomposeur morphologique inuktitut</string>
-    <string name="word_label">Mot à analyser</string>
+    <string name="screen_title">Trouver de l\'information sur un mot</string>
+    <string name="word_label">Entrer le mot</string>
     <string name="lenient_switch_label">Analyse tolérante (lenient-decomps)</string>
     <string name="ui_language_label">Langue de l\'interface</string>
     <string name="settings_button">Réglages</string>
@@ -9,8 +9,9 @@
     <string name="display_script_roman">Romain</string>
     <string name="display_script_syllabic">Syllabique</string>
     <string name="display_script_as_entered">Script tel qu\'entré</string>
-    <string name="decompose_button">Décomposer</string>
+    <string name="find_word_button">Trouver le mot</string>
     <string name="multi_word_dialog_title">Quel mot veux-tu analyser ?</string>
+    <string name="spalding_result_title">Trouvé dans le dictionnaire Spalding</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>
     <string name="no_decompositions">Aucune décomposition trouvée pour « %1$s ».</string>

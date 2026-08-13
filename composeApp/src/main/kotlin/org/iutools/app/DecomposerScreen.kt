@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.content.res.Configuration
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -75,6 +78,11 @@ fun defaultAppLanguage(): AppLanguage =
 // word was originally typed in (tracked per-analysis on DecomposeState.Success),
 // falling back to Roman -- see displayForm().
 enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
+
+// Pairs a dictionary hit with the script the user typed it in -- captured at lookup
+// time, since (unlike DecomposeState.Success) a dictionary lookup can succeed even
+// when decomposition fails, so there's no other enteredScript to read it off of.
+private data class DictionaryLookupResult(val entry: SpaldingEntry, val enteredScript: Script)
 
 private fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
     val target = when (script) {
@@ -232,6 +240,9 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     val listState = rememberLazyListState()
     var scrollToIndexOnExpand by remember { mutableStateOf<Int?>(null) }
     var multiWordChoices by remember { mutableStateOf<List<String>?>(null) }
+    // TODO: becomes a List<DictionaryLookupResult> (or a per-source structure) once
+    // more than one dictionary is wired up -- see Phase 3's "palier 1" in the plan doc.
+    var dictionaryResult by remember { mutableStateOf<DictionaryLookupResult?>(null) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -246,7 +257,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         baseContext.createConfigurationContext(localizedConfiguration)
     }
 
-    fun decompose() {
+    fun findWord() {
         val wordToAnalyze = word.trim()
         if (wordToAnalyze.isEmpty()) return
         val individualWords = splitIntoWords(wordToAnalyze)
@@ -260,6 +271,22 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
         val lenientAtSearch = lenient
         keyboardController?.hide()
         focusManager.clearFocus()
+
+        // Dictionaries first -- Spalding is the only one wired up so far (local,
+        // instant, see SpaldingDictionary.kt); more will run here (in parallel once
+        // there's more than one) as Phase 3's "palier 1" grows. Checked regardless of
+        // whether a decomposition is found below: a word can be a real dictionary
+        // entry even when the analyzer can't decompose it -- this used to be a dead
+        // end (no decomposition meant the dictionaries never even got checked, since
+        // that lookup only ran inside the Guess Meaning button's own onClick).
+        //
+        // enteredScript captured here (not read off DecomposeState.Success, which
+        // won't exist if decomposition fails) so the dictionary word can still be
+        // displayed in the user's chosen script even when there's no decomposition.
+        dictionaryResult = SpaldingDictionary.lookup(baseContext, wordToAnalyze)?.let { entry ->
+            DictionaryLookupResult(entry, TransCoder.textScript(wordToAnalyze))
+        }
+
         state = DecomposeState.Loading
         scope.launch {
             state = analyze(analyzer, wordToAnalyze, lenientAtSearch, expandAll = false)
@@ -269,7 +296,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
     fun selectWord(chosen: String) {
         multiWordChoices = null
         word = chosen
-        decompose()
+        findWord()
     }
 
     fun loadMore(previous: DecomposeState.Success) {
@@ -302,11 +329,17 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                // Only offered once a morphological analysis has been produced --
-                // Guess Meaning seeds its prompt from that analysis (see
-                // guessMeaningSeedPrompt()), so it has nothing to work from before then.
+                // Only offered once a morphological analysis has been produced (Guess
+                // Meaning seeds its prompt from that analysis, see
+                // guessMeaningSeedPrompt(), so it has nothing to work from before then)
+                // AND no dictionary already answered the question directly -- see
+                // "palier 1" / "Court-circuit sur correspondance exacte" in Phase 3 of
+                // the plan doc.
                 val currentState = state
-                if (currentState is DecomposeState.Success && currentState.decompositions.isNotEmpty()) {
+                if (dictionaryResult == null &&
+                    currentState is DecomposeState.Success &&
+                    currentState.decompositions.isNotEmpty()
+                ) {
                     val guessMeaningSeedLabels = GuessMeaningSeedLabels(
                         word = stringResource(R.string.guess_meaning_seed_word_label),
                         decompositionHeader = stringResource(R.string.guess_meaning_seed_decomposition_header),
@@ -374,7 +407,7 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
                 label = { Text(stringResource(R.string.word_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { decompose() }),
+                keyboardActions = KeyboardActions(onDone = { findWord() }),
                 modifier = Modifier.fillMaxWidth().testTag("word_input"),
             )
 
@@ -391,14 +424,22 @@ fun DecomposerScreen(onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = { decompose() },
+                onClick = { findWord() },
                 enabled = word.isNotBlank() && state != DecomposeState.Loading,
-                modifier = Modifier.fillMaxWidth().testTag("decompose_button"),
+                modifier = Modifier.fillMaxWidth().testTag("find_word_button"),
             ) {
-                Text(stringResource(R.string.decompose_button))
+                Text(stringResource(R.string.find_word_button))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Dictionary results come first, per Alain's request -- a word can be a
+            // real dictionary entry even when the analyzer below finds no
+            // decomposition for it (or vice versa); both are shown, independently.
+            dictionaryResult?.let { result ->
+                DictionaryResultSection(result, displayScript)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             when (val s = state) {
                 is DecomposeState.Idle -> {}
@@ -535,6 +576,36 @@ private fun MultiWordChoiceDialog(
             }
         },
     )
+}
+
+@Composable
+private fun DictionaryResultSection(result: DictionaryLookupResult, displayScript: DisplayScript) {
+    // Shown inline in the main results area now (not a dialog): dictionary and
+    // decomposition results are peers, not an interruption. Spalding's entries
+    // bundle a headword with all its related variants in one block of prose --
+    // real data runs from ~500 to 7000+ characters, so this gets its own scroll
+    // region rather than pushing the rest of the screen down indefinitely.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            text = stringResource(R.string.spalding_result_title),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = displayForm(result.entry.word, displayScript, result.enteredScript),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag("dictionary_result_word"),
+        )
+        // The definition itself is always English prose (including any cross-
+        // references to other Inuktitut words it contains) -- script conversion only
+        // applies to the clean, isolated headword above, per the plan doc's TODO.
+        Text(text = result.entry.meaning)
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
