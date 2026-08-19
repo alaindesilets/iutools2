@@ -102,8 +102,11 @@ for domain in \
     "dl.google.com" \
     "maven.google.com" \
     "androidx.dev" \
+    "cdn.playwright.dev" \
     "tusaalanga.ca" \
     "inuktitutcomputing.ca" \
+    "www.gov.nu.ca" \
+    "gov.nu.ca" \
     "deb.debian.org"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
