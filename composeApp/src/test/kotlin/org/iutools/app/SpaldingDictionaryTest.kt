@@ -50,6 +50,25 @@ class SpaldingDictionaryTest {
     }
 
     @Test
+    fun lookupLongestPrefix_findsShorterKnownWord() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        // "igalaaqxyz" itself isn't a real word, but it starts with the real
+        // headword "igalaaq" -- lookupLongestPrefix() should find that.
+        val result = SpaldingDictionary.lookupLongestPrefix(context, "igalaaqxyz")
+
+        assertEquals("igalaaq", result?.first)
+        assertTrue(result?.second?.meaning.orEmpty(), result?.second?.meaning?.contains("window") == true)
+    }
+
+    @Test
+    fun lookupLongestPrefix_noPrefixMatches_returnsNull() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        assertNull(SpaldingDictionary.lookupLongestPrefix(context, "zzznotarealprefixatall99"))
+    }
+
+    @Test
     fun parseEntries_parsesWordAndMeaning() {
         val json = """[{"word": "atuq", "meaning": "to read; to phone"}]"""
 

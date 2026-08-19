@@ -387,6 +387,115 @@ Une fois le workflow validé de bout en bout avec Claude (Phases 1-5), revisiter
 proposition initiale : est-ce qu'un modèle plus petit, embarqué sur le téléphone, peut
 exécuter le même workflow avec une qualité acceptable ?
 
+**État de l'implémentation (branche `local-llm-spike`)** : étapes 24, 25 (partielle),
+27 et 28 codées et compilées -- voir `LocalLlmEngine.kt` (Engine/Conversation
+LiteRT-LM, streaming), `CandidateMeanings.kt` (extraction de la liste finale, testée),
+et la bascule Claude/local dans `GuessMeaningScreen.kt`. **Ce qui reste, et qui a
+besoin d'un appareil réel (voir la répartition IA/humain dans AGENTS.md)** :
+- Obtenir un fichier `.litertlm` -- voir « Modèle recommandé pour commencer »
+  ci-dessous (Qwen2-0.5B-Instruct, pas Gemma 3n E2B) pour le choix et le
+  raisonnement derrière
+- Le mettre sur l'appareil : soit le télécharger dans le navigateur du téléphone
+  puis le sélectionner via le bouton « Choisir le fichier modèle… » dans Guess
+  Meaning (aucun débogage USB requis -- voir `LocalLlmEngine.importModel()`), soit
+  `adb push <fichier>.litertlm <externalFilesDir>/models/` si le débogage USB est
+  déjà activé (`LocalLlmEngine.findModelFile()` prend le premier `.litertlm` trouvé
+  dans ce dossier, peu importe son nom)
+- **Étape 26, le test bloquant : PASSÉ ✅** (2026-08-13, appareil réel SM-A526W /
+  Snapdragon 750G / 6 Go RAM). `Qwen2_0.5B_Instruct.litertlm` (647.4 Mo, importé via
+  le bouton « Choisir le fichier modèle… », fichier venant de Google Drive -- le
+  sélecteur système accède directement aux fournisseurs de documents cloud, pas
+  seulement au stockage local) charge et répond sans crash.
+- **Étape 29, première comparaison réelle (2026-08-13, mot : ᑕᑯᔪᒪᕗᒍᑦ)** :
+  - **Claude** : ~5s, premier candidat conforme à ce que suggérait la décomposition
+    morphologique (« we want to see »).
+  - **Qwen2-0.5B-Instruct** : **36.1s** (7x plus lent que Claude, malgré l'absence
+    d'appel réseau -- probablement le CPU-only `Backend.CPU()` sans accélération
+    GPU, à valider) et **résultat inutilisable** : semble avoir halluciné à partir
+    des mots présents dans les phrases bilingues du Hansard plutôt que de la
+    décomposition morphologique elle-même, et a même attribué son sens inventé à
+    un autre mot que celui demandé (confusion entre le mot analysé et un mot
+    apparaissant dans les exemples). Pas juste "moins bon" que Claude -- ne
+    respecte pas la consigne de base du prompt système.
+  - **Verdict préliminaire** : à 0.5B de paramètres, le modèle ne semble pas assez
+    capable pour cette tâche (lecture/synthèse d'un contexte structuré de
+    plusieurs sources), au-delà du simple test de charge en mémoire. Un modèle
+    plus petit (repli initialement prévu en cas d'échec du test mémoire) n'aiderait
+    pas ici -- le problème est la qualité, pas la mémoire. Reste à décider : essayer
+    un modèle plus **gros** du même dépôt (ex. `litert-community/Qwen2.5-1.5B-Instruct`,
+    au prix d'une latence et d'une empreinte mémoire plus grandes), tester d'autres
+    mots avant de conclure sur un seul cas, ou considérer que ce résultat répond déjà
+    à la question de la Phase 6 pour ce calibre de modèle.
+- **Bogue trouvé et corrigé pendant ce premier test réel** : le cache des
+  conversations n'était indexé que par (mot, lenient), pas par backend -- rouvrir un
+  mot déjà répondu par un backend rejouait toujours cette même réponse, peu importe
+  la position de la bascule, empêchant justement la comparaison Claude/local sur un
+  même mot.
+- **Réglage de prompt pour le modèle local (ajouté suite au mauvais premier
+  résultat de Qwen ci-dessus, à la demande d'Alain)** : le prompt système affiché
+  dans le panneau debug est maintenant **éditable** directement dans l'appli, pas
+  juste affiché en lecture seule -- permet d'essayer différents énoncés pour mieux
+  guider le modèle local sans recompiler. La clé de cache (`GuessMeaningConversationKey`
+  dans `GuessMeaningScreen.kt`) tient maintenant compte de **quatre** dimensions :
+  mot, backend, texte exact du prompt système, et texte exact du premier message
+  envoyé (le "seed" -- normalement la décomposition, mais lui aussi éditable) --
+  chaque combinaison distincte garde sa propre entrée en cache, rien n'écrase un
+  essai précédent. La clé d'une conversation est fixée à son premier envoi ; les
+  modifications de prompt en cours de conversation n'affectent que le *prochain*
+  essai, pas celui en cours. Un bouton « Nouvel essai » vide la conversation
+  affichée pour repartir sur un nouveau prompt/seed sans quitter l'écran.
+- **Statistiques de performance par backend/modèle** (`ModelStats.kt`, à la demande
+  d'Alain) : nombre d'appels, temps moyen, jetons d'entrée/sortie moyens, accumulés
+  sur toute la session (survit à la navigation entre mots) et **exclusion
+  automatique des relectures depuis le cache** -- les stats ne sont alimentées
+  qu'aux points d'appel réel du backend, jamais lors d'une relecture. Clé de
+  regroupement : le nom du modèle Claude, ou le nom du fichier `.litertlm` local
+  (`importModel()` préserve maintenant le nom d'origine du fichier plutôt que de le
+  renommer systématiquement, précisément pour que des modèles locaux différents se
+  suivent séparément). Pour Claude, jetons d'entrée/sortie exacts (API Anthropic).
+  Pour le modèle local, **découverte utile en cours de route** : `Conversation
+  .getBenchmarkInfo()` de LiteRT-LM (API `@ExperimentalApi`, nécessite
+  `ExperimentalFlags.enableBenchmark = true` avant la création de l'`Engine`) donne
+  `lastPrefillTokenCount`/`lastDecodeTokenCount`, qui servent d'équivalent
+  input/output tokens -- pas une approximation dégradée, une vraie mesure côté
+  modèle.
+- **Langue de l'interface incluse dans la clé de cache** (`GuessMeaningConversationKey`
+  a maintenant cinq dimensions : mot, backend, langue de l'UI, prompt système, seed).
+  En corrigeant ceci, un bogue latent est apparu : `GuessMeaningScreen` n'avait
+  jamais eu de mécanisme de changement de locale (contrairement à
+  `WordLookupScreen`), donc son prompt système par défaut et ses messages
+  d'erreur suivaient toujours la locale système de l'appareil plutôt que la
+  langue choisie dans l'appli. Corrigé en reprenant le même patron
+  `localizedContext`/`CompositionLocalProvider` que `WordLookupScreen`.
+- **Coût estimé des appels, par modèle** (`GuessMeaningCostTracker.kt`, à la
+  demande d'Alain) : affiché dès qu'une réponse arrive d'un modèle en ligne
+  (payant), sous « AI best guesses » -- coût de ce mot (somme des réponses de
+  ce modèle dans la conversation en cours), puis totaux accumulés pour
+  aujourd'hui / cette semaine (lundi comme premier jour, peu importe la
+  locale) / ce mois-ci. Jamais affiché pour le modèle local (pas de prix --
+  voir `estimatedCostUsd()`). Estimé à partir des jetons d'entrée/sortie réels
+  (`response.usage()`) et d'une table de prix par modèle codée en dur (Haiku
+  4.5 : 1 $/5 $ par million de jetons entrée/sortie), pas une lecture de la
+  facturation réelle d'Anthropic. Les totaux accumulés persistent entre les
+  lancements de l'appli (SharedPreferences, même approche qu'`AppSettings.kt`)
+  -- sans quoi « le total d'aujourd'hui » se remettrait à zéro à chaque
+  redémarrage. **Suivi par modèle, pas un seul total combiné** : Alain prévoit
+  essayer d'autres modèles en ligne (GPT-4, Qwen, Gemini, ...) dont le prix par
+  jeton peut différer de celui de Haiku d'un facteur 3 à 10 -- le journal des
+  coûts (`GuessMeaningCostLog`) garde donc le nom du modèle avec chaque appel
+  enregistré, et le panneau debug « Stats » affiche maintenant une ligne de
+  coût (aujourd'hui/semaine/mois) sous chaque ligne de performance existante,
+  une par modèle essayé -- un modèle local y apparaît naturellement à 0 $,
+  puisqu'aucun appel n'y est jamais enregistré pour lui.
+- **Picklist de contenu du prompt** (`GuessMeaningPromptSources` dans
+  `WordLookupScreen.kt`, contrôle debug-only à côté du bouton « Guess
+  Meaning ») : permet de choisir si le prompt envoyé au modèle inclut les
+  décompositions morphologiques seules, les exemples bilingues du Hansard
+  seuls, ou les deux (valeur par défaut, comportement historique). Ajouté
+  pour pouvoir vérifier l'hypothèse derrière l'hallucination de Qwen
+  ci-dessus -- en isolant les décompositions, on peut tester si le modèle
+  s'appuie moins sur les phrases du Hansard sans elles.
+
 **Simplification majeure apportée par la nouvelle architecture des Phases 3-5** :
 comme la recherche est maintenant pilotée par l'appli Kotlin (fetchers) plutôt que par
 le LLM (tool-calling agentique), cette phase **réutilise directement** les fetchers déjà
@@ -397,12 +506,28 @@ plus qu'à lire un bloc de texte déjà rassemblé et donner un verdict, exactem
 Claude — une tâche de lecture/synthèse, pas d'orchestration d'outils.
 
 **Ce qui reste différent ici par rapport aux Phases 1-5** :
-- **SDK d'inférence** : MediaPipe LLM Inference API (`com.google.mediapipe:tasks-genai`)
-  plutôt que l'API Anthropic.
-- **Modèle recommandé pour commencer : Gemma 3n E2B** (repli sur Gemma 3 1B si même
-  E2B ne rentre pas confortablement en mémoire). Pas Gemma E4B (4-5 Go) — trop gros
-  pour un appareil de test comme le Galaxy A52 (variantes 4/6/8 Go de RAM totale ;
-  Android + l'appli elle-même prennent déjà 2-3 Go avant de charger un modèle).
+- **SDK d'inférence : LiteRT-LM** (`com.google.ai.edge.litertlm:litertlm-android`),
+  plutôt que l'API Anthropic. **Révisé** : le plan original nommait l'API MediaPipe LLM
+  Inference (`com.google.mediapipe:tasks-genai`), mais cette API est maintenant en mode
+  maintenance seulement — Google recommande LiteRT-LM pour tout nouveau développement
+  (API Kotlin `Engine`/`Conversation`, streaming natif via `Flow<Message>`, mêmes
+  modèles Gemma). Fichiers modèle au format `.litertlm` (pas `.task`), distribués sur
+  Hugging Face (org `litert-community`).
+- **Modèle recommandé pour commencer, révisé : `Qwen2-0.5B-Instruct`** (dépôt
+  `litert-community/Qwen2-0.5B-Instruct` sur Hugging Face), pas Gemma 3n E2B comme
+  d'abord envisagé. **Pourquoi le changement** : Gemma 3n a une architecture
+  "élastique" multimodale (texte + vision + audio) où E2B/E4B décrivent le nombre de
+  paramètres *actifs* pendant l'inférence, pas la taille du fichier -- même la
+  variante "E2B" embarque les poids des encodeurs vision/audio sur disque, jamais
+  utilisés par Guess Meaning (texte seul), d'où un fichier `.litertlm` de 3.66 Go pour
+  ce qui sonnait comme un petit modèle. Qwen2-0.5B-Instruct est un modèle texte-seul
+  de 0.5 milliard de paramètres, sous licence Apache 2.0 (pas de licence Google à
+  accepter, contrairement à Gemma) -- nettement plus petit et un bien meilleur point
+  de départ pour la question que pose cette phase (est-ce qu'un *petit* modèle
+  embarqué donne des réponses acceptables). Repli sur un modèle encore plus petit du
+  même dépôt communautaire si même Qwen2-0.5B ne rentre pas confortablement en
+  mémoire ; Gemma 3n E2B reste une comparaison valable *après* Qwen2-0.5B si sa
+  qualité de réponse déçoit et que la mémoire le permet.
 - **Test mémoire bloquant, pas juste indicatif** : si le modèle choisi ne rentre pas
   confortablement en mémoire libre sur l'appareil de test réel, c'est un blocage dur
   pour cette phase — pas un chiffre à noter et ignorer.
@@ -411,6 +536,24 @@ Claude — une tâche de lecture/synthèse, pas d'orchestration d'outils.
   l'appel au modèle tourne sans connexion réseau ni coût récurrent (les fetchers,
   eux, continuent d'appeler des sites externes dans les deux versions).
 
+**Progrès et résultats affichés dans l'UI (nouveau pour cette phase)** : même si le
+workflow n'a pas de véritable aspect agentic (pas de tool-calling, pas de décisions du
+LLM sur où chercher — voir plus haut), l'inférence locale peut être notablement plus
+lente que l'appel réseau à Claude sur un appareil de test moyen de gamme. L'appli doit
+donc pouvoir faire état du progrès du modèle pendant qu'il tourne, et afficher son
+résultat final dans une section dédiée de l'UI (nom de travail : « AI best guesses »,
+à raffiner). Concrètement :
+- MediaPipe LLM Inference API expose un callback de streaming token-par-token
+  (`generateResponseAsync` / équivalent) — l'appli peut afficher le texte au fur et à
+  mesure qu'il est généré, plutôt que d'attendre la réponse complète.
+- Le résultat final (liste de sens candidats, même format que la section « Candidate
+  meanings: » du prompt système Claude actuel) est extrait de la sortie complète et
+  affiché dans cette section dédiée, séparée du reste du texte généré.
+- Reste à valider expérimentalement dans cette phase : est-ce que le format de sortie
+  du petit modèle local (délimitation entre raisonnement et liste finale) est assez
+  fiable pour être parsé de façon déterministe, ou si ça demande un post-traitement
+  plus permissif que pour Claude.
+
 ## Hors scope pour ce spike
 
 - Pas d'indexation locale du corpus Hansard CNRC — voir Phase 4, ce spike utilise
@@ -418,7 +561,9 @@ Claude — une tâche de lecture/synthèse, pas d'orchestration d'outils.
   de recherche existante sur inuktitutcomputing.ca
 - Pas d'outil pour afficher des messages de progrès dans l'UI (ex. « j'analyse le
   mot », « je cherche dans le dictionnaire X ») — utile éventuellement, pas nécessaire
-  pour ce spike
+  pour les Phases 1-5. **Révisé pour la Phase 6** : voir la nouvelle sous-section
+  « Progrès et résultats affichés dans l'UI » sous Phase 6 ci-dessous — pas la même
+  chose que cette heuristique d'arrêt anticipé, qui elle reste hors scope partout.
 - Pas d'heuristique d'arrêt anticipé floue de type « ça semble suffisant » — l'appli
   interroge systématiquement toutes les sources activées à chaque mot. Seule exception,
   volontairement simple et déterministe (pas une heuristique) : le court-circuit sur
@@ -590,9 +735,10 @@ reproduire l'appel réel du site si celui-ci n'accepte pas de recherche par URL.
   pour cette source sans bloquer les autres
 
 **Phase 6** :
-- **Bloquant** : le modèle choisi (Gemma 3n E2B, repli Gemma 3 1B) charge et tourne sans
-  crash sur l'appareil de test réel, avec une marge de mémoire libre raisonnable —
-  sinon, documenter l'échec et arrêter cette phase plutôt que de forcer
+- **Bloquant** : le modèle choisi (Qwen2-0.5B-Instruct, repli sur un modèle encore
+  plus petit) charge et tourne sans crash sur l'appareil de test réel, avec une marge
+  de mémoire libre raisonnable — sinon, documenter l'échec et arrêter cette phase
+  plutôt que de forcer
 - Le modèle local produit un verdict raisonnable à partir du même contexte pré-rassemblé
   (décomposition + résultats des fetchers réutilisés des Phases 3-5) que celui donné à
   Claude — aucun tool-calling requis, donc rien de spécifique à valider ici au-delà de
@@ -658,17 +804,24 @@ reproduire l'appel réel du site si celui-ci n'accepte pas de recherche par URL.
 22. Brancher son résultat dans le message envoyé à Claude
 23. Tester sur les cas déjà utilisés dans les simulations manuelles
 
-**Phase 6** :
-24. Ajouter la dépendance MediaPipe GenAI au projet (sur une branche séparée, ou un
-    module optionnel, pour ne pas alourdir l'appli principale si cette phase échoue)
-25. Câbler le téléchargement + chargement d'un modèle `.task` (Gemma 3n E2B d'abord)
+**Phase 6** (révisé pour LiteRT-LM, voir la note SDK ci-dessus) :
+24. Ajouter la dépendance `com.google.ai.edge.litertlm:litertlm-android` au projet (sur
+    la branche séparée `local-llm-spike`, pour ne pas alourdir l'appli principale si
+    cette phase échoue)
+25. Câbler le chargement d'un modèle `.litertlm` (`Qwen2-0.5B-Instruct` d'abord, voir
+    la note "Modèle recommandé" ci-dessus) déjà présent sur l'appareil -- pour ce
+    spike, le fichier est placé manuellement sur l'appareil (`adb push`) plutôt que
+    téléchargé par l'appli ; certains modèles (Gemma, contrairement à Qwen) sont
+    distribués sous licence Google avec accès "gated" sur Hugging Face, et bâtir un
+    téléchargeur authentifié en appli n'a de sens que si le test mémoire bloquant
+    (étape suivante) passe d'abord
 26. **Test bloquant** : mesurer la mémoire disponible réelle sur l'appareil de test
-    avant d'aller plus loin ; si insuffisant, essayer Gemma 3 1B ; si toujours
-    insuffisant, documenter l'échec et arrêter
+    avant d'aller plus loin ; si insuffisant, essayer un modèle encore plus petit ; si
+    toujours insuffisant, documenter l'échec et arrêter
 27. Réutiliser directement les fetchers déjà écrits en Phases 3-5 pour rassembler le
     contexte (recherche locale Spalding + fetchers réseau) -- rien à reconstruire ici
 28. Rebrancher le prompt système déjà validé en Phases 2-5 (adapté si nécessaire au
-    format d'appel de MediaPipe)
+    format d'appel de LiteRT-LM -- `Conversation.sendMessage`/`sendMessageAsync`)
 29. Tester sur les mêmes cas que les phases précédentes et comparer
 
 **Après les 6 phases** : documenter les résultats (temps de réponse par phase, coût par

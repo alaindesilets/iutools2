@@ -115,4 +115,34 @@ class TusaalangaFetcherTest {
 
         assertEquals(TusaalangaResult.NotFound, result)
     }
+
+    @Test
+    fun matchEntry_exactWord_returnsFound() {
+        val entries = TusaalangaFetcher.parseEntries(fixtureHtml)
+
+        val result = TusaalangaFetcher.matchEntry(entries, "aaggiisi")
+
+        assertTrue("expected Found, got: $result", result is TusaalangaResult.Found)
+        assertEquals("August", (result as TusaalangaResult.Found).entry.meaning)
+    }
+
+    @Test
+    fun matchEntry_noExactMatch_findsShorterPrefix() {
+        val entries = TusaalangaFetcher.parseEntries(fixtureHtml)
+
+        // "aaggiisiqut" isn't a real entry, but it starts with "aaggiisi".
+        val result = TusaalangaFetcher.matchEntry(entries, "aaggiisiqut")
+
+        assertTrue("expected FoundForShorterWord, got: $result", result is TusaalangaResult.FoundForShorterWord)
+        assertEquals("aaggiisi", (result as TusaalangaResult.FoundForShorterWord).entry.word)
+    }
+
+    @Test
+    fun matchEntry_noMatchAtAll_returnsNotFound() {
+        val entries = TusaalangaFetcher.parseEntries(fixtureHtml)
+
+        val result = TusaalangaFetcher.matchEntry(entries, "zzznotarealprefixatall99")
+
+        assertEquals(TusaalangaResult.NotFound, result)
+    }
 }

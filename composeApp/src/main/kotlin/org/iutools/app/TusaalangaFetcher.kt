@@ -30,6 +30,9 @@ data class TusaalangaEntry(val word: String, val syllabic: String, val meaning: 
 
 sealed interface TusaalangaResult {
     data class Found(val entry: TusaalangaEntry) : TusaalangaResult
+    // The exact word wasn't found, but a shorter prefix of it was -- see
+    // PrefixFallback.kt.
+    data class FoundForShorterWord(val entry: TusaalangaEntry) : TusaalangaResult
     data object NotFound : TusaalangaResult
     data class FetchFailed(val message: String) : TusaalangaResult
 }
@@ -50,8 +53,23 @@ object TusaalangaFetcher {
         } catch (e: IOException) {
             return@withContext TusaalangaResult.FetchFailed(e.message ?: e.toString())
         }
-        val match = parseEntries(html).firstOrNull { it.word.equals(word, ignoreCase = true) }
-        if (match != null) TusaalangaResult.Found(match) else TusaalangaResult.NotFound
+        matchEntry(parseEntries(html), word)
+    }
+
+    // internal (not private): unit-tested directly against a fixture page's
+    // parsed entries, without needing a real network call -- fallback
+    // candidates share the same first letter as the full word (a prefix of
+    // a word starts with that word's own first letter), so they're always
+    // already in the same page/entries list, no extra fetch needed. See
+    // PrefixFallback.kt.
+    internal fun matchEntry(entries: List<TusaalangaEntry>, word: String): TusaalangaResult {
+        val match = entries.firstOrNull { it.word.equals(word, ignoreCase = true) }
+        if (match != null) return TusaalangaResult.Found(match)
+
+        val shorterMatch = findByLongestPrefix(word) { candidate ->
+            entries.firstOrNull { it.word.equals(candidate, ignoreCase = true) }
+        }
+        return if (shorterMatch != null) TusaalangaResult.FoundForShorterWord(shorterMatch.second) else TusaalangaResult.NotFound
     }
 
     private fun firstLetterParam(word: String): Char? {

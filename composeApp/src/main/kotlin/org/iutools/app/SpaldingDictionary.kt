@@ -30,6 +30,17 @@ object SpaldingDictionary {
     /** Exact-match lookup only -- see the "Court-circuit" section of the plan doc. */
     fun lookup(context: Context, word: String): SpaldingEntry? = entries(context)[word]
 
+    /**
+     * Longest prefix of [word] (see PrefixFallback.kt) that has an exact
+     * entry, paired with that entry -- or null if none matched. Callers are
+     * expected to have already tried [lookup] themselves; this doesn't
+     * retry the exact word.
+     */
+    fun lookupLongestPrefix(context: Context, word: String): Pair<String, SpaldingEntry>? {
+        val map = entries(context)
+        return findByLongestPrefix(word) { candidate -> map[candidate] }
+    }
+
     private fun entries(context: Context): Map<String, SpaldingEntry> {
         return entriesByWord ?: loadEntries(context).also { entriesByWord = it }
     }

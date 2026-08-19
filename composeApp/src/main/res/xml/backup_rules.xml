@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup rules for API 23-30 (API 31+ uses data_extraction_rules.xml
+  instead, see AndroidManifest.xml's dataExtractionRules attribute).
+  Excludes the encrypted API key file (see AppSettings.kt's securePrefs):
+  a Keystore-backed key doesn't normally survive a backup/restore cycle
+  anyway, but there's no reason to let the (undecryptable, on restore)
+  ciphertext be uploaded either.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="app_settings_secure.xml" />
+</full-backup-content>

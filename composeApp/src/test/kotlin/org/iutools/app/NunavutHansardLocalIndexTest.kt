@@ -74,15 +74,24 @@ class NunavutHansardLocalIndexTest {
             "INSERT INTO pairs VALUES (2, 'Hansard_20050318', 12, ?, 'and the building')",
             arrayOf("$syllabicAmma $syllabicIglu"),
         )
+        // Same text as pair 1, on a different day -- the corpus repeats
+        // boilerplate verbatim like this often; queryExamples() is expected
+        // to dedupe it back out (see queryExamples_duplicatePairs_areDeduped).
+        db.execSQL(
+            "INSERT INTO pairs VALUES (3, 'Hansard_20080604', 3, ?, 'a new building')",
+            arrayOf("$syllabicIglu $syllabicAmma"),
+        )
         db.execSQL("INSERT INTO words VALUES (1, ?)", arrayOf(syllabicIglu))
         db.execSQL("INSERT INTO words VALUES (2, ?)", arrayOf(syllabicAmma))
         db.execSQL("INSERT INTO word_index VALUES (1, 1)")
         db.execSQL("INSERT INTO word_index VALUES (2, 1)")
         db.execSQL("INSERT INTO word_index VALUES (1, 2)")
         db.execSQL("INSERT INTO word_index VALUES (2, 2)")
+        db.execSQL("INSERT INTO word_index VALUES (1, 3)")
+        db.execSQL("INSERT INTO word_index VALUES (2, 3)")
         db.execSQL("INSERT INTO meta VALUES ('schema_version', '$schemaVersion')")
         db.execSQL("INSERT INTO meta VALUES ('corpus_version', '3.0.1')")
-        db.execSQL("INSERT INTO meta VALUES ('pair_count', '2')")
+        db.execSQL("INSERT INTO meta VALUES ('pair_count', '3')")
         db.execSQL("INSERT INTO meta VALUES ('generated_at', '2026-01-01T00:00:00+00:00')")
         db.close()
     }
@@ -101,6 +110,19 @@ class NunavutHansardLocalIndexTest {
         assertEquals(2, examples.size)
         assertTrue(examples.any { it.english == "a new building" })
         assertTrue(examples.any { it.english == "and the building" })
+    }
+
+    @Test
+    fun queryExamples_duplicatePairs_areDeduped() {
+        val path = tempDbPath("query1b")
+        buildFixtureDb(path)
+        val db = SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READONLY)
+
+        // The fixture has 3 pairs matching "iglu" (see buildFixtureDb), but
+        // pairs 1 and 3 share identical (inuktitut, english) text.
+        val examples = NunavutHansardLocalIndex.queryExamples(db, syllabicIglu, maxExamples = 20)
+
+        assertEquals(2, examples.size)
     }
 
     @Test
@@ -183,5 +205,22 @@ class NunavutHansardLocalIndexTest {
         val result = NunavutHansardLocalIndex.fetch(context, "qanuippit")
 
         assertEquals(NunavutHansardResult.NotFound, result)
+    }
+
+    @Test
+    fun fetch_exactWordAbsentButPrefixPresent_returnsFoundForShorterWord() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val dbFile = requireNotNull(NunavutHansardLocalIndex.dbFile(context))
+        dbFile.parentFile?.mkdirs()
+        buildFixtureDb(dbFile.path)
+
+        // A synthetic word (not itself in the fixture) that starts with the
+        // real fixture word "iglu" -- fetch() should fall back to it.
+        val result = NunavutHansardLocalIndex.fetch(context, syllabicIglu + syllabicAmma)
+
+        assertTrue("expected FoundForShorterWord, got: $result", result is NunavutHansardResult.FoundForShorterWord)
+        val shorterResult = result as NunavutHansardResult.FoundForShorterWord
+        assertEquals(syllabicIglu, shorterResult.word)
+        assertEquals(2, shorterResult.examples.size)
     }
 }

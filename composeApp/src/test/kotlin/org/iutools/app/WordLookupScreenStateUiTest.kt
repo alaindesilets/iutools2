@@ -1,5 +1,6 @@
 package org.iutools.app
 
+import android.content.Context
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertTextEquals
@@ -7,6 +8,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,6 +47,21 @@ class WordLookupScreenStateUiTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    // WordLookupScreen now loads the API key eagerly (see its apiKey comment
+    // in WordLookupScreen.kt), so simply composing it -- not just opening
+    // Settings -- touches the real Android Keystore, which Robolectric can't
+    // simulate. See AppSettings.securePrefsFactory and AppSettingsTest.kt's
+    // header comment for the full reasoning.
+    @Before
+    fun useFakeSecurePrefs() {
+        AppSettings.securePrefsFactory = { context -> context.getSharedPreferences("test_secure_prefs", Context.MODE_PRIVATE) }
+    }
+
+    @After
+    fun restoreRealSecurePrefsFactory() {
+        AppSettings.resetSecurePrefsFactoryToDefault()
+    }
 
     @Test
     fun sharedState_survivesComposableTeardownAndRecreation() {

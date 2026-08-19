@@ -38,6 +38,10 @@ sealed interface NunavutHansardResult {
     // fetch() below) -- carried along so the UI can highlight it within
     // each example sentence, not just the original as-typed query.
     data class Found(val word: String, val examples: List<BilingualExample>) : NunavutHansardResult
+    // The exact word wasn't found, but a shorter prefix of it was -- see
+    // PrefixFallback.kt and fetch() below. word is that shorter prefix
+    // (already guaranteed non-empty examples, same as Found).
+    data class FoundForShorterWord(val word: String, val examples: List<BilingualExample>) : NunavutHansardResult
     data object NotFound : NunavutHansardResult
     data object IndexMissing : NunavutHansardResult
     data class IndexVersionMismatch(val found: Int, val expected: Int) : NunavutHansardResult
@@ -90,10 +94,26 @@ object NunavutHansardLocalIndex {
                 // word was typed/analyzed in.
                 val syllabicWord = TransCoder.ensureScript(Script.SYLLABIC, word)
                 val examples = queryExamples(opened.database, syllabicWord, MAX_EXAMPLES)
-                if (examples.isEmpty()) {
-                    NunavutHansardResult.NotFound
-                } else {
-                    NunavutHansardResult.Found(syllabicWord, examples)
+                when {
+                    examples.isNotEmpty() -> NunavutHansardResult.Found(syllabicWord, examples)
+                    else -> {
+                        // See PrefixFallback.kt: a specific inflected form
+                        // can easily be absent from the corpus while its
+                        // stem (a prefix of the word) shows up on its own
+                        // elsewhere.
+                        val shorterMatch = findByLongestPrefix(syllabicWord) { candidate ->
+                            queryWordId(opened.database, candidate)
+                        }
+                        if (shorterMatch != null) {
+                            val (shorterWord, _) = shorterMatch
+                            NunavutHansardResult.FoundForShorterWord(
+                                shorterWord,
+                                queryExamples(opened.database, shorterWord, MAX_EXAMPLES),
+                            )
+                        } else {
+                            NunavutHansardResult.NotFound
+                        }
+                    }
                 }
             }
         }
@@ -119,6 +139,16 @@ object NunavutHansardLocalIndex {
         return ready
     }
 
+    // Used both by queryExamples (does this exact word exist) and the
+    // findByLongestPrefix fallback in fetch() (does this shorter candidate
+    // exist) -- an indexed lookup against `words.word`'s UNIQUE constraint,
+    // O(log n) even with ~1.6M distinct words.
+    private fun queryWordId(database: SQLiteDatabase, word: String): Long? =
+        database.rawQuery(
+            "SELECT id FROM words WHERE word = ?",
+            arrayOf(word.lowercase()),
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else null }
+
     // internal (not private): unit-tested directly against a hand-built
     // fixture database, without needing a real device/Context.
     internal fun queryExamples(database: SQLiteDatabase, word: String, maxExamples: Int): List<BilingualExample> {
@@ -127,10 +157,7 @@ object NunavutHansardLocalIndex {
         // build_hansard_index.py's schema comment for why: with ~1.6M
         // distinct Inuktitut wordforms, storing each occurrence's word as
         // raw text was most of an 818 MiB build's size.
-        val wordId = database.rawQuery(
-            "SELECT id FROM words WHERE word = ?",
-            arrayOf(word.lowercase()),
-        ).use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else null } ?: return emptyList()
+        val wordId = queryWordId(database, word) ?: return emptyList()
 
         val pairIds = mutableListOf<Long>()
         database.rawQuery(
@@ -158,7 +185,15 @@ object NunavutHansardLocalIndex {
                 )
             }
         }
-        return examples
+        // The corpus repeats a lot of boilerplate phrasing verbatim across
+        // different debate days (opening/closing formulas, standing
+        // committee names, etc.) -- dedupe identical (inuktitut, english)
+        // pairs so the same sentence doesn't show up twice in the app, or
+        // get sent to Claude twice in guessMeaningSeedPrompt(). Applied
+        // after the maxExamples cap above (a query-level LIMIT), so a very
+        // repetitive word can end up with fewer than maxExamples examples
+        // here -- an acceptable tradeoff over re-querying to backfill.
+        return examples.distinctBy { it.inuktitut to it.english }
     }
 
     // internal (not private): unit-tested directly.

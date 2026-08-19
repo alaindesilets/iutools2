@@ -1,10 +1,13 @@
 package org.iutools.app
 
+import android.content.Context
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,6 +50,20 @@ class LanguageSwitchUiTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    // Opening Settings now also reads the API key (see WordLookupScreen.kt's
+    // LaunchedEffect(showSettings)), which needs a real Android Keystore
+    // that Robolectric can't simulate -- see AppSettings.securePrefsFactory
+    // and AppSettingsTest.kt's own header comment for the full reasoning.
+    @Before
+    fun useFakeSecurePrefs() {
+        AppSettings.securePrefsFactory = { context -> context.getSharedPreferences("test_secure_prefs", Context.MODE_PRIVATE) }
+    }
+
+    @After
+    fun restoreRealSecurePrefsFactory() {
+        AppSettings.resetSecurePrefsFactoryToDefault()
+    }
 
     @Test
     fun settingsDialog_switchesStaticKotlinLabels_whenFrenchIsChosen() {

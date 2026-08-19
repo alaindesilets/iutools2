@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,11 +31,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +51,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
@@ -74,6 +82,11 @@ private const val PREVIEW_LIMIT = 3
 // NunavutHansardLocalIndex.MAX_EXAMPLES -- this just paginates the display).
 private const val HANSARD_PREVIEW_LIMIT = 5
 
+// How many Hansard examples guessMeaningSeedPrompt() sends to Claude --
+// separate from HANSARD_PREVIEW_LIMIT (the on-screen preview count), per
+// Alain's request.
+private const val GUESS_MEANING_HANSARD_EXAMPLES = 10
+
 // The in-app switch overrides the UI language independently of the device's
 // system locale. endonym: each language's name is shown in itself, so it
 // doesn't need translating.
@@ -84,6 +97,112 @@ enum class AppLanguage(val locale: Locale, val endonym: String) {
 
 fun defaultAppLanguage(): AppLanguage =
     if (Locale.getDefault().language == "fr") AppLanguage.FRENCH else AppLanguage.ENGLISH
+
+// Overrides stringResource()'s language for [content], independently of the
+// device's system locale -- every screen that has its own uiLanguage
+// (WordLookupScreen directly, ExplanationScreen via the WordInfoSnapshot it
+// was opened with) needs this, since MainActivity.kt renders each as its own
+// top-level composable rather than nesting them, so a wrap done inside one
+// screen doesn't reach the others.
+@Composable
+internal fun LocalizedContent(uiLanguage: AppLanguage, content: @Composable () -> Unit) {
+    val baseContext = LocalContext.current
+    val baseConfiguration = LocalConfiguration.current
+    val localizedConfiguration = remember(uiLanguage, baseConfiguration) {
+        Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) }
+    }
+    val localizedContext = remember(uiLanguage, baseContext) {
+        baseContext.createConfigurationContext(localizedConfiguration)
+    }
+    CompositionLocalProvider(
+        LocalContext provides localizedContext,
+        LocalConfiguration provides localizedConfiguration,
+        content = content,
+    )
+}
+
+// The real Activity context, established once at the very top of the
+// composition (see MainActivity.kt), before anything -- LocalizedContent
+// included -- ever swaps LocalContext.current for a locale override.
+// RealAndroidContext (below) uses this to escape back to it around
+// interactive widgets that need a genuine Activity context to work. Defaults
+// to null (rather than error()-ing on a missing provider) so tests that
+// compose a screen directly -- never going through MainActivity's own
+// top-level provider -- fall back to whatever LocalContext.current already
+// is at that point instead of crashing; RealAndroidContext treats null the
+// same way.
+internal val LocalRealAndroidContext = staticCompositionLocalOf<Context?> { null }
+
+// Resolves a single string in [uiLanguage] without touching any ambient
+// CompositionLocal -- safe to call from anywhere, including inside
+// RealAndroidContent, unlike stringResource() (see that composable's own
+// header comment for why that distinction matters here).
+@Composable
+internal fun localizedStringResource(uiLanguage: AppLanguage, id: Int): String {
+    val baseContext = LocalContext.current
+    val baseConfiguration = LocalConfiguration.current
+    val localizedContext = remember(uiLanguage, baseContext, baseConfiguration) {
+        baseContext.createConfigurationContext(Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) })
+    }
+    return localizedContext.getString(id)
+}
+
+@Composable
+internal fun localizedStringResource(uiLanguage: AppLanguage, id: Int, vararg formatArgs: Any): String {
+    val baseContext = LocalContext.current
+    val baseConfiguration = LocalConfiguration.current
+    val localizedContext = remember(uiLanguage, baseContext, baseConfiguration) {
+        baseContext.createConfigurationContext(Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) })
+    }
+    return localizedContext.getString(id, *formatArgs)
+}
+
+// OutlinedTextField's own platform text-editing internals (the floating
+// copy/paste toolbar in particular) need LocalContext.current to resolve
+// back to a real Activity to find its Window -- a locale-only synthetic
+// context (what LocalizedContent provides, see above) crashed this every
+// time on Alain's Samsung phone (long-press to paste in the API key field).
+// Wraps [content] to restore the real context for exactly that reason; any
+// localized label/placeholder text the widget needs must be resolved
+// *before* entering this wrap, with localizedStringResource above -- a live
+// stringResource() call made *inside* [content] would silently lose the
+// language override, since it would resolve against the real (unlocalized)
+// context this restores.
+@Composable
+internal fun RealAndroidContext(content: @Composable () -> Unit) {
+    val real = LocalRealAndroidContext.current ?: LocalContext.current
+    CompositionLocalProvider(LocalContext provides real, content = content)
+}
+
+// AlertDialog (like Dialog/Popup generally) renders into its own separate
+// window, with its own AndroidComposeView root -- that root re-establishes
+// LocalContext/LocalConfiguration from the *dialog's own* (unlocalized)
+// context, so a LocalizedContent wrap further up the tree never reaches a
+// dialog's title/text/button slots (confirmed the hard way: Alain found
+// Settings' content stayed in English even though it's nested inside
+// WordLookupScreen's own LocalizedContent wrap). Every AlertDialog in this
+// app goes through here instead of calling AlertDialog(...) directly, so
+// each slot gets its own LocalizedContent wrap, placed *inside* the dialog's
+// own composition root where it can actually take effect.
+@Composable
+internal fun LocalizedAlertDialog(
+    uiLanguage: AppLanguage,
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = { LocalizedContent(uiLanguage, confirmButton) },
+        dismissButton = dismissButton?.let { slot -> { LocalizedContent(uiLanguage, slot) } },
+        title = title?.let { slot -> { LocalizedContent(uiLanguage, slot) } },
+        text = text?.let { slot -> { LocalizedContent(uiLanguage, slot) } },
+        modifier = modifier,
+    )
+}
 
 // Chooses which script Inuktitut surface text (morpheme forms, canonical
 // forms) is displayed in. AS_ENTERED follows whatever script the analyzed
@@ -107,7 +226,49 @@ internal data class DictionaryLookupResult(
     val enteredScript: Script,
 )
 
-private fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
+// A dictionary definition found for a shorter prefix of the searched word,
+// not the word itself (see PrefixFallback.kt) -- kept separate from
+// DictionaryLookupResult/dictionaryResults on purpose: per Alain, this does
+// NOT count as "a definition was found" for gating the Guess Meaning button
+// or the automatic Hansard search (see findWord()) -- only an exact-word hit
+// does. Guess Meaning stays offered, and this gets sent to the AI as useful
+// context (see guessMeaningSeedPrompt(), converted to syllabic there, same
+// reasoning as decomposition morphemes -- per Alain, initially thought
+// unnecessary since he'd expected an exact-word hit to always suppress Guess
+// Meaning entirely, until he remembered this shorter-word case stays
+// reachable). Still shown on screen either way (see
+// ShorterWordDictionarySection).
+internal data class ShorterWordDictionaryResult(
+    val originalWord: String,
+    val result: DictionaryLookupResult,
+)
+
+// A frozen copy of everything WordLookupScreen shows about the current word
+// below its search controls (dictionary/decomposition/Hansard results) --
+// built at the moment "Expliquer" is tapped (see GuessMeaningSection's
+// onExplain) and handed to ExplanationScreen.kt so its bottom pane can show
+// the same "fiche" without re-running any lookups or needing WordLookupScreen
+// itself to still be composed. Deliberately a snapshot, not live state: that
+// screen is meant as a static reference to read alongside the explanation
+// (per Alain's request), not a second live copy of the search screen -- see
+// WordInfoCard in ExplanationScreen.kt, which renders it read-only (no
+// "load more"/"find examples"/"download" affordances).
+internal data class WordInfoSnapshot(
+    val decomposeState: DecomposeState,
+    val dictionaryResults: List<DictionaryLookupResult>,
+    val shorterWordDictionaryResults: List<ShorterWordDictionaryResult>,
+    val dictionaryLoading: Boolean,
+    val hansardResult: NunavutHansardResult?,
+    val hansardLoading: Boolean,
+    val lastSearchedWord: String,
+    val lastSearchedWordScript: Script,
+    val displayScript: DisplayScript,
+    val uiLanguage: AppLanguage,
+)
+
+// internal (not private): also called from ExplanationScreen.kt's
+// WordInfoCard, for the same script-conversion display logic.
+internal fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
     val target = when (script) {
         DisplayScript.ROMAN -> Script.ROMAN
         DisplayScript.SYLLABIC -> Script.SYLLABIC
@@ -166,55 +327,131 @@ private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
 // itself runs inside a button click handler, not a @Composable context.
 // internal (not private): constructed directly in WordLookupScreenTest.kt.
 internal data class GuessMeaningSeedLabels(
-    val word: String,
-    val decompositionHeader: String,
+    // %1$s: the word, in syllabic. Placed first (not last, as before), per
+    // Alain's request -- the seed now opens with the actual question, then
+    // explains what follows it, rather than piling up data and asking the
+    // question at the end.
+    val questionTemplate: String,
+    // Two variants, not one -- when there's just one decomposition it's
+    // presented as fact; with several, the prompt also has to say they're
+    // competing alternatives, not all necessarily correct (see
+    // decompositions.size below).
+    val decompositionSingleIntro: String,
+    val decompositionMultipleIntro: String,
     val decompositionNumberTemplate: String,
     val unknownMorpheme: String,
-    val question: String,
+    // %1$s: the word, in syllabic.
+    val shorterWordDictionaryIntroTemplate: String,
+    // Two variants, not one -- the instruction to verify candidate meanings
+    // against the examples only makes sense when they're for the exact word
+    // (see guessMeaningSeedPrompt's hansardExamplesAreExactMatch parameter
+    // and its own header comment); when they're only for a shorter, related
+    // word, the prompt says the opposite instead. %1$s: the word, in
+    // syllabic, in both variants.
+    val hansardExamplesExactIntroTemplate: String,
+    val hansardExamplesShorterWordIntroTemplate: String,
 )
 
 /**
- * Builds the text that seeds the Guess Meaning chat's input field: the
- * analyzed word plus its morphological decomposition(s), formatted for a
- * human (and an LLM) to read -- not sent automatically, the user can still
- * edit it before pressing Send. The instructions asking Claude to guess the
- * meaning live in GuessMeaningScreen's system prompt instead, kept separate
- * from this user-message content. Both this seed and that system prompt
- * follow the app's UI language, per Alain's request, so Claude's replies do
- * too.
+ * Builds the seed message sent to the AI for Guess Meaning: opens with the
+ * actual question, then, for each kind of information actually available
+ * for this specific word, a plain-language sentence saying what it is and
+ * how (or whether) to use it, followed by that data -- morphological
+ * decomposition(s), a dictionary definition found for a shorter/related word
+ * (see ShorterWordDictionaryResult -- never an exact-word definition, since
+ * Guess Meaning isn't offered at all when one exists, see WordLookupScreen's
+ * gating), and/or bilingual sentence pairs. Per Alain's request: rather than
+ * one system prompt trying to describe every case a seed *might* contain,
+ * each seed instead describes exactly what *this* one contains and why,
+ * conversationally -- chat_system_prompt now only carries the few rules that
+ * really are true for every attempt (output format, response language,
+ * brief-then-detailed-on-request). Both this seed and that system prompt
+ * follow the app's UI language, per Alain's earlier request, so Claude's
+ * replies do too.
  *
- * Takes [word]/[decompositions] directly rather than a DecomposeState.Success
- * -- it only ever reads those two fields, and this keeps it testable
- * (WordLookupScreenTest.kt) without needing a full DecomposeState instance.
+ * Every Inuktitut word included here (the word itself, decomposition
+ * morphemes, the shorter-word dictionary headword) is always written in
+ * syllabic, regardless of displayScript or how the word was typed -- per
+ * Alain, Roman-script Inuktitut looks enough like gibberish to small local
+ * models that they were observed falling back to their default language
+ * (Chinese) instead of English. Hansard examples don't need the same
+ * conversion, their Inuktitut side is already always syllabic (see
+ * NunavutHansardLocalIndex.kt).
+ *
+ * [hansardExamplesAreExactMatch] controls which of
+ * [GuessMeaningSeedLabels.hansardExamplesExactIntroTemplate]/
+ * [GuessMeaningSeedLabels.hansardExamplesShorterWordIntroTemplate]
+ * introduces [hansardExamples] -- see those fields' own comment. Ignored
+ * when [hansardExamples] is empty.
+ *
+ * Takes [word]/[decompositions]/[hansardExamples]/[shorterWordDictionaryResults]
+ * directly rather than a DecomposeState.Success/NunavutHansardResult/screen
+ * state -- it only ever reads these fields, and this keeps it testable
+ * (WordLookupScreenTest.kt) without needing full state instances.
+ * [hansardExamples] is expected to already be deduplicated (see
+ * NunavutHansardLocalIndex.queryExamples) and capped to however many should
+ * be sent -- this function doesn't cap it itself.
  */
 internal fun guessMeaningSeedPrompt(
     word: String,
     decompositions: List<List<MorphemeRow>>,
+    hansardExamples: List<BilingualExample>,
+    hansardExamplesAreExactMatch: Boolean,
+    shorterWordDictionaryResults: List<ShorterWordDictionaryResult>,
     preferFrench: Boolean,
     labels: GuessMeaningSeedLabels,
 ): String {
-    val decompositionsText = decompositions.mapIndexed { index, rows ->
-        val header = if (decompositions.size > 1) {
-            String.format(labels.decompositionNumberTemplate, index + 1) + "\n"
-        } else {
-            ""
+    val syllabicWord = TransCoder.ensureScript(Script.SYLLABIC, word)
+    val question = String.format(labels.questionTemplate, syllabicWord)
+
+    // Omitted entirely (not just an empty section) when there are no
+    // decompositions -- e.g. the analyzer found none for this word.
+    val decompositionSection = if (decompositions.isEmpty()) {
+        ""
+    } else {
+        val intro = if (decompositions.size > 1) labels.decompositionMultipleIntro else labels.decompositionSingleIntro
+        val decompositionsText = decompositions.mapIndexed { index, rows ->
+            val header = if (decompositions.size > 1) {
+                String.format(labels.decompositionNumberTemplate, index + 1) + "\n"
+            } else {
+                ""
+            }
+            val morphemes = rows.joinToString("\n") { row ->
+                val meaning = row.fullRecord?.preferredMeaning(preferFrench) ?: labels.unknownMorpheme
+                val surfaceForm = TransCoder.ensureScript(Script.SYLLABIC, row.surfaceForm)
+                "- $surfaceForm (${row.morphemeId}): $meaning"
+            }
+            header + morphemes
+        }.joinToString("\n\n")
+        "\n\n$intro\n\n$decompositionsText"
+    }
+
+    // Same omit-when-empty treatment as decompositionSection. Comes before
+    // hansardSection, matching Alain's own example of the desired wording.
+    val shorterWordSection = if (shorterWordDictionaryResults.isEmpty()) {
+        ""
+    } else {
+        val intro = String.format(labels.shorterWordDictionaryIntroTemplate, syllabicWord)
+        val definitionsText = shorterWordDictionaryResults.joinToString("\n") {
+            val headword = TransCoder.ensureScript(Script.SYLLABIC, it.result.word)
+            "- ${it.result.title}, \"$headword\": ${it.result.meaning}"
         }
-        val morphemes = rows.joinToString("\n") { row ->
-            val meaning = row.fullRecord?.preferredMeaning(preferFrench) ?: labels.unknownMorpheme
-            "- ${row.surfaceForm} (${row.morphemeId}): $meaning"
-        }
-        header + morphemes
-    }.joinToString("\n\n")
+        "\n\n$intro\n\n$definitionsText"
+    }
 
-    return """
-        ${labels.word} $word
+    // Omitted entirely (not just an empty section) when there are no
+    // examples -- e.g. the Hansard search hasn't finished yet, or found
+    // nothing, by the time this button is clicked.
+    val hansardSection = if (hansardExamples.isEmpty()) {
+        ""
+    } else {
+        val introTemplate = if (hansardExamplesAreExactMatch) labels.hansardExamplesExactIntroTemplate else labels.hansardExamplesShorterWordIntroTemplate
+        val intro = String.format(introTemplate, syllabicWord)
+        val examplesText = hansardExamples.joinToString("\n") { "- ${it.inuktitut} — ${it.english}" }
+        "\n\n$intro\n\n$examplesText"
+    }
 
-        ${labels.decompositionHeader}
-
-        $decompositionsText
-
-        ${labels.question}
-    """.trimIndent()
+    return question + decompositionSection + shorterWordSection + hansardSection
 }
 
 // internal (not private): unit-tested directly in WordLookupScreenTest.kt.
@@ -270,11 +507,20 @@ internal class WordLookupScreenState {
     var decomposeState by mutableStateOf<DecomposeState>(DecomposeState.Idle)
     var multiWordChoices by mutableStateOf<List<String>?>(null)
     var dictionaryResults by mutableStateOf<List<DictionaryLookupResult>>(emptyList())
+    var shorterWordDictionaryResults by mutableStateOf<List<ShorterWordDictionaryResult>>(emptyList())
     var dictionaryLoading by mutableStateOf(false)
     var dictionaryFetchError by mutableStateOf<String?>(null)
     var hansardResult by mutableStateOf<NunavutHansardResult?>(null)
     var hansardLoading by mutableStateOf(false)
     var lastSearchedWord by mutableStateOf("")
+    // The script lastSearchedWord was typed/detected in -- captured once in
+    // findWord() (TransCoder.textScript(wordToAnalyze)) rather than
+    // re-detected wherever lastSearchedWord is displayed, so every "not
+    // found" / "found for a shorter word" message converts it to the user's
+    // chosen displayScript consistently instead of showing it in whatever
+    // script it happened to be typed in -- see findWord() and Alain's report
+    // of the two words in that message appearing in different scripts.
+    var lastSearchedWordScript by mutableStateOf(Script.ROMAN)
 }
 
 // internal (not private/public): takes an internal WordLookupScreenState
@@ -282,7 +528,19 @@ internal class WordLookupScreenState {
 @Composable
 internal fun WordLookupScreen(
     screenState: WordLookupScreenState = remember { WordLookupScreenState() },
-    onOpenGuessMeaning: (GuessMeaningCacheKey, String) -> Unit = { _, _ -> },
+    // Fires when "Expliquer" is tapped inside GuessMeaningSection below --
+    // opens ExplanationScreen.kt with the attempt's key and a frozen
+    // WordInfoSnapshot of everything this screen currently shows about the
+    // word, per Alain's request. Never navigates away for the rest of the
+    // Guess Meaning flow (button/spinner/candidates all stay inline, see
+    // GuessMeaningInline.kt).
+    onOpenExplanation: (GuessMeaningConversationKey, WordInfoSnapshot) -> Unit = { _, _ -> },
+    // Shared with MainActivity (not copied) -- ExplanationScreen reads/
+    // writes the same maps (e.g. after a debug-only prompt resubmission), so
+    // this screen picks up the result without a network call of its own.
+    guessMeaningConversations: SnapshotStateMap<GuessMeaningConversationKey, List<ChatMessage>> = mutableStateMapOf(),
+    useLocalModel: Boolean = false,
+    guessMeaningModelStats: SnapshotStateMap<String, AggregatedBackendStats> = mutableStateMapOf(),
 ) {
     val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
@@ -296,6 +554,22 @@ internal fun WordLookupScreen(
     var lenient by screenState::lenient
     var uiLanguage by remember { mutableStateOf(AppSettings.loadLanguage(baseContext)) }
     var displayScript by remember { mutableStateOf(AppSettings.loadDisplayScript(baseContext)) }
+    // The user's own Claude.ai API key, per Alain's request -- replaces the
+    // developer-only key baked into the build (see GuessMeaningEngine.kt).
+    // Loaded eagerly, like uiLanguage/displayScript above -- GuessMeaningSection
+    // needs to know the real, current key status the first time its button is
+    // tapped, not just after Settings has been opened once this session (a
+    // deferred load previously lived here, but it made GuessMeaningSection's
+    // own copy of the key go stale after Settings saved a new one -- see that
+    // composable's apiKey parameter comment).
+    var apiKey by remember { mutableStateOf(AppSettings.loadApiKey(baseContext)) }
+    // Fed by GuessMeaningSection's onCandidatesChanged below -- lets the
+    // Hansard section highlight the AI's proposed meanings inside the
+    // bilingual examples, per Alain's request. Plain local state (not
+    // screenState): resets to empty on recomposition after navigating away
+    // and back, which is fine since GuessMeaningSection reports it again
+    // right away from its own cached conversation.
+    var guessMeaningCandidates by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSettings by screenState::showSettings
     var state by screenState::decomposeState
     var multiWordChoices by screenState::multiWordChoices
@@ -305,6 +579,7 @@ internal fun WordLookupScreen(
     // content, must stay live -- see TusaalangaFetcher.kt), so this list fills in over
     // two separate updates, not one.
     var dictionaryResults by screenState::dictionaryResults
+    var shorterWordDictionaryResults by screenState::shorterWordDictionaryResults
     var dictionaryLoading by screenState::dictionaryLoading
     // Tusaalanga's fetch failure (network/HTTP error, not just "word not found") --
     // debug-build-only, same purpose as the system-prompt inspection panel in
@@ -321,6 +596,7 @@ internal fun WordLookupScreen(
     var hansardResult by screenState::hansardResult
     var hansardLoading by screenState::hansardLoading
     var lastSearchedWord by screenState::lastSearchedWord
+    var lastSearchedWordScript by screenState::lastSearchedWordScript
 
     suspend fun runHansardSearch(searchWord: String) {
         hansardLoading = true
@@ -330,16 +606,6 @@ internal fun WordLookupScreen(
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-
-    // Overrides stringResource()'s language for everything below, independently
-    // of the device's system locale.
-    val baseConfiguration = LocalConfiguration.current
-    val localizedConfiguration = remember(uiLanguage, baseConfiguration) {
-        Configuration(baseConfiguration).apply { setLocale(uiLanguage.locale) }
-    }
-    val localizedContext = remember(uiLanguage, baseContext) {
-        baseContext.createConfigurationContext(localizedConfiguration)
-    }
 
     fun findWord(spaldingResultTitle: String, tusaalangaResultTitle: String) {
         val wordToAnalyze = word.trim()
@@ -358,6 +624,13 @@ internal fun WordLookupScreen(
         lastSearchedWord = wordToAnalyze
         hansardResult = null
         hansardLoading = false
+        shorterWordDictionaryResults = emptyList()
+        // Otherwise a previous word's candidates could keep highlighting
+        // this new word's Hansard examples until/unless GuessMeaningSection
+        // happens to get composed again and reports its own (see
+        // onCandidatesChanged) -- not guaranteed for every new word (e.g.
+        // one with a real dictionary hit never renders that section at all).
+        guessMeaningCandidates = emptyList()
 
         // Dictionaries first. Checked regardless of whether a decomposition is found
         // below: a word can be a real dictionary entry even when the analyzer can't
@@ -368,7 +641,14 @@ internal fun WordLookupScreen(
         // enteredScript captured here (not read off DecomposeState.Success, which
         // won't exist if decomposition fails) so dictionary words can still be
         // displayed in the user's chosen script even when there's no decomposition.
+        // Also stashed in lastSearchedWordScript so "not found"/"found for a
+        // shorter word" messages elsewhere (Hansard's included) can convert
+        // lastSearchedWord to displayScript too -- without this they showed
+        // the original word in whatever script it was typed in regardless of
+        // displayScript, while the shorter matched word (correctly converted
+        // already) could end up in a different script -- see Alain's report.
         val enteredScript = TransCoder.textScript(wordToAnalyze)
+        lastSearchedWordScript = enteredScript
 
         // Spalding is a local/instant lookup, so it's populated synchronously here
         // (not inside the coroutine below) -- DisplayScriptSwitchUiTest.kt relies on
@@ -376,7 +656,23 @@ internal fun WordLookupScreen(
         val spaldingHit = SpaldingDictionary.lookup(baseContext, wordToAnalyze)?.let { entry ->
             DictionaryLookupResult(spaldingResultTitle, entry.word, entry.meaning, enteredScript)
         }
+        // Only tried when the exact word missed -- see PrefixFallback.kt. Per
+        // Alain, a shorter-word hit does NOT count as "found a definition":
+        // kept out of dictionaryResults entirely, in its own list that gates
+        // nothing (Guess Meaning stays offered, Hansard still auto-searches
+        // below), but is still shown on screen and sent to Claude.
+        val spaldingShorterHit = if (spaldingHit == null) {
+            SpaldingDictionary.lookupLongestPrefix(baseContext, wordToAnalyze)?.let { (shorterWord, entry) ->
+                ShorterWordDictionaryResult(
+                    originalWord = wordToAnalyze,
+                    result = DictionaryLookupResult(spaldingResultTitle, entry.word, entry.meaning, enteredScript),
+                )
+            }
+        } else {
+            null
+        }
         dictionaryResults = listOfNotNull(spaldingHit)
+        shorterWordDictionaryResults = listOfNotNull(spaldingShorterHit)
         dictionaryFetchError = null
         dictionaryLoading = true
 
@@ -385,20 +681,36 @@ internal fun WordLookupScreen(
         // Spalding already found, rather than blocking on it.
         scope.launch {
             val tusaalanga = TusaalangaFetcher.fetch(wordToAnalyze)
-            if (tusaalanga is TusaalangaResult.Found) {
-                dictionaryResults = dictionaryResults + DictionaryLookupResult(
-                    tusaalangaResultTitle,
-                    tusaalanga.entry.word,
-                    tusaalanga.entry.meaning,
-                    enteredScript,
-                )
+            when (tusaalanga) {
+                is TusaalangaResult.Found -> {
+                    dictionaryResults = dictionaryResults + DictionaryLookupResult(
+                        tusaalangaResultTitle,
+                        tusaalanga.entry.word,
+                        tusaalanga.entry.meaning,
+                        enteredScript,
+                    )
+                }
+                is TusaalangaResult.FoundForShorterWord -> {
+                    shorterWordDictionaryResults = shorterWordDictionaryResults + ShorterWordDictionaryResult(
+                        originalWord = wordToAnalyze,
+                        result = DictionaryLookupResult(
+                            tusaalangaResultTitle,
+                            tusaalanga.entry.word,
+                            tusaalanga.entry.meaning,
+                            enteredScript,
+                        ),
+                    )
+                }
+                else -> {}
             }
             dictionaryFetchError = (tusaalanga as? TusaalangaResult.FetchFailed)?.message
             dictionaryLoading = false
             // Only searched automatically when no dictionary found anything --
             // otherwise it's offered as an on-demand "Find bilingual examples
             // of use" button instead (see the button below), rather than
-            // running both lookups every time.
+            // running both lookups every time. A shorter-word dictionary hit
+            // doesn't count here either -- dictionaryResults is unaffected by
+            // shorterWordDictionaryResults, so this still fires.
             if (dictionaryResults.isEmpty()) {
                 runHansardSearch(wordToAnalyze)
             }
@@ -423,10 +735,7 @@ internal fun WordLookupScreen(
         }
     }
 
-    CompositionLocalProvider(
-        LocalContext provides localizedContext,
-        LocalConfiguration provides localizedConfiguration,
-    ) {
+    LocalizedContent(uiLanguage) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         // One continuous scroll for the whole screen, per Alain's request --
         // previously each result section (dictionary/Hansard/decompositions)
@@ -443,45 +752,8 @@ internal fun WordLookupScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
             ) {
-                // Only offered once a morphological analysis has been produced (Guess
-                // Meaning seeds its prompt from that analysis, see
-                // guessMeaningSeedPrompt(), so it has nothing to work from before then)
-                // AND every dictionary source has answered with no hit -- see
-                // "Court-circuit sur correspondance exacte" in the plan doc.
-                // dictionaryLoading gates this so the button doesn't flash on screen
-                // before Tusaalanga's (async) answer has had a chance to arrive.
-                val currentState = state
-                if (!dictionaryLoading && dictionaryResults.isEmpty() &&
-                    currentState is DecomposeState.Success &&
-                    currentState.decompositions.isNotEmpty()
-                ) {
-                    val guessMeaningSeedLabels = GuessMeaningSeedLabels(
-                        word = stringResource(R.string.guess_meaning_seed_word_label),
-                        decompositionHeader = stringResource(R.string.guess_meaning_seed_decomposition_header),
-                        decompositionNumberTemplate = stringResource(R.string.guess_meaning_seed_decomposition_number),
-                        unknownMorpheme = stringResource(R.string.guess_meaning_seed_unknown_morpheme),
-                        question = stringResource(R.string.guess_meaning_seed_question),
-                    )
-                    TextButton(
-                        onClick = {
-                            onOpenGuessMeaning(
-                                GuessMeaningCacheKey(currentState.word, currentState.lenient),
-                                guessMeaningSeedPrompt(
-                                    currentState.word,
-                                    currentState.decompositions,
-                                    uiLanguage == AppLanguage.FRENCH,
-                                    guessMeaningSeedLabels,
-                                ),
-                            )
-                        },
-                    ) {
-                        Text("🔮 " + stringResource(R.string.guess_meaning_button))
-                    }
-                } else {
-                    Spacer(modifier = Modifier)
-                }
                 TextButton(onClick = { showSettings = true }, modifier = Modifier.testTag("settings_button")) {
                     Text("⚙ " + stringResource(R.string.settings_button))
                 }
@@ -499,12 +771,18 @@ internal fun WordLookupScreen(
                         displayScript = it
                         AppSettings.saveDisplayScript(baseContext, it)
                     },
+                    apiKey = apiKey,
+                    onApiKeyChanged = {
+                        apiKey = it
+                        AppSettings.saveApiKey(baseContext, it)
+                    },
                     onDismiss = { showSettings = false },
                 )
             }
 
             multiWordChoices?.let { choices ->
                 MultiWordChoiceDialog(
+                    uiLanguage = uiLanguage,
                     words = choices,
                     onSelect = { selectWord(it, spaldingResultTitle, tusaalangaResultTitle) },
                     onDismiss = { multiWordChoices = null },
@@ -518,18 +796,42 @@ internal fun WordLookupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = word,
-                onValueChange = { word = it },
-                label = { Text(stringResource(R.string.word_label)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { findWord(spaldingResultTitle, tusaalangaResultTitle) }),
-                modifier = Modifier.fillMaxWidth().testTag("word_input"),
-            )
+            // Wrapped in RealAndroidContext, not just composed directly under
+            // this screen's own LocalizedContent wrap -- see that
+            // composable's header comment: pasting into a plain
+            // LocalizedContent-wrapped field crashed on Alain's Samsung
+            // phone. wordLabel is resolved *before* entering the wrap so it
+            // still reflects uiLanguage.
+            val wordLabel = localizedStringResource(uiLanguage, R.string.word_label)
+            RealAndroidContext {
+                OutlinedTextField(
+                    value = word,
+                    onValueChange = { word = it },
+                    label = { Text(wordLabel) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { findWord(spaldingResultTitle, tusaalangaResultTitle) }),
+                    modifier = Modifier.fillMaxWidth().testTag("word_input"),
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Makes every Text from here to the end of the screen
+            // copy-pasteable, per Alain's request -- covers this screen's
+            // own content, but NOT the dialogs (SettingsDialog/
+            // MultiWordChoiceDialog/MorphemeDetailDialog), which each render
+            // into their own separate window (AlertDialog internally uses
+            // Dialog/Popup) and so need their own SelectionContainer -- this
+            // one doesn't reach across that boundary. Starts after
+            // word_input above, not from the top of the screen -- a
+            // SelectionContainer wrapping an OutlinedTextField is a
+            // known-risky combination in Compose (the two fight over the
+            // same selection/gesture handling), and crashed on Alain's
+            // Samsung phone (see RealAndroidContext's own header comment for
+            // the sibling paste crash this same class of bug caused).
+            SelectionContainer {
+            Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -553,8 +855,112 @@ internal fun WordLookupScreen(
             // Dictionary results come first, per Alain's request -- a word can be a
             // real dictionary entry even when the analyzer below finds no
             // decomposition for it (or vice versa); both are shown, independently.
+            val guessMeaningState = state
             if (dictionaryResults.isNotEmpty()) {
                 DictionaryResultSection(dictionaryResults, displayScript)
+                Spacer(modifier = Modifier.height(16.dp))
+            } else if (!dictionaryLoading &&
+                guessMeaningState is DecomposeState.Success &&
+                guessMeaningState.decompositions.isNotEmpty()
+            ) {
+                // Guess Meaning is shown at exactly the spot a definition would
+                // have appeared, per Alain's request -- the AI's candidate
+                // meanings serve the same role a dictionary hit would have,
+                // once the exact word has come up empty in every dictionary
+                // source (see "Court-circuit sur correspondance exacte" in the
+                // plan doc; dictionaryLoading gates this so the button doesn't
+                // flash on screen before Tusaalanga's async answer has had a
+                // chance to arrive). A shorter/related-word hit does NOT
+                // suppress this -- see ShorterWordDictionaryResult's own
+                // comment -- it's included in the seed instead (converted to
+                // syllabic, see guessMeaningSeedPrompt()).
+                val guessMeaningSeedLabels = GuessMeaningSeedLabels(
+                    questionTemplate = stringResource(R.string.guess_meaning_seed_question_template),
+                    decompositionSingleIntro = stringResource(R.string.guess_meaning_seed_decomposition_single_intro),
+                    decompositionMultipleIntro = stringResource(R.string.guess_meaning_seed_decomposition_multiple_intro),
+                    decompositionNumberTemplate = stringResource(R.string.guess_meaning_seed_decomposition_number),
+                    unknownMorpheme = stringResource(R.string.guess_meaning_seed_unknown_morpheme),
+                    shorterWordDictionaryIntroTemplate = stringResource(R.string.guess_meaning_seed_shorter_word_intro),
+                    hansardExamplesExactIntroTemplate = stringResource(R.string.guess_meaning_seed_hansard_exact_intro),
+                    hansardExamplesShorterWordIntroTemplate = stringResource(R.string.guess_meaning_seed_hansard_shorter_word_intro),
+                )
+                // Whatever's already been found by the time this button is
+                // clicked -- the Hansard search runs independently (see
+                // findWord()) and may still be loading, or may have found
+                // nothing, in which case this is just an empty list and
+                // guessMeaningSeedPrompt() omits that section entirely.
+                // Found and FoundForShorterWord are both included -- a
+                // shorter-word Hansard match is still real example text,
+                // even though it doesn't gate this button's own visibility --
+                // but see hansardExamplesAreExactMatch below, which tells
+                // guessMeaningSeedPrompt() which of the two it is, so it can
+                // word the "verify against these" instruction correctly.
+                val hansardExamplesForSeed = when (val hansard = hansardResult) {
+                    is NunavutHansardResult.Found -> hansard.examples
+                    is NunavutHansardResult.FoundForShorterWord -> hansard.examples
+                    else -> emptyList()
+                }.take(GUESS_MEANING_HANSARD_EXAMPLES)
+                val guessMeaningWordKey = GuessMeaningCacheKey(guessMeaningState.word, guessMeaningState.lenient)
+                val guessMeaningSeed = guessMeaningSeedPrompt(
+                    guessMeaningState.word,
+                    guessMeaningState.decompositions,
+                    hansardExamplesForSeed,
+                    hansardResult is NunavutHansardResult.Found,
+                    shorterWordDictionaryResults,
+                    uiLanguage == AppLanguage.FRENCH,
+                    guessMeaningSeedLabels,
+                )
+                // States explicitly that nothing was found, per Alain's
+                // request, rather than jumping straight to the Guess Meaning
+                // button with no explanation for why it's there -- only when
+                // truly nothing was found, exact or shorter-word. When a
+                // shorter-word hit exists, ShorterWordDictionarySection below
+                // already explains what was found instead of the exact word.
+                if (shorterWordDictionaryResults.isEmpty()) {
+                    Text(stringResource(R.string.no_definition_found))
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                // Renders the button (or, once tapped, the spinner/result) in
+                // place -- see GuessMeaningInline.kt. "Expliquer" opens
+                // ExplanationScreen with a snapshot of everything below (see
+                // WordInfoSnapshot) -- built here, not inside
+                // GuessMeaningSection, since that's the only place with
+                // access to it.
+                GuessMeaningSection(
+                    wordCacheKey = guessMeaningWordKey,
+                    seed = guessMeaningSeed,
+                    uiLanguage = uiLanguage,
+                    conversations = guessMeaningConversations,
+                    useLocalModel = useLocalModel,
+                    modelStats = guessMeaningModelStats,
+                    onExplain = { conversationKey ->
+                        onOpenExplanation(
+                            conversationKey,
+                            WordInfoSnapshot(
+                                decomposeState = state,
+                                dictionaryResults = dictionaryResults,
+                                shorterWordDictionaryResults = shorterWordDictionaryResults,
+                                dictionaryLoading = dictionaryLoading,
+                                hansardResult = hansardResult,
+                                hansardLoading = hansardLoading,
+                                lastSearchedWord = lastSearchedWord,
+                                lastSearchedWordScript = lastSearchedWordScript,
+                                displayScript = displayScript,
+                                uiLanguage = uiLanguage,
+                            ),
+                        )
+                    },
+                    onCandidatesChanged = { guessMeaningCandidates = it },
+                    onNeedApiKey = { showSettings = true },
+                    apiKey = apiKey,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            // Shown regardless of dictionaryResults -- a shorter-word hit can
+            // coexist with "nothing found for the exact word" (it doesn't
+            // count as a real hit, see ShorterWordDictionaryResult).
+            if (shorterWordDictionaryResults.isNotEmpty()) {
+                ShorterWordDictionarySection(shorterWordDictionaryResults, displayScript)
                 Spacer(modifier = Modifier.height(16.dp))
             }
             if (dictionaryLoading) {
@@ -621,11 +1027,28 @@ internal fun WordLookupScreen(
             hansardResult?.let { result ->
                 when (result) {
                     is NunavutHansardResult.Found -> {
-                        HansardExamplesSection(result.word, result.examples, displayScript)
+                        HansardExamplesSection(result.word, result.examples, displayScript, guessMeaningCandidates)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    is NunavutHansardResult.FoundForShorterWord -> {
+                        ShorterWordNotice(
+                            original = displayForm(lastSearchedWord, displayScript, lastSearchedWordScript),
+                            matched = displayForm(result.word, displayScript, Script.SYLLABIC),
+                            prefixText = stringResource(R.string.hansard_shorter_word_prefix),
+                            middleText = stringResource(R.string.hansard_shorter_word_middle),
+                            suffixText = stringResource(R.string.hansard_shorter_word_suffix),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HansardExamplesSection(result.word, result.examples, displayScript, guessMeaningCandidates)
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                     NunavutHansardResult.NotFound -> {
-                        Text(stringResource(R.string.hansard_no_examples, lastSearchedWord))
+                        Text(
+                            stringResource(
+                                R.string.hansard_no_examples,
+                                displayForm(lastSearchedWord, displayScript, lastSearchedWordScript),
+                            ),
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                     // Shown for every build, not just debug -- unlike
@@ -658,6 +1081,8 @@ internal fun WordLookupScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
+            }
+            }
         }
     }
     }
@@ -669,9 +1094,12 @@ private fun SettingsDialog(
     onLanguageSelected: (AppLanguage) -> Unit,
     displayScript: DisplayScript,
     onDisplayScriptSelected: (DisplayScript) -> Unit,
+    apiKey: String,
+    onApiKeyChanged: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    LocalizedAlertDialog(
+        uiLanguage = uiLanguage,
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss, modifier = Modifier.testTag("settings_dialog_close_button")) {
@@ -680,7 +1108,19 @@ private fun SettingsDialog(
         },
         title = { Text(stringResource(R.string.settings_button)) },
         text = {
+            // No single SelectionContainer wrapping this whole Column, unlike
+            // WordLookupScreen's own body -- a TextField has its own built-in
+            // text selection, and nesting one inside a SelectionContainer is
+            // a known-risky combination in Compose (the two fight over the
+            // same selection/gesture handling). Alain's second Samsung crash
+            // -- select-all then backspace in the API key field -- matches
+            // that exactly, so the static text below gets its own, narrower
+            // SelectionContainer wraps (for copy/paste, per Alain's original
+            // request) instead, leaving the OutlinedTextField outside any of
+            // them.
             Column {
+                SelectionContainer {
+                Column {
                 Text(stringResource(R.string.ui_language_label), style = MaterialTheme.typography.labelMedium)
                 Row {
                     AppLanguage.entries.forEach { language ->
@@ -711,6 +1151,61 @@ private fun SettingsDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Per Alain's request: Guess Meaning now uses the user's own
+                // Claude.ai key instead of one baked into the build (see
+                // GuessMeaningEngine.kt) -- GuessMeaningSection routes here
+                // (see its onNeedApiKey) the first time the button is tapped
+                // with none set yet, which is why this message is phrased as
+                // an explanation, not just a field label.
+                Text(
+                    text = stringResource(R.string.settings_api_key_message),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                // Masked by default (this is a secret), with a toggle to reveal
+                // it in cleartext -- per Alain's request, so he can actually see
+                // what got typed/pasted when a paste seems not to have taken.
+                // No Material "eye" icon here: Icons.Filled.Visibility/
+                // VisibilityOff live in material-icons-extended, which this
+                // project deliberately doesn't depend on (see the emoji-glyph
+                // buttons elsewhere on this screen, e.g. the settings gear).
+                var apiKeyVisible by remember { mutableStateOf(false) }
+                // RealAndroidContext, not composed directly under this
+                // dialog's own LocalizedContent wrap (see LocalizedAlertDialog)
+                // -- see RealAndroidContext's header comment: this is the
+                // exact field Alain found crashed every time on his Samsung
+                // phone when long-pressing to paste a key.
+                val apiKeyLabel = localizedStringResource(uiLanguage, R.string.settings_api_key_label)
+                RealAndroidContext {
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = onApiKeyChanged,
+                        label = { Text(apiKeyLabel) },
+                        singleLine = true,
+                        visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            TextButton(
+                                onClick = { apiKeyVisible = !apiKeyVisible },
+                                modifier = Modifier.testTag("api_key_visibility_toggle"),
+                            ) {
+                                Text(if (apiKeyVisible) "🙈" else "👁")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("api_key_input"),
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                SelectionContainer {
+                Text(
+                    text = stringResource(R.string.settings_api_key_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                }
             }
         },
     )
@@ -718,15 +1213,18 @@ private fun SettingsDialog(
 
 @Composable
 private fun MultiWordChoiceDialog(
+    uiLanguage: AppLanguage,
     words: List<String>,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    LocalizedAlertDialog(
+        uiLanguage = uiLanguage,
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
         title = { Text(stringResource(R.string.multi_word_dialog_title)) },
         text = {
+            SelectionContainer {
             Column {
                 words.forEach { candidateWord ->
                     TextButton(
@@ -737,12 +1235,17 @@ private fun MultiWordChoiceDialog(
                     }
                 }
             }
+            }
         },
     )
 }
 
+// internal (not private): also called from ExplanationScreen.kt's
+// WordInfoCard (read-only "fiche" pane), same reasoning as
+// ShorterWordDictionarySection/DecompositionSection/HansardExamplesSection
+// below.
 @Composable
-private fun DictionaryResultSection(results: List<DictionaryLookupResult>, displayScript: DisplayScript) {
+internal fun DictionaryResultSection(results: List<DictionaryLookupResult>, displayScript: DisplayScript) {
     // Shown inline in the main results area now (not a dialog): dictionary and
     // decomposition results are peers, not an interruption. Entries can run from a
     // couple hundred characters (Tusaalanga) to 7000+ (Spalding, which bundles a
@@ -783,12 +1286,95 @@ private fun DictionaryResultSection(results: List<DictionaryLookupResult>, displ
     }
 }
 
+// internal (not private): see DictionaryResultSection's own comment above.
+@Composable
+internal fun ShorterWordDictionarySection(results: List<ShorterWordDictionaryResult>, displayScript: DisplayScript) {
+    // Same bounded-scroll treatment as DictionaryResultSection, and for the
+    // same reason (a Spalding entry can run 7000+ characters) -- not folded
+    // into the continuous page.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        results.forEachIndexed { index, shorterResult ->
+            val result = shorterResult.result
+            ShorterWordNotice(
+                original = displayForm(shorterResult.originalWord, displayScript, result.enteredScript),
+                matched = displayForm(result.word, displayScript, result.enteredScript),
+                prefixText = stringResource(R.string.dictionary_shorter_word_prefix),
+                middleText = stringResource(R.string.dictionary_shorter_word_middle),
+                suffixText = stringResource(R.string.dictionary_shorter_word_suffix),
+            )
+            Text(
+                text = result.title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = displayForm(result.word, displayScript, result.enteredScript),
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.testTag("shorter_word_dictionary_result_word_$index"),
+            )
+            Text(text = result.meaning)
+            if (index != results.lastIndex) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
 // internal (not private): unit-tested directly -- pure string search, no
 // Compose dependency.
 internal fun highlightRange(sentence: String, word: String): IntRange? {
     if (word.isBlank()) return null
     val start = sentence.indexOf(word, ignoreCase = true)
     return if (start < 0) null else start until (start + word.length)
+}
+
+// internal (not private): unit-tested directly -- pure string search, no
+// Compose dependency. One range per candidate that actually occurs in
+// `sentence` (first occurrence only, same as highlightRange) -- used to
+// highlight the AI's proposed meanings inside the Hansard bilingual example
+// they were cross-referenced against, per Alain's request (see the "make
+// sure each meaning..." instruction in chat_system_prompt).
+internal fun highlightRanges(sentence: String, candidates: List<String>): List<IntRange> =
+    candidates.mapNotNull { highlightRange(sentence, it) }
+
+// Shared by the Hansard and dictionary "not found for X, but found for
+// [shorter] Y" messages -- Y is highlighted within X (it's the prefix of X
+// that matched, see PrefixFallback.kt), per Alain's request, so it's
+// visually obvious which part of the original word the shorter result
+// covers. Built from three separate string-resource fragments (not one
+// %1$s/%2$s-templated string) specifically so X can carry a styled
+// highlight span -- a plain templated string can't have part of an
+// interpolated argument styled differently from the rest.
+// internal (not private): also called directly from ExplanationScreen.kt's
+// WordInfoCard, for the same "found for a shorter word" Hansard case
+// WordLookupScreen itself renders below (not wrapped in
+// HansardExamplesSection, so it needs its own reuse).
+@Composable
+internal fun ShorterWordNotice(original: String, matched: String, prefixText: String, middleText: String, suffixText: String) {
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    val annotated = remember(original, matched, prefixText, middleText, suffixText, highlightColor) {
+        buildAnnotatedString {
+            append(prefixText)
+            val originalStart = length
+            append(original)
+            highlightRange(original, matched)?.let { range ->
+                addStyle(
+                    SpanStyle(background = highlightColor, fontWeight = FontWeight.Bold),
+                    originalStart + range.first,
+                    originalStart + range.last + 1,
+                )
+            }
+            append(middleText)
+            append(matched)
+            append(suffixText)
+        }
+    }
+    Text(annotated)
 }
 
 @Composable
@@ -802,20 +1388,30 @@ private fun CollapsibleSectionHeader(text: String, expanded: Boolean, onToggle: 
         // the "extended" icon set, not the core one this project depends on,
         // and pulling in that whole extra artifact for one chevron isn't
         // worth it (same reasoning as the emoji-in-Text glyphs used
-        // elsewhere in this screen, e.g. "⚙ "/"🔮 ").
+        // elsewhere in this screen, e.g. "⚙ "/"✨ ").
         Text(text = if (expanded) "▾" else "▸", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
     }
 }
 
+// internal (not private): also called from ExplanationScreen.kt's
+// WordInfoCard, with showLoadMore = false (that pane is a read-only
+// snapshot -- see WordInfoSnapshot's header comment -- so a "More" button
+// wired to nothing would be misleading).
 @Composable
-private fun DecompositionSection(
+internal fun DecompositionSection(
     success: DecomposeState.Success,
     preferFrench: Boolean,
     displayScript: DisplayScript,
     onLoadMore: () -> Unit,
+    showLoadMore: Boolean = true,
 ) {
     if (success.decompositions.isEmpty()) {
-        Text(stringResource(R.string.no_decompositions, success.word))
+        Text(
+            stringResource(
+                R.string.no_decompositions,
+                displayForm(success.word, displayScript, success.enteredScript),
+            ),
+        )
         return
     }
     // Keyed on the word so a fresh search starts expanded again, rather than
@@ -845,15 +1441,31 @@ private fun DecompositionSection(
         MorphemeTable(rows, preferFrench = preferFrench, displayScript = displayScript, enteredScript = success.enteredScript)
         Spacer(modifier = Modifier.height(12.dp))
     }
-    if (success.hasMore) {
+    if (success.hasMore && showLoadMore) {
         TextButton(onClick = onLoadMore, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.more_button))
         }
     }
 }
 
+// internal (not private): also called from ExplanationScreen.kt's
+// WordInfoCard. Its own "More" button just reveals more of the already-
+// fetched `examples` (no network call, see below), so it's left fully
+// functional even in that read-only pane.
 @Composable
-private fun HansardExamplesSection(word: String, examples: List<BilingualExample>, displayScript: DisplayScript) {
+internal fun HansardExamplesSection(
+    word: String,
+    examples: List<BilingualExample>,
+    displayScript: DisplayScript,
+    // The AI's candidate meanings for this word, if Guess Meaning has found
+    // any yet -- highlighted inside each example's English sentence, per
+    // Alain's request, so it's visually obvious whether (and where) each
+    // guess is actually backed by the bilingual example it was cross-
+    // referenced against (see the "make sure each meaning..." instruction
+    // in chat_system_prompt). Empty until then, or if Guess Meaning was
+    // never offered for this word (a real dictionary hit found something).
+    highlightMeanings: List<String> = emptyList(),
+) {
     // Keyed on the word, same reasoning as DecompositionSection: a fresh
     // search starts expanded and re-collapsed to the first
     // HANSARD_PREVIEW_LIMIT examples, not wherever the previous word's
@@ -902,7 +1514,27 @@ private fun HansardExamplesSection(word: String, examples: List<BilingualExample
             }
         }
         Text(text = annotatedSentence, modifier = Modifier.testTag("hansard_example_iu_$index"))
-        Text(text = example.english, style = MaterialTheme.typography.bodySmall)
+        // Same highlighting mechanics as the Inuktitut sentence above, but
+        // against however many candidate meanings are currently proposed --
+        // more than one can legitimately highlight in the same sentence
+        // (e.g. "house" and "home" both matching).
+        val annotatedEnglish = remember(example.english, highlightMeanings, highlightColor) {
+            buildAnnotatedString {
+                append(example.english)
+                highlightRanges(example.english, highlightMeanings).forEach { range ->
+                    addStyle(
+                        SpanStyle(background = highlightColor, fontWeight = FontWeight.Bold),
+                        range.first,
+                        range.last + 1,
+                    )
+                }
+            }
+        }
+        Text(
+            text = annotatedEnglish,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.testTag("hansard_example_en_$index"),
+        )
         Spacer(modifier = Modifier.height(12.dp))
     }
     // Purely a display reveal, no new fetch -- every example up to
@@ -1023,6 +1655,11 @@ private fun MorphemeTable(
 
     selectedRow?.let { row ->
         MorphemeDetailDialog(
+            // Derived from preferFrench, already the only language signal
+            // this deep in the call chain (DecompositionSection ->
+            // MorphemeTable), rather than threading a whole new uiLanguage
+            // parameter down through both.
+            uiLanguage = if (preferFrench) AppLanguage.FRENCH else AppLanguage.ENGLISH,
             row = row,
             displayScript = displayScript,
             enteredScript = enteredScript,
@@ -1033,17 +1670,20 @@ private fun MorphemeTable(
 
 @Composable
 private fun MorphemeDetailDialog(
+    uiLanguage: AppLanguage,
     row: MorphemeRow,
     displayScript: DisplayScript,
     enteredScript: Script,
     onDismiss: () -> Unit,
 ) {
     val morpheme = row.fullRecord
-    AlertDialog(
+    LocalizedAlertDialog(
+        uiLanguage = uiLanguage,
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close_button)) } },
         title = { Text(displayForm(row.surfaceForm, displayScript, enteredScript)) },
         text = {
+            SelectionContainer {
             Column {
                 DetailField(stringResource(R.string.detail_id), row.morphemeId)
                 DetailField(
@@ -1053,6 +1693,7 @@ private fun MorphemeDetailDialog(
                 DetailField(stringResource(R.string.detail_meaning_french), morpheme?.frenchMeaning)
                 DetailField(stringResource(R.string.detail_meaning_english), morpheme?.englishMeaning)
                 DetailField(stringResource(R.string.detail_dialect), morpheme?.dialect)
+            }
             }
         },
     )

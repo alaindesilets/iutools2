@@ -32,6 +32,14 @@ android {
             "ANTHROPIC_API_KEY",
             "\"${localProperties.getProperty("anthropicApiKey", "")}\"",
         )
+
+        // First real use of the androidTest source set (see
+        // AppSettingsEncryptionInstrumentedTest.kt) -- needed for anything
+        // that depends on real Android framework behavior Robolectric can't
+        // simulate, like the Keystore-backed encryption in AppSettings.kt.
+        // Runs on a real device/emulator only (see AGENTS.md's "Division of
+        // labor" -- this AI sandbox has no emulator to run it itself).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -78,6 +86,24 @@ dependencies {
     // Java SDK -- there is no separate Kotlin SDK).
     implementation("com.anthropic:anthropic-java:2.34.0")
 
+    // Encrypts the user's own Claude.ai API key at rest (see AppSettings.kt)
+    // -- an AES256-GCM value wrapped by a key held in the Android Keystore,
+    // rather than the plain-text SharedPreferences used for non-secret
+    // settings (language, display script). Still tagged 1.1.0-alpha by
+    // Google despite years of production use -- the MasterKey-based API it
+    // exposes (replacing the older, now-deprecated MasterKeys helper) is
+    // what every current guide recommends; the 1.0.0 "stable" release only
+    // has the deprecated API.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // local-llm-spike branch: on-device inference for Guess Meaning, as an
+    // alternative to the Claude API call above. LiteRT-LM, not MediaPipe's
+    // tasks-genai -- the latter is Google's own recommendation as of this
+    // writing, since MediaPipe LLM Inference is now maintenance-only. Native
+    // Kotlin API (Engine/Conversation, Flow-based streaming), Gemma models
+    // distributed as .litertlm files (see LocalLlmEngine.kt).
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.13.1")
+
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
@@ -100,4 +126,16 @@ dependencies {
     // rendered (not just that a string resource resolves correctly).
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // On-device instrumented tests (androidTest) -- for real Android
+    // framework behavior Robolectric can't simulate, e.g. the Keystore-
+    // backed encryption in AppSettings.kt (see
+    // AppSettingsEncryptionInstrumentedTest.kt). junit:junit is the same
+    // plain JUnit4 API used by the unit test suite above; androidx.test's
+    // runner/ext.junit are what let AndroidJUnitRunner (see
+    // testInstrumentationRunner above) actually execute it on-device.
+    androidTestImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

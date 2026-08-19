@@ -162,9 +162,17 @@ line, every time, and hand off only what genuinely needs a device:
   *not* run itself.
 - **Human runs**: anything needing a real emulator/device — launching the
   app and clicking through it, verifying real network calls (e.g. the
-  Guess Meaning spike's Claude API calls), and any future on-device
-  instrumented (`androidTest`) tests, which don't exist yet as of this
-  writing (only JVM `test` source sets exist, in `:cli` and `:composeApp`).
+  Guess Meaning spike's Claude API calls), and running the `:composeApp`
+  `androidTest` source set (`./gradlew :composeApp:connectedDebugAndroidTest`,
+  or Android Studio's test runner) — the AI can still write and compile
+  these (`./gradlew :composeApp:compileDebugAndroidTestKotlin` needs no
+  device), just not execute them, unlike the JVM `test` source sets in
+  `:cli` and `:composeApp`. First real test there:
+  `AppSettingsEncryptionInstrumentedTest.kt`, verifying the user's Claude.ai
+  API key (see `AppSettings.kt`) is genuinely encrypted on disk — something
+  Robolectric can't check, since it has no software equivalent of the real,
+  hardware/OS-backed Android Keystore `EncryptedSharedPreferences` relies
+  on.
 
 **Android Studio's test dropdown, mapped to Gradle** (root project name is
 `iutools-mobile`, hence the `iutools-mobile.*` label prefix): there is
@@ -203,13 +211,21 @@ where running for real on a device sidesteps the test-harness problem
 entirely, and a pause-for-human-confirmation checkpoint covers what pure
 semantics-tree assertions struggled with.
 
-Not yet set up in this project (no `androidTest` source set exists yet as
-of this writing) — noted here as the pattern to reach for when a UI
-behavior needs on-device verification but a fully-manual checklist would be
-too repetitive to redo by hand every time. Setting it up needs a human to
-be the first verifier that it compiles and runs (no emulator in the AI's
-sandbox), unlike the JVM `test` source sets above, which the AI can iterate
-on entirely by itself.
+The pause-for-human-confirmation checkpoint itself isn't used by anything
+yet — noted here as the pattern to reach for when a UI behavior needs
+on-device verification but a fully-manual checklist would be too repetitive
+to redo by hand every time. The `androidTest` source set it would live in
+now exists (see the "Division of labor" section above); its first test,
+`AppSettingsEncryptionInstrumentedTest.kt`, didn't need the checkpoint
+pattern itself (a plain string assertion, no human visual judgment
+required) — a future on-device UI test is still the first candidate for it.
+
+## Internationalisation
+
+- The UI is available in French and English.
+- The app will use the phone's language by default, but the user can override that manually in the Settings screen.
+- In the code, all user-facing strings will be wrtitten in English, but with French translations avaible.
+- When creating a new string or modifying an existing one, make sure that the French translation is available or up to date. Also, make sure that the French version is displayed when the user is using French.
 
 ## Instructions for AI coding agents
 

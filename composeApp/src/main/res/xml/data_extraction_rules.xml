@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ replacement for backup_rules.xml's full-backup-content, same
+  exclusion, covering both cloud backup and device-to-device transfer. See
+  AppSettings.kt's securePrefs for why: the Keystore-backed encryption key
+  doesn't survive either kind of transfer anyway, so a copied version of
+  this file would just be undecryptable ciphertext, but it's cleaner not to
+  copy it at all.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="app_settings_secure.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="app_settings_secure.xml" />
+    </device-transfer>
+</data-extraction-rules>
