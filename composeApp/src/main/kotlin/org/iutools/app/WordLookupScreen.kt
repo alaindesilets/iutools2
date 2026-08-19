@@ -458,6 +458,18 @@ internal fun guessMeaningSeedPrompt(
 internal fun splitIntoWords(text: String): List<String> =
     text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
 
+// internal (not private): unit-tested directly in WordLookupScreenTest.kt.
+// Deliberately does NOT also require a successful decomposition -- an
+// earlier version of this condition did, which silently hid the Guess
+// Meaning button for exactly the words it's most needed for (ones the
+// analyzer fails to decompose at all). Alain found this via a real word
+// that had a shorter-word dictionary hit but no decomposition.
+internal fun shouldOfferGuessMeaning(
+    dictionaryResults: List<DictionaryLookupResult>,
+    dictionaryLoading: Boolean,
+    lastSearchedWord: String,
+): Boolean = dictionaryResults.isEmpty() && !dictionaryLoading && lastSearchedWord.isNotBlank()
+
 /**
  * Runs the analysis on a background thread. When [expandAll] is false, the
  * analyzer is told to stop as soon as it has found one more decomposition
@@ -513,6 +525,13 @@ internal class WordLookupScreenState {
     var hansardResult by mutableStateOf<NunavutHansardResult?>(null)
     var hansardLoading by mutableStateOf(false)
     var lastSearchedWord by mutableStateOf("")
+    // Alongside lastSearchedWord -- Guess Meaning needs both to build its
+    // cache key (see GuessMeaningCacheKey) even when decomposeState isn't
+    // Success (whose own word/lenient fields would otherwise cover this),
+    // e.g. when the analyzer failed or timed out on a word with no exact
+    // dictionary hit either -- see findWord()'s own comment on why Guess
+    // Meaning shouldn't require a successful decomposition to be offered.
+    var lastSearchedLenient by mutableStateOf(false)
     // The script lastSearchedWord was typed/detected in -- captured once in
     // findWord() (TransCoder.textScript(wordToAnalyze)) rather than
     // re-detected wherever lastSearchedWord is displayed, so every "not
@@ -596,6 +615,7 @@ internal fun WordLookupScreen(
     var hansardResult by screenState::hansardResult
     var hansardLoading by screenState::hansardLoading
     var lastSearchedWord by screenState::lastSearchedWord
+    var lastSearchedLenient by screenState::lastSearchedLenient
     var lastSearchedWordScript by screenState::lastSearchedWordScript
 
     suspend fun runHansardSearch(searchWord: String) {
@@ -622,6 +642,7 @@ internal fun WordLookupScreen(
         keyboardController?.hide()
         focusManager.clearFocus()
         lastSearchedWord = wordToAnalyze
+        lastSearchedLenient = lenientAtSearch
         hansardResult = null
         hansardLoading = false
         shorterWordDictionaryResults = emptyList()
@@ -859,10 +880,7 @@ internal fun WordLookupScreen(
             if (dictionaryResults.isNotEmpty()) {
                 DictionaryResultSection(dictionaryResults, displayScript)
                 Spacer(modifier = Modifier.height(16.dp))
-            } else if (!dictionaryLoading &&
-                guessMeaningState is DecomposeState.Success &&
-                guessMeaningState.decompositions.isNotEmpty()
-            ) {
+            } else if (shouldOfferGuessMeaning(dictionaryResults, dictionaryLoading, lastSearchedWord)) {
                 // Guess Meaning is shown at exactly the spot a definition would
                 // have appeared, per Alain's request -- the AI's candidate
                 // meanings serve the same role a dictionary hit would have,
@@ -873,7 +891,16 @@ internal fun WordLookupScreen(
                 // chance to arrive). A shorter/related-word hit does NOT
                 // suppress this -- see ShorterWordDictionaryResult's own
                 // comment -- it's included in the seed instead (converted to
-                // syllabic, see guessMeaningSeedPrompt()).
+                // syllabic, see guessMeaningSeedPrompt()). Deliberately does
+                // NOT also require a successful decomposition (an earlier
+                // version did): the analyzer failing outright is exactly the
+                // kind of word Guess Meaning exists for -- Alain found a real
+                // case (a shorter-word dictionary hit, but the exact word
+                // didn't decompose) where that requirement silently hid the
+                // button entirely. guessMeaningDecompositions below is empty
+                // for that case, and guessMeaningSeedPrompt() already omits
+                // its decomposition section entirely when given an empty list.
+                val guessMeaningDecompositions = (guessMeaningState as? DecomposeState.Success)?.decompositions ?: emptyList()
                 val guessMeaningSeedLabels = GuessMeaningSeedLabels(
                     questionTemplate = stringResource(R.string.guess_meaning_seed_question_template),
                     decompositionSingleIntro = stringResource(R.string.guess_meaning_seed_decomposition_single_intro),
@@ -900,10 +927,10 @@ internal fun WordLookupScreen(
                     is NunavutHansardResult.FoundForShorterWord -> hansard.examples
                     else -> emptyList()
                 }.take(GUESS_MEANING_HANSARD_EXAMPLES)
-                val guessMeaningWordKey = GuessMeaningCacheKey(guessMeaningState.word, guessMeaningState.lenient)
+                val guessMeaningWordKey = GuessMeaningCacheKey(lastSearchedWord, lastSearchedLenient)
                 val guessMeaningSeed = guessMeaningSeedPrompt(
-                    guessMeaningState.word,
-                    guessMeaningState.decompositions,
+                    lastSearchedWord,
+                    guessMeaningDecompositions,
                     hansardExamplesForSeed,
                     hansardResult is NunavutHansardResult.Found,
                     shorterWordDictionaryResults,
