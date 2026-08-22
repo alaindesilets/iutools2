@@ -707,15 +707,21 @@ LEXICON NounEndings
 !     {asi:asi/1n}{nginni:nginni/tn-loc-p-4s}. Same shape as "nginnit"
 !     above (V+k+q via SUPPR, t deferred).
 ++tigut+tn-via-p:tigut # ;
-++tigut+tn-via-p:tigut NounContinuations ;
 
 ! Also an unconditional "tigu"-only spelling (own trailing "t"
 ! dropped), found via an already-correct gold sibling
 ! ("tusaajitigut" alongside the failing "tusaajitigu"/
 ! "tusaajititigu", identical decomposition -- the latter also needs
 ! "ji"/1vn's own "titigu" spelling investigated separately, not
-! attempted here).
+! attempted here). Also needs AfterViaCaseEnding (replacing the old
+! unconditioned "NounContinuations" this used to route into): gold
+! "tusaajitiguuqtuq"/"tusaajitiguurunniiqtuq" attach uq/1nv (cas:via)
+! directly onto this SHORT "tigu" spelling specifically, not the full
+! "tigut" one above -- generate_affixes.py's own CASE_LEXICON
+! mechanism (built for the bulk-generated endings) narrows this to
+! only after a via-case ending, instead of after every noun stem.
 ++tigut+tn-via-p:tigu # ;
+++tigut+tn-via-p:tigu AfterViaCaseEnding ;
 
 ++nginnit+tn-abl-p-4s:SUPPRnginnit # ;
 ++nginnit+tn-abl-p-4s:SUPPRnginnit QParticles ;
@@ -1364,18 +1370,13 @@ LEXICON NvSuffixes
 ++it+3nv:SUPPRit AfterItTriggerSuffix ;
 
 ! "uq"/1nv ("to go through", the "via"-case-only sibling suffix):
-! Suffixes.csv's own condPrec ("cas:via") is a grammatical-feature
-! condition the bulk generator can't model in general, but it directly
-! names the same case "tigut"/tn-via-p already marks -- t-context only
-! (V/k/q are all "-", no candidate at all), Suppression (delete the
-! preceding "tigut"'s own trailing t). "tigut"/tn-via-p (NounEndings
-! above) previously had no continuation past its own bare terminal;
-! gained one here specifically so "uq"/1nv can attach -- confirmed via
-! "tusaajitiguuqtuq"/"tusaajitiguurunniiqtuq" (the latter also needs
-! "uq"'s own trailing q dropped when junniiq/1vv's existing
-! "SUPPRrunniiq" candidate follows -- already wired, no extra piece
-! needed there) and the real Java analyzer's own output before wiring.
-++uq+1nv:SUPPRuq VerbContinuations ;
+! uq/1nv's own unconditioned hand-wiring that used to sit here
+! ("tusaajitiguuqtuq"/"tusaajitiguurunniiqtuq") is GONE -- "tigu"
+! (tigut/tn-via-p's own short spelling, above in NounEndings) now
+! routes into AfterViaCaseEnding directly, and generate_affixes.py's
+! own bulk-generated CASE_LEXICON entry for uq/1nv already produces
+! the exact same "SUPPRuq" candidate from there -- confirmed via
+! snapshot_correct.py before removing this duplicate.
 
 ++liri+1nv:SUPPRliri VerbContinuations ;
 
@@ -1966,19 +1967,14 @@ manna+pd-ml-s:manna NvSuffixes ;
 
 LEXICON VvSuffixes
 
-! "gi"/4vv ("added to 'gi' verbs to use them transitively"):
-! Suffixes.csv's own condPrec ("type:v,transinfix:gi/4vv") is a
-! grammatical-feature condition the bulk generator can't model in
-! general, but 2 gold words confirm exactly what's needed: V-context
-! plain "gi" (Neutral, "kamagijalik") and q-context "ri" via Fusion
-! (KNOWN_ACTION1 treats "fus" as SUPPR -- the CSV's own q-form literal
-! already spells the substituted text, "ri" not "gi", same "rama"-not-
-! "gama" precedent already documented for other Fusion rows;
-! "ilitarijauningit" needs the root's own trailing q ALSO dropped via
-! SUPPR) -- confirmed via the real Java analyzer's own output before
-! wiring.
-++gi+4vv:gi VerbContinuations ;
-++gi+4vv:SUPPRri VerbContinuations ;
+! "gi"/4vv ("added to 'gi' verbs to use them transitively"): the
+! unconditioned hand-wiring this comment used to describe (2 gold
+! words, "kamagijalik"/"ilitarijauningit") is GONE -- both words' own
+! roots ("kama"/"ilitaq") are among the 54 roots whose CSV transSuffix
+! column lists "gi/4vv", so the bulk generator's own AfterTransGi4vvRoot
+! trigger (generate_affixes.py's TRANSINFIX_LEXICON) already covers
+! them precisely, without granting gi/4vv to every other verb stem too
+! -- confirmed via snapshot_correct.py before removing this duplicate.
 
 ! "innaq"/2vv ("to do nothing but; exclusively"): Suffixes.csv's own
 ! action2 in every context is "i(ng)" (Insertion of "ng"), not modeled
@@ -1996,39 +1992,35 @@ LEXICON VvSuffixes
 ++innaq+2vv:innaq VerbContinuations ;
 ++innaq+2vv:inna VerbContinuations ;
 
-! "i"/1vv ("antipassive-marking placeholder": keeps a transitive verb's
-! transitive sense when followed by an intransitive infix/ending):
-! Suffixes.csv's own condPrec ("antipassive:i/1vv") is a grammatical-
-! feature condition the bulk generator can't model in general, but
-! this SPECIFIC row is confirmed by direct cross-reference with
-! tuq/1vv's own "antipassive" column (which literally names "i/1vv" as
-! its partner) plus 2 gold words ("iqqaqtuivilirijikkut"/
-! "iqqaqtuivilirijikkunnut") -- V-context only (Neutral, plain "i"),
-! t/k/q-context (Suppression) left unwired for lack of any gold example.
-++i+1vv:i VerbContinuations ;
+! "i"/1vv: the unconditioned hand-wiring this comment used to describe
+! ("iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut", needing i/1vv
+! immediately after tuq/1vv) is GONE -- generate_affixes.py now grants
+! SUFFIXES (not just roots) an antipassive-category continuation from
+! their own CSV "antipassive" column, and tuq/1vv's own column lists
+! "i/1vv" -- so it already routes into AfterApIRoot on its own,
+! without granting i/1vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing this duplicate.
 
-! "si"/3vv ("added to 'gi'-verbs to make them intransitive" -- a sibling
-! marker to "i"/1vv above, same shape): Suffixes.csv's own condPrec
-! ("type:v,intransinfix:si/3vv") is a grammatical-feature condition the
-! bulk generator can't model, but ALL FOUR contexts (V/t/k/q) give the
-! identical literal "si" with Neutral action -- no marker needed at all,
-! regardless of what precedes. "ilitaqsiniq" confirms this directly
-! (root "ilitaq", q-final, still takes plain "si" unconverted), via the
-! real Java analyzer's own output before wiring.
-++si+3vv:si VerbContinuations ;
+! "si"/3vv: the unconditioned hand-wiring this comment used to describe
+! ("ilitaqsiniq") is GONE -- root "ilitaq" is among the roots whose CSV
+! intransSuffix column lists "si/3vv", so generate_affixes.py's own
+! AfterIntransSi3vvRoot trigger already covers it precisely, without
+! granting si/3vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing this duplicate.
 
-! "gusuk"/1vv ("intransitivizer, added to 'gi'-verbs" -- Suffixes.csv
-! lists a 2nd row, nb=2, "to like/want to do s.t.", gated by the negated
-! condition "!intransinfix:gusuk/1vv", but BOTH rows share the exact
-! same V/t/k/q literal forms, so which sense applies doesn't affect the
-! surface at all, same "condPrec doesn't change the wiring" precedent as
-! jaq/1vn's own id-conditional case): V-context "gusuk" (Neutral),
-! t-context "SUPPRgusuk" (Suppression, deletes the preceding root's own
-! final consonant) -- "alianaigusukpunga" (root "alianait", t-final)
-! confirms the t-context specifically, via the real Java analyzer's own
-! output before wiring.
-++gusuk+1vv:gusuk VerbContinuations ;
-++gusuk+1vv:SUPPRgusuk VerbContinuations ;
+! gusuk/1vv's own unconditioned hand-wiring that used to sit here
+! ("alianaigusukpunga") is GONE -- root "alianait" was the mystery
+! left open in an earlier round (not found in RootsSpalding.csv under
+! that spelling) -- it actually lives in CommonCompositeWords.csv
+! (row: type=v, intransSuffix="gusuk/1vv", transSuffix="gi/4vv"),
+! which generate_roots.py's main() already loads through the SAME
+! shared load_roots_csv() as every other root source file, so once
+! the intransSuffix/transSuffix columns were threaded through (an
+! earlier round, for the RootsSpalding.csv cases), this root started
+! being covered automatically too -- confirmed via
+! roots-generated.lexc already listing
+! "alianait+1v:alianait AfterIntransGusukRoot ;" before removing this
+! duplicate, and via snapshot_correct.py after.
 
 ! "allak"/1vv ("ease, simpleness of action: 'easily', 'just'"):
 ! Suffixes.csv gives 2 literal spellings in EVERY context ("allak"/"ala",
@@ -2058,21 +2050,17 @@ LEXICON VvSuffixes
 ++li+2vv:li VerbContinuations ;
 ++li+2vv:SUPPRli VerbContinuations ;
 
-! "ksaq"/2vv ("to find, consider s.t. or s.o. ..."): Suffixes.csv gives
-! a clean single-candidate row per context (V "ksaq" Neutral, t/k/q
-! "ksaq" Suppression), but its condPrec ("type:v,nature:a") is a
-! grammatical-feature condition the bulk generator can't model, so it
-! was never wired at all -- "naammasaqtuit"/"naammasaqtut" need it.
-! SUPPR only ever deletes the PRECEDING stem's final q/k/t (as it does
-! everywhere else in this lexicon), it does NOT touch the suffix's own
-! leading "k" -- "SUPPRksaq" (below) still spells out the full "ksaq",
-! it just also deletes the root's own final consonant first. What
-! "naammasaqtuit"/"naammasaqtut" actually need is a THIRD candidate,
-! SUPPR PLUS the suffix's own "k" dropped too ("SUPPRsaq", root
-! "naamak"'s own doubled-m "naammak" spelling minus its trailing k),
-! confirmed via the real Java analyzer's own output before wiring.
-++ksaq+2vv:ksaq VerbContinuations ;
-++ksaq+2vv:SUPPRksaq VerbContinuations ;
+! "ksaq"/2vv ("to find, consider s.t. or s.o. ..."): the plain "ksaq"
+! and "SUPPRksaq" hand-written duplicates this comment used to describe
+! are GONE -- root "naamak" (needed for "naammasaqtuit"/
+! "naammasaqtut") has nature="a" in the CSV, so generate_affixes.py's
+! own AfterNatureARoot trigger already covers both, without granting
+! ksaq/2vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing them. "SUPPRsaq" (below) is
+! NOT a duplicate -- it's a genuinely separate candidate (SUPPR plus
+! the suffix's own leading "k" also dropped) the bulk generator
+! doesn't produce, so it stays hand-wired, still broadly reachable
+! (a smaller, safer leftover than the two removed above).
 ++ksaq+2vv:SUPPRsaq VerbContinuations ;
 
 ! "nngit"/1vv's own CSV row (Suffixes.csv) has Suppression, not Neutral,
@@ -2121,17 +2109,16 @@ LEXICON VvSuffixes
 ! PRECEDING one, not the reverse). Not guessed as a general rule -- wired
 ! as its own literal spelling, same "different strings, no collision"
 ! trick as every other multi-candidate suffix in this file.
-! "tigusinirmut" (root "tigu", vowel-final) confirms plain "si" for the
-! V-context case, and mut's own q-context (resolved by Lever A, see
-! NounEndings above) produces "mut" correctly from "niq"+"mut" via the
-! already-built default-branch mechanism. Every original blocker for
-! this suffix turned out independently resolved by other mechanisms:
-! mut's id-conditional q-context by Lever A, the "arjaq"/"ajjaq" root
-! alternation by generate_roots.py's variant-column support, and "ti"
-! wired directly as si's own literal spelling (never fully "explained",
-! but empirically safe -- same policy as every other multi-candidate
-! suffix in this file).
-++si+1vv:si VerbContinuations ;
+! si/1vv's own PLAIN "si" hand-wiring (that used to sit here, motivated
+! by "tigusinirmut", root "tigu") is GONE -- "tigu" (and "arjaq", for
+! "ajjaqsijii"/"ajjaqsiji") are both among the roots whose CSV
+! antipassive column lists "si/1vv", so generate_roots.py's own
+! AfterApSiRoot trigger already covers them -- confirmed via
+! snapshot_correct.py before removing it. "ti" (below) is NOT a
+! duplicate -- it's si/1vv's own separate t-final literal spelling
+! (needed by "aulattijiit"/"aulattinirmut"/"pivalliatittinirmut", none
+! of which the bulk generator produces), so it stays hand-wired, still
+! broadly reachable.
 ++si+1vv:ti VerbContinuations ;
 
 ! "naq"/1vv ("to cause/make"): Suffixes.csv's V-form gives 4 candidates
@@ -2366,15 +2353,14 @@ LEXICON VvSuffixes
 ! would break from this project's standing "verify against a real gold
 ! example" discipline -- flagged as a scope/value question rather than
 ! silently either skipping the whole mood or guessing the rest.
-++suk+1vv:suk VerbContinuations ;
-
-! "quviasukpunga" needs suk/1vv's OWN t/k-context Suppression candidate
-! (Suffixes.csv gives k-form "suk"/action1 "s" directly) -- only the
-! V-context plain candidate above was ever wired, since the row's
-! condPrec ("type:v,intransinfix:suk/1vv") is a grammatical-feature
-! condition generate_affixes.py's bulk sweep doesn't model, so this row
-! was always hand-authored, just incompletely.
-++suk+1vv:SUPPRsuk VerbContinuations ;
+! suk/1vv: the unconditioned hand-wiring these two lines used to
+! describe ("quviasukpunga", root "quviak") is GONE -- "quviak" is
+! among the roots whose CSV intransSuffix column lists "suk/1vv" (along
+! with "gusuk/1vv"), so generate_affixes.py's own AfterIntransSukRoot
+! trigger already covers both the V-context and the k-context
+! Suppression candidate this word needs, without granting suk/1vv to
+! every other verb stem too -- confirmed via snapshot_correct.py before
+! removing this duplicate.
 
 LEXICON TvEndings
 

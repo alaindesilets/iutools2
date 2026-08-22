@@ -185,6 +185,28 @@ NATURE_LEXICON = {
     "nb": "AfterNatureNbRoot",
 }
 
+# a/1vv and t/1vv have a BARE "type:v" condPrec (no OR-alternatives,
+# unlike almost every other type-shaped condition) -- see
+# generate_affixes.py's own TYPE_LEXICON comment for the full
+# rationale (this is the one condition NOT already guaranteed by hub
+# routing, since a verb-producing stem can be reached either directly
+# from a root or via an nv-suffix conversion, and this project's
+# Graph.kt-derived routing can't tell them apart). Every type=v root
+# grants this UNCONDITIONALLY (not a sparse category like antipassive
+# -- literally every verb root satisfies "type:v").
+TYPE_LEXICON = {
+    "v": "AfterTypeVRoot",
+}
+
+# "ksaq/1nn" (a SUFFIX, not a root) is the only morpheme anywhere with
+# a non-empty "plural" column (="t") -- see generate_affixes.py's own
+# PL_LEXICON comment. No root currently has one, but threaded through
+# here too (same generic row.get(...) pattern as every other column)
+# so a future root with plural="t" would be picked up automatically.
+PL_LEXICON = {
+    "t": "AfterPlTRoot",
+}
+
 
 def is_clean_morpheme(morpheme: str) -> bool:
     return bool(morpheme) and "&" not in morpheme
@@ -269,7 +291,7 @@ def load_roots_csv(filename: str, skip_if_combination: bool = False):
             yield (
                 morpheme, nb, root_type, variants, row.get("antipassive", ""),
                 row.get("intransSuffix", ""), row.get("transSuffix", ""),
-                row.get("nature", ""),
+                row.get("nature", ""), row.get("plural", ""),
             )
 
 
@@ -297,7 +319,7 @@ def load_pronouns_csv():
             nb = row["nb"]
             if not is_clean_morpheme(morpheme) or not nb:
                 continue
-            yield morpheme, nb, root_type, row.get("variant", ""), "", "", "", ""
+            yield morpheme, nb, root_type, row.get("variant", ""), "", "", "", "", ""
 
 
 def main():
@@ -323,7 +345,7 @@ def main():
         load_roots_csv("Locations.csv", skip_if_combination=False),
     ]
     for source in sources:
-        for morpheme, nb, root_type, variant, antipassive, intranssuffix, transsuffix, nature in source:
+        for morpheme, nb, root_type, variant, antipassive, intranssuffix, transsuffix, nature, plural in source:
             tag = f"+{nb}{root_type}"
             lexicon = ROOTS_CSV_TYPE_MAP[root_type]
             # NB: the hub lexicons in lexicon.lexc are "NounContinuations"/
@@ -386,6 +408,13 @@ def main():
                 nat_lexicon = NATURE_LEXICON.get(nature.strip())
                 if nat_lexicon and nat_lexicon not in continuations:
                     continuations.append(nat_lexicon)
+                # Every verb root satisfies "type:v" by construction
+                # (lexicon == "Verbs" already implies root_type == "v")
+                # -- unconditional, not a sparse category.
+                continuations.append(TYPE_LEXICON["v"])
+            pl_lexicon = PL_LEXICON.get(plural.strip())
+            if pl_lexicon and pl_lexicon not in continuations:
+                continuations.append(pl_lexicon)
 
             # A row's "variant" column records alternate surface spellings
             # of the SAME morpheme (e.g. "arjaq"'s own variant "ajjaq") --

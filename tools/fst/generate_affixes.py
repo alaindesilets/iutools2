@@ -363,6 +363,101 @@ NATURE_LEXICON = {
     "nb": "AfterNatureNbRoot",
 }
 
+# Bare "type:v" (no "function:nv function:vv" OR-alternatives, unlike
+# almost every other type-shaped condition) genuinely narrows: only 2
+# suffixes have this exact shape (a/1vv, t/1vv), and unlike the OR form,
+# it is NOT already guaranteed by hub routing -- a verb-producing stem
+# can be reached either directly from a type:v ROOT or via an nv-suffix
+# CONVERSION, and Graph.kt's own automaton doesn't distinguish the two
+# (confirmed by reading it), so only the real Condition/AttrValCond
+# check (inspecting the immediate predecessor's own "type" field) tells
+# them apart. Suffixes' OWN "type" column is "sv"/"sn" (never "v"/"n"
+# literally), so this naturally applies to ROOTS ONLY without any
+# special-casing -- generate_roots.py grants it unconditionally to
+# every type=v root.
+TYPE_LEXICON = {
+    "v": "AfterTypeVRoot",
+}
+
+# "ksaq/1nn" is the only morpheme (root or suffix) anywhere in the CSV
+# data with a non-empty "plural" column (value "t") -- the plain "-t"
+# nominative-plural noun ending's own condPrec ("pl:t") requires
+# attaching after a stem whose own "plural" column says "t". No gold
+# word currently exercises this pairing, but the data itself is
+# unambiguous (a single real candidate), so implemented the same way
+# as every other CSV-documented-but-gold-unverified narrowing this
+# round (see condOnNext below) -- narrowing-only, so the worst case is
+# a missing candidate, never a corrupted one.
+PL_LEXICON = {
+    "t": "AfterPlTRoot",
+}
+
+# condOnNext ("condition on the FOLLOWING morpheme") is the mirror of
+# every mechanism above: instead of restricting who can PRECEDE a
+# suffix, it restricts what the suffix's OWN outgoing continuation can
+# be. Measured against the actual data before building this: 15 real
+# rows (16 minus "&aq/1vv", which is skipped entirely regardless --
+# "&"-prefixed morphemes are never generated at all, see the "&" in
+# morpheme" filter elsewhere in this file), covering exactly 3 shapes:
+#   - "id:X" or "id:X id:Y" (2 rows: jariaq/1vn, jjaa/1vv) -- must be
+#     followed by ONE of a small, explicit set of specific suffixes.
+#   - "mode:X ..." (9 rows) -- must be followed by a verb ending whose
+#     own "mode" column matches one of the cited values.
+#   - "number:X ..." on an nn-function suffix (2 rows: galaq/1nn,
+#     rujuq/1nn) -- must be followed by a noun ending whose own
+#     "number" column matches.
+# Deliberately NOT covered: "number:X ..." on a VV-function suffix (2
+# rows: kisauti/1vv, ujjuaq/1vv) -- Endings_verb.csv has NO plain
+# "number" column, only "numbSubject"/"numbObject", and nothing in the
+# data disambiguates which one a bare "number:X" condOnNext means --
+# guessing between them risks getting the semantics backwards, so left
+# untouched (still unconditioned, same as before this round) rather
+# than guessed at. No gold word currently exercises ANY of the 15
+# covered rows either, but unlike a genuine semantic guess, all 3
+# covered shapes have an UNAMBIGUOUS mapping straight from the CSV's
+# own columns -- narrowing-only, so the worst case is a missing
+# candidate for some future word, never a corrupted one, consistent
+# with every other *Speculative-class risk this project has accepted.
+ID_ONLY_LEXICON = {
+    "qaq/1nv": "OnlyQaqNvSuffix",
+    "lik/1nn": "OnlyLikNnSuffix",
+    "junniiq/1vv": "OnlyJunniiqVvSuffix",
+    "nngit/1vv": "OnlyNngitVvSuffix",
+}
+MODE_LEXICON = {
+    m: f"OnlyMode{m.capitalize()}Endings"
+    for m in ("caus", "cond", "freq", "dub", "int", "dec", "ger", "imp", "part")
+}
+NOUN_NUMBER_LEXICON = {
+    "d": "OnlyNumberDNounEndings",
+    "p": "OnlyNumberPNounEndings",
+}
+
+
+def condonnext_lexicons(row: dict, function: str):
+    """Returns a LIST of narrow lexicon names this row's own OUTGOING
+    continuation should be restricted to (replacing the normal
+    "#"+FUNCTION_CONTINUATION[function] pair entirely -- condOnNext
+    means something specific MUST follow, so unlike every condPrec-based
+    mechanism above, "#" is deliberately NOT included), or None if
+    condOnNext is empty or shaped in a way this function doesn't cover
+    (see the ID_ONLY_LEXICON/MODE_LEXICON/NOUN_NUMBER_LEXICON comment
+    above for exactly what's covered and why)."""
+    value = (row.get("condOnNext") or "").strip()
+    if not value:
+        return None
+    tokens = value.split(" ")
+    if all(t.startswith("id:") for t in tokens):
+        lexicons = [ID_ONLY_LEXICON.get(t[len("id:"):]) for t in tokens]
+        return lexicons if all(lexicons) else None
+    if all(t.startswith("mode:") for t in tokens):
+        lexicons = [MODE_LEXICON.get(t[len("mode:"):]) for t in tokens]
+        return lexicons if all(lexicons) else None
+    if function == "nn" and all(t.startswith("number:") for t in tokens):
+        lexicons = [NOUN_NUMBER_LEXICON.get(t[len("number:"):]) for t in tokens]
+        return lexicons if all(lexicons) else None
+    return None
+
 
 def category_trigger(row: dict, prefix: str, lexicon_map: dict):
     """Generalizes single_id_trigger to condPrec values shaped EXACTLY
@@ -474,6 +569,11 @@ def gen_suffixes():
         | set(TRANSINFIX_LEXICON.values())
         | set(NATURE_LEXICON.values())
         | set(CASE_LEXICON.values())
+        | set(TYPE_LEXICON.values())
+        | set(PL_LEXICON.values())
+        | set(ID_ONLY_LEXICON.values())
+        | set(MODE_LEXICON.values())
+        | set(NOUN_NUMBER_LEXICON.values())
     )
     entries_by_lexicon = {lex: [] for lex in all_lexicons}
     tags_used = set()
@@ -502,6 +602,10 @@ def gen_suffixes():
                     trigger = category_trigger(row, "transinfix", TRANSINFIX_LEXICON)
                 if trigger is None:
                     trigger = category_trigger(row, "nature", NATURE_LEXICON)
+                if trigger is None:
+                    trigger = category_trigger(row, "type", TYPE_LEXICON)
+                if trigger is None:
+                    trigger = category_trigger(row, "pl", PL_LEXICON)
                 cas_lexicons = cas_triggers(row) if trigger is None else []
                 speculative_desc = None
                 if trigger is None and not cas_lexicons:
@@ -518,6 +622,44 @@ def gen_suffixes():
                     continuations = ["#", "QParticles"]
                 else:
                     continuations = ["#", FUNCTION_CONTINUATION[function]]
+                # A SUFFIX (not just a root) can also grant an antipassive-
+                # category continuation: e.g. tuq/1vv's own "antipassive"
+                # column lists "i/1vv" (confirmed: gold words
+                # "iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut" need
+                # tuq immediately followed by i/1vv). Measured: 41 rows
+                # across Suffixes.csv/Suffixes_additional.csv have a
+                # non-empty antipassive column of their own -- ANY
+                # function, not just vv, since e.g. "aq/2nv" (a noun-to-
+                # verb suffix) ALSO lists "si/1vv ri/1vv". Same mechanism
+                # as generate_roots.py's own root-level handling
+                # (ANTIPASSIVE_LEXICON), just applied to the suffix's OWN
+                # outgoing continuation instead of a root's.
+                for ap_value in (row.get("antipassive") or "").split(" "):
+                    ap_lexicon = ANTIPASSIVE_LEXICON.get(ap_value)
+                    if ap_lexicon and ap_lexicon not in continuations:
+                        continuations.append(ap_lexicon)
+                # Same idea for PL_LEXICON: ksaq/1nn's own "plural"
+                # column is "t", so it grants AfterPlTRoot alongside its
+                # normal continuation.
+                pl_lexicon = PL_LEXICON.get((row.get("plural") or "").strip())
+                if pl_lexicon and pl_lexicon not in continuations:
+                    continuations.append(pl_lexicon)
+                # condOnNext REPLACES continuations entirely (not
+                # additive): something specific MUST follow, so "#" and
+                # the normal unrestricted hub are both wrong once this
+                # applies. See condonnext_lexicons()'s own docstring.
+                restricted = condonnext_lexicons(row, function)
+                if restricted:
+                    continuations = restricted
+                # A SUFFIX cited by ANOTHER suffix's id-shaped condOnNext
+                # (qaq/1nv, lik/1nn, junniiq/1vv, nngit/1vv) also needs a
+                # COPY of its own entries placed into that narrow
+                # ID_ONLY_LEXICON CONTAINER (using its own normal
+                # continuations, not as an extra continuation of its
+                # own) -- so the condOnNext-restricted suffix that leads
+                # into this container reaches exactly this candidate,
+                # additively alongside this row's normal reachability.
+                id_only_lexicon = ID_ONLY_LEXICON.get(f"{morpheme}/{nb}{function}")
                 if trigger:
                     lexicons = [trigger]
                     trigger_rows += 1
@@ -540,6 +682,8 @@ def gen_suffixes():
                             seen.add(entry)
                             for lexicon in lexicons:
                                 entries_by_lexicon[lexicon].append(entry)
+                            if id_only_lexicon:
+                                entries_by_lexicon[id_only_lexicon].append(entry)
                             tags_used.add(tag)
                 if any_candidate:
                     rows_with_any_candidate += 1
@@ -641,7 +785,12 @@ def gen_endings():
         "TnEndingsGenerated" + SPECULATIVE_LEXICON_SUFFIX: [],
         "TvEndingsGenerated" + SPECULATIVE_LEXICON_SUFFIX: [],
     }
-    for lex in set(TRIGGER_LEXICON.values()):
+    for lex in (
+        set(TRIGGER_LEXICON.values())
+        | set(PL_LEXICON.values())
+        | set(MODE_LEXICON.values())
+        | set(NOUN_NUMBER_LEXICON.values())
+    ):
         entries_by_lexicon.setdefault(lex, [])
     tags_used = set()
     seen = set()
@@ -662,6 +811,14 @@ def gen_endings():
                 if not morpheme or "&" in morpheme:
                     continue
                 trigger = single_id_trigger(row, *cond_cols)
+                if trigger is None:
+                    # "t"/tn-nom(-p)'s own condPrec is "pl:t" -- the only
+                    # non-id-shaped condPrec this project's endings data
+                    # has (see PL_LEXICON's own comment above).
+                    for cond_col in cond_cols:
+                        trigger = category_trigger({"condPrec": row.get(cond_col, "")}, "pl", PL_LEXICON)
+                        if trigger:
+                            break
                 speculative_desc = None
                 if trigger is None:
                     # Endings have no "function" column of their own to
@@ -697,10 +854,34 @@ def gen_endings():
                 )
                 end_continuations = ["#"] + ([case_lexicon] if case_lexicon else [])
 
+                # For condOnNext (a suffix requiring THIS specific ending
+                # immediately after itself, e.g. gi/2vv's own
+                # "mode:int mode:dec"): give every verb ending an EXTRA
+                # placement (not a continuation -- a second CONTAINER
+                # holding a copy of its own entries) in a lexicon keyed
+                # by its own mode, and every noun ending one keyed by its
+                # own number -- so a condOnNext-restricted suffix can
+                # reach ONLY matching endings by routing into that
+                # narrow lexicon instead of the general one. See
+                # condonnext_lexicons()'s own docstring for which
+                # condOnNext shapes this covers.
+                extra_lexicons = []
+                if fn in ("Endings_verb.csv", "Endings_verb_participle.csv"):
+                    mode_lexicon = MODE_LEXICON.get((row.get("mode") or "").strip())
+                    if mode_lexicon:
+                        extra_lexicons.append(mode_lexicon)
+                elif fn == "Endings_noun.csv":
+                    num_lexicon = NOUN_NUMBER_LEXICON.get((row.get("number") or "").strip())
+                    if num_lexicon:
+                        extra_lexicons.append(num_lexicon)
+
                 any_candidate = False
                 for context in ("V", "t", "k", "q"):
                     for lower in candidates_for_context(row, context):
                         any_candidate = True
+                        for extra in extra_lexicons:
+                            extra_entry = f"++{morpheme}+{tag}:{lower} # ;"
+                            entries_by_lexicon[extra].append(extra_entry)
                         for cont in end_continuations:
                             entry = f"++{morpheme}+{tag}:{lower} {cont} ;"
                             if entry in seen:
