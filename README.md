@@ -44,7 +44,7 @@ across worktrees via fixed-name Docker volumes instead of being duplicated
 per worktree.
 
 1. Create a worktree as a sibling folder of the main checkout:
-   `git worktree add ../inuktitut-morpohological-analyzer-feature-x feature-x`
+   `git worktree add ../iutools-mobile-feature-x feature-x`
 2. One-time per machine: uncomment the git-worktree bind mount near the
    bottom of `.devcontainer/devcontainer.json`'s `mounts` — needed because
    a worktree's `.git` is just a text file pointing at an absolute host
@@ -61,7 +61,7 @@ per worktree.
    project.
 
 To remove a worktree once done: close its VS Code window/container, then
-from the main repo run `git worktree remove ../inuktitut-morpohological-analyzer-feature-x`.
+from the main repo run `git worktree remove ../iutools-mobile-feature-x`.
 
 ## Testing
 
