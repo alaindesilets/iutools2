@@ -21,7 +21,13 @@
   "runArgs": [
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW",
-    "--platform=linux/amd64"
+    "--platform=linux/amd64",
+    // Derive the container name from the opened folder rather than leaving
+    // it random. This also means each git worktree of this project (opened
+    // in its own VS Code window/container) gets its own uniquely-named
+    // container automatically, so they can run side by side without a name
+    // collision — Docker refuses two containers sharing one name.
+    "--name", "${localWorkspaceFolderBasename}-claude-sandbox"
   ],
   "customizations": {
     "vscode": {
@@ -40,10 +46,17 @@
   },
   "remoteUser": "vscode",
   "mounts": [
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
-    "source=gradle-cache-${devcontainerId},target=/home/vscode/.gradle,type=volume",
-    "source=android-sdk-${devcontainerId},target=/opt/android-sdk,type=volume",
+    // Named with a fixed per-project slug ("iutools-mobile") rather than
+    // "-${devcontainerId}": devcontainerId is derived from the opened
+    // folder's path, so every git worktree would otherwise get its own
+    // separate volume and have to re-authenticate Claude Code, lose shell
+    // history, or re-download the Gradle/Android SDK caches. A fixed name
+    // means all worktrees of this project share these across their
+    // separate containers.
+    "source=iutools-mobile-claude-code-bashhistory,target=/commandhistory,type=volume",
+    "source=iutools-mobile-claude-code-config,target=/home/vscode/.claude,type=volume",
+    "source=iutools-mobile-gradle-cache,target=/home/vscode/.gradle,type=volume",
+    "source=iutools-mobile-android-sdk,target=/opt/android-sdk,type=volume",
     // Re-mount .devcontainer read-only, nested inside the (writable)
     // workspace bind above. Without this, Claude running inside the
     // container could edit devcontainer.json/Dockerfile/init-firewall.sh —
@@ -51,7 +64,17 @@
     // on the next container rebuild. This only restricts writes through the
     // container's mount point; the files are still normal, freely editable
     // files on the host.
-    "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly"
+    "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly",
+    // Running multiple agents in parallel via git worktrees (see the
+    // README section of the same name)? A worktree's .git is just a text
+    // file pointing at an absolute host path inside the MAIN repo's .git
+    // (e.g. "gitdir: /Users/you/Documents/iutools-mobile/.git/worktrees/wt1"),
+    // which isn't visible inside the container since only /workspace is
+    // mounted — every git command in the worktree fails with "fatal: not a
+    // git repository: (null)" otherwise. Fix: bind the main repo's .git
+    // into the container at that SAME absolute path, so git resolves it
+    // correctly regardless of which worktree is currently open.
+    "source=${localWorkspaceFolder}/../iutools-mobile/.git,target=${localWorkspaceFolder}/../iutools-mobile/.git,type=bind,consistency=cached"
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",

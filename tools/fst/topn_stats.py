@@ -28,10 +28,10 @@ from pathlib import Path
 from affix_frequency import load_words
 from benoit_sort import sort_like_benoit, sort_with_frequency_tiebreak
 from full_corpus_check import group_by_word
-from histogram import hfst_analyses, parse_hfst_analysis
+from histogram import hfst_analyses_weighted, parse_hfst_analysis
 
 BENOIT_TIMING_PATH = Path(
-    "/tmp/claude-1000/-workspace/c68e9886-f54c-4d78-b1b6-4bcd9b807cdc/scratchpad/benoit_timing_v3.jsonl"
+    "/tmp/claude-1000/-workspace/d28f3993-4f10-4c08-b1c1-cc54b237bfcd/scratchpad/benoit_timing_v3.jsonl"
 )
 # Regenerate with:
 #   cat <word list> | cli/build/install/cli/bin/cli --pipeline --lenient-decomps > benoit_timing_v3.jsonl
@@ -90,6 +90,12 @@ def topn_histogram(word_to_parse_lists, grouped_gold) -> dict[int, int]:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fair", action="store_true")
+    parser.add_argument(
+        "--lenient", action="store_true",
+        help="include the FST's LENIENT-marker paths (phonology.xfscript's own "
+             "mirror of the real analyzer's --lenient-decomps extension, weight "
+             "1.0) alongside the normal weight-0 ones, instead of weight-0 only",
+    )
     args = parser.parse_args()
 
     grouped = group_by_word(load_words(exclude_flagged=args.fair))
@@ -99,10 +105,10 @@ def main():
     fst_sorted = {}
     fst_sorted_freq = {}
     for word in grouped:
-        analyses = dedup_preserve_order(hfst_analyses(word))
-        fst_raw[word] = [parse_hfst_analysis(a) for a in analyses]
-        fst_sorted[word] = [parse_hfst_analysis(a) for a in sort_like_benoit(analyses)]
-        fst_sorted_freq[word] = [parse_hfst_analysis(a) for a in sort_with_frequency_tiebreak(analyses)]
+        pairs = dedup_preserve_order(hfst_analyses_weighted(word, lenient=args.lenient))
+        fst_raw[word] = [parse_hfst_analysis(a) for a, _w in pairs]
+        fst_sorted[word] = [parse_hfst_analysis(a) for a, _w in sort_like_benoit(pairs)]
+        fst_sorted_freq[word] = [parse_hfst_analysis(a) for a, _w in sort_with_frequency_tiebreak(pairs)]
 
     benoit = load_benoit_decomps()
 
@@ -111,7 +117,9 @@ def main():
     hist_fst_sorted_freq = topn_histogram(fst_sorted_freq, grouped)
     hist_benoit = topn_histogram(benoit, grouped)
 
-    print(f"Top-N accuracy over {total} words{' (--fair)' if args.fair else ''}:\n")
+    mode = " (--fair)" if args.fair else ""
+    mode += ", FST LENIENT" if args.lenient else ""
+    print(f"Top-N accuracy over {total} words{mode}:\n")
     header = (
         f"{'N':>3} | {'FST (raw)':>10} | {'FST (Benoit sort)':>18} | "
         f"{'FST (+freq tie-break)':>22} | {'Benoit (real)':>14}"

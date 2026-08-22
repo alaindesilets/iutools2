@@ -57,13 +57,33 @@ def benoit_sort_key(analysis: str) -> tuple[int, int]:
     return (-len(root_canonical), num_non_root)
 
 
-def sort_like_benoit(analyses: list[str]) -> list[str]:
+def weighted_sort_key(pair: tuple[str, float]) -> tuple[float, int, int]:
+    """(analysis, weight) -> (weight, -root_len, morph_count), ascending --
+    weight FIRST, ahead of Benoit's own 2 keys: phonology.xfscript's own
+    LENIENT rule (see its comment) marks its guessed-final-consonant
+    candidates with weight 1.0 vs the normal 0.0, and without this as the
+    PRIMARY key, a lenient candidate with a longer apparent root or fewer
+    morphemes could outrank a correct strict one on Benoit's own 2 keys
+    alone -- confirmed as a real, measured accuracy regression (not
+    hypothetical) on the --fair gold standard before this key existed.
+    A no-op for any all-weight-0 (strict-only) candidate list -- every
+    item ties on the new first key, so ordering among them is exactly
+    Benoit's original 2-key sort, unchanged."""
+    analysis, weight = pair
+    root_len, morph_count = benoit_sort_key(analysis)
+    return (weight, root_len, morph_count)
+
+
+def sort_like_benoit(pairs: list[tuple[str, float]]) -> list[tuple[str, float]]:
     """Stable sort (ties keep hfst-lookup's own relative order, same as
     Kotlin's Array.sort() being a stable sort) -- mirrors doDecompose()'s
-    own step C exactly (dedup is assumed already done by the caller, same
-    as this project's existing hfst_analyses()-based tooling already does
-    via its own `set()` pass)."""
-    return sorted(analyses, key=benoit_sort_key)
+    own step C, PLUS the weight-first key above (dedup is assumed already
+    done by the caller, same as this project's existing
+    hfst_analyses_weighted()-based tooling already does via its own
+    `set()` pass). Takes/returns (analysis, weight) pairs, not bare
+    strings -- see weighted_sort_key's own comment for why weight needs
+    to travel alongside each analysis through the sort."""
+    return sorted(pairs, key=weighted_sort_key)
 
 
 # ============================================================================
@@ -83,31 +103,60 @@ def sort_like_benoit(analyses: list[str]) -> list[str]:
 # 3rd key).
 #
 # Instead: break remaining ties by preferring whichever candidate's
-# morphemes are, in aggregate, more frequent in the gold standard's own
-# correct decompositions -- e.g. juq/1vn (a nominalizing suffix, "the one
-# who...") is far more common in gold than the homograph juq/tv-ger-3s (a
-# gerundive verb ending), so given a tie, prefer the nominal reading.
-# Validated with a leave-one-out test (excluding each test word's own
-# contribution to the frequency table before scoring it, to rule out
-# simple memorization): resolves 244/284 (85.9%) of these cases correctly,
-# projecting --fair top-1 accuracy from 46.0% to ~72.5% (Benoit's own is
-# 72.6%) -- see project memory for the full validation writeup.
+# morphemes are, in aggregate, more frequent -- e.g. juq/1vn (a
+# nominalizing suffix, "the one who...") is far more common than the
+# homograph juq/tv-ger-3s (a gerundive verb ending), so given a tie,
+# prefer the nominal reading.
+#
+# The frequency table itself was FIRST built from the --fair gold
+# standard's own 922 correct decompositions, validated with a leave-
+# one-out test (excluding each test word's own contribution before
+# scoring it, to rule out simple memorization): resolved 244/284
+# (85.9%) of the tied cases, projecting top-1 accuracy from 46.0% to
+# ~72.5% (Benoit's own real output is 72.6%).
+#
+# SWITCHED (2026-08-22) to the Hansard-derived table instead (see
+# tools/fst/hansard-cache/, built from the real analyzer's own top-1
+# picks over the 9,999 most frequent Hansard word forms) -- per
+# Alain's own explicit call: measured on --fair, the Hansard table
+# scores very slightly lower than the gold-only one (74.5% vs 74.9%
+# top-1, similarly small gaps through N=5 -- see hansard-cache/
+# README.md for the full table), but Alain judged that gap "minime"
+# and worth trading for a frequency distribution that's presumably
+# more GENERAL and less biased toward the specific 922 gold words --
+# gold-only has a built-in "in-domain" advantage on this exact
+# benchmark that doesn't reflect real generalization. A COMBINED
+# (gold+Hansard summed) table was tried and rejected -- Alain judged
+# it wasn't a good idea either (and it measured no better: 74.3%,
+# actually the worst of the three, likely because Hansard's own raw
+# volume, 27,809 pair-occurrences, swamps gold's much smaller counts
+# when simply summed, so "combined" ends up close to Hansard-only
+# anyway without being genuinely independent of gold).
 # ============================================================================
+import json
+import re
 from collections import Counter
+from pathlib import Path
 
-from affix_frequency import load_words
+HANSARD_CACHE_PATH = Path(__file__).resolve().parent / "hansard-cache" / "top10k_words_benoit_decomps.jsonl"
+_BENOIT_DECOMP_RE = re.compile(r"\{([^:}]+):([^/}]+)/([^}]+)\}")
 
 
 def build_frequency_table() -> Counter:
-    """{(canonical, id): count} across every --fair gold-standard word's
-    own correct decomposition(s) -- the full table (no leave-one-out;
-    that was a VALIDATION precaution for measuring generalization, not
-    something the deployed tie-break itself needs -- using every
-    available gold word's data is the right choice once actually in use)."""
+    """{(canonical, id): count} from the real analyzer's own top-1 pick
+    for each of the ~9,999 most frequent Hansard word forms (see
+    tools/fst/hansard-cache/README.md for exactly how this cache was
+    built, and the module comment above for why this replaced the
+    gold-standard-only table this function originally built)."""
     freq = Counter()
-    for _word, morphemes in load_words(exclude_flagged=True):
-        for canon, mid in morphemes:
-            freq[(canon, mid)] += 1
+    with HANSARD_CACHE_PATH.open(encoding="utf-8") as f:
+        for line in f:
+            rec = json.loads(line)
+            decomps = rec.get("decompositions")
+            if not decomps:
+                continue
+            for _surf, canon, mid in _BENOIT_DECOMP_RE.findall(decomps[0]):
+                freq[(canon, mid)] += 1
     return freq
 
 
@@ -120,15 +169,22 @@ def frequency_score(analysis: str, freq: Counter = FREQUENCY_TABLE) -> int:
     return sum(freq.get(pair, 0) for pair in parse_hfst_analysis(analysis))
 
 
-def sort_key_with_frequency(analysis: str, freq: Counter = FREQUENCY_TABLE) -> tuple[int, int, int]:
-    """Benoit's own 2 keys, PLUS gold-morpheme-frequency (descending) as
-    the 3rd tie-break -- see the module-level comment above for why this
-    3rd key exists and isn't part of Benoit's own real algorithm."""
+def sort_key_with_frequency(pair: tuple[str, float], freq: Counter = FREQUENCY_TABLE) -> tuple[float, int, int, int]:
+    """weight FIRST (see weighted_sort_key's own comment), then Benoit's
+    own 2 keys, PLUS gold-morpheme-frequency (descending) as the 4th
+    tie-break -- see the module-level comment above for why the frequency
+    key exists and isn't part of Benoit's own real algorithm, and
+    weighted_sort_key's comment for why weight now comes first."""
+    analysis, weight = pair
     root_len, morph_count = benoit_sort_key(analysis)
-    return (root_len, morph_count, -frequency_score(analysis, freq))
+    return (weight, root_len, morph_count, -frequency_score(analysis, freq))
 
 
-def sort_with_frequency_tiebreak(analyses: list[str], freq: Counter = FREQUENCY_TABLE) -> list[str]:
-    """The project's actual production ranking: Benoit's 2 keys first,
-    then the gold-frequency tie-break."""
-    return sorted(analyses, key=lambda a: sort_key_with_frequency(a, freq))
+def sort_with_frequency_tiebreak(
+    pairs: list[tuple[str, float]], freq: Counter = FREQUENCY_TABLE
+) -> list[tuple[str, float]]:
+    """The project's actual production ranking: weight first (strict
+    always ranks ahead of LENIENT-marked candidates), then Benoit's 2
+    keys, then the gold-frequency tie-break. Takes/returns (analysis,
+    weight) pairs, not bare strings."""
+    return sorted(pairs, key=lambda p: sort_key_with_frequency(p, freq))

@@ -21,8 +21,17 @@
 !      saves the combined *generator* transducer -- analysis+tags in, final
 !      surface out -- to lexicon-generator.hfst.)
 !   3. hfst-invert -i lexicon-generator.hfst -o lexicon-analyser.hfst, then
-!      optionally hfst-fst2fst -O for the fast optimized-lookup format --
-!      produces the analyser direction hfst-lookup actually queries.
+!      hfst-fst2fst -w -i lexicon-analyser.hfst -o lexicon-analyser.hfstol
+!      for the fast optimized-lookup format hfst-lookup actually queries.
+!      MUST be -w (--optimized-lookup-weighted), NOT -O
+!      (--optimized-lookup-unweighted, this project's own build commands
+!      used throughout up to and including this rule) -- confirmed the
+!      hard way while adding the LENIENT rule below: -O silently discards
+!      the strict/lenient weight distinction (every path prints
+!      "0.000000" regardless of its real weight in the un-optimized
+!      .hfst), while -w preserves it correctly. Harmless before this
+!      rule existed (every path really was weight 0), but load-bearing
+!      now.
 
 load stack combined-lexicon.hfst
 define Lexicon ;
@@ -217,5 +226,41 @@ read regex Lexicon
   .o. [ 0 -> i || i _ TNNOMD ]
   .o. [ 0 -> u || u _ TNNOMD ]
   .o. [ TNNOMD -> 0 || [ a | i | u ] _ ]
+
+! LENIENT marker: mirrors the real analyzer's own "--lenient-decomps"
+! extension (MorphologicalAnalyzer_R2L.kt's own
+! _decomposeForFinalConsonantPossiblyMissing, confirmed by reading that
+! method directly, not guessed from the CLI flag's own description alone)
+! -- Benoit's Kotlin code unconditionally runs a SECOND pass for any
+! surface word ending in a vowel, treating it as though a final
+! k/p/q/t (Lexicon.consonants) may have been silently dropped, and unions
+! those extra decompositions in alongside the normal ones (not a
+! retry-on-failure -- it always runs, regardless of whether the first
+! pass found anything). Modeled here as an OPTIONAL final-consonant
+! deletion at the very end of the GENERATED word, gated on the SAME
+! condition Benoit's code checks (what remains after removing the
+! guessed consonant must end in a vowel): "(->)" (parenthesized arrow)
+! is xfst's OPTIONAL replace operator, which keeps BOTH the
+! with-consonant and without-consonant surface forms as parallel paths
+! in the transducer, exactly like Benoit's own "union both passes"
+! behavior -- rather than a plain "->" which would replace unconditionally
+! and lose the original consonant-final form.
+!
+! WEIGHTED (not tagged with a new marker symbol like every rule above)
+! specifically because .o. composition can only ever rewrite the LOWER
+! side of the tape -- the lexicon's own UPPER (lexical/tag) side is fixed
+! once `read regex Lexicon` runs at the top of this file, so there's no
+! way for a rule composed in later to inject a distinguishing symbol into
+! the analysis output itself. Weight, unlike a tag, travels through
+! composition regardless of which side changed, and hfst-lookup already
+! reports it as its own column (confirmed empirically against a
+! standalone toy lexicon before adding this real rule: "aak"->"aak"/0.0,
+! "aa"->"aak"/1.0, i.e. the SHORTER, consonant-missing surface form
+! recovers the full lexical analysis at weight 1.0, while the
+! already-complete form stays at weight 0.0 as before) -- so the
+! strict/lenient switch becomes a plain Python-side weight filter (weight
+! 0 only = strict; weight <=1 = lenient) over the SAME compiled .hfstol
+! file, no second FST to build/maintain going forward.
+  .o. [ [ k | p | q | t ]::1.0 (->) 0 || [ a | e | i | o | u ] _ .#. ]
   ;
 save stack lexicon-generator.hfst

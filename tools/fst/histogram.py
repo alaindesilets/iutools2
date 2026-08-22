@@ -410,10 +410,20 @@ def parse_hfst_analysis(analysis: str) -> list[tuple[str, str]]:
     return pairs
 
 
-def hfst_analyses(word: str) -> list[str]:
-    """Runs hfst-lookup on `word`, returns the distinct analysis strings
-    (upper-side output), in the order hfst-lookup printed them, excluding
-    unrecognized-word placeholders (HFST prints "word+?" with weight inf)."""
+def hfst_analyses_weighted(word: str, lenient: bool = False) -> list[tuple[str, float]]:
+    """Runs hfst-lookup on `word`, returns (analysis, weight) pairs (upper-side
+    output plus its own weight), in the order hfst-lookup printed them,
+    excluding unrecognized-word placeholders (HFST prints "word+?" with
+    weight inf).
+
+    `lenient`: phonology.xfscript's own LENIENT rule (mirroring the real
+    analyzer's own --lenient-decomps extension) gives every ordinary
+    analysis weight 0.0, but ALSO adds parallel weight-1.0 paths for
+    vowel-final words that assume a final k/p/q/t was silently dropped --
+    see that rule's own comment for why weight, not a tag, is what
+    distinguishes them. Default False (weight 0 only) excludes those
+    paths entirely; pass lenient=True to also include the weight-1.0
+    ones."""
     result = subprocess.run(
         ["hfst-lookup", str(ANALYSER)],
         input=word + "\n",
@@ -421,16 +431,28 @@ def hfst_analyses(word: str) -> list[str]:
         text=True,
         check=True,
     )
+    max_weight = 1.0 if lenient else 0.0
     analyses = []
     for line in result.stdout.splitlines():
         fields = line.split("\t")
         if len(fields) != 3:
             continue
-        _, analysis, weight = fields
-        if weight.strip() == "inf":
+        _, analysis, weight_str = fields
+        if weight_str.strip() == "inf":
             continue
-        analyses.append(analysis)
+        weight = float(weight_str)
+        if weight > max_weight:
+            continue
+        analyses.append((analysis, weight))
     return analyses
+
+
+def hfst_analyses(word: str, lenient: bool = False) -> list[str]:
+    """Same as hfst_analyses_weighted, but returns just the analysis
+    strings -- for the many existing callers that only check PRESENCE of
+    a correct decomposition (full_corpus_check.py, snapshot_correct.py,
+    this module's own GOLD_CASES check) and never needed weight."""
+    return [analysis for analysis, _weight in hfst_analyses_weighted(word, lenient=lenient)]
 
 
 def categorize(gold_parses: list, hfst_parses: list) -> str:
