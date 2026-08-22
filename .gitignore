@@ -40,3 +40,12 @@ local.properties
 /tools/hansard.db
 /tools/hansard.db.gz
 
+# FST prototypes (doc/fst-analyzer-plan.md): compiled transducer binaries
+# are build output from the .lexc sources, regenerated with hfst-lexc /
+# hfst-fst2fst -- never committed.
+/tools/fst/*.hfst
+/tools/fst/*.hfstol
+
+# Python bytecode cache (tools/fst/*.py)
+__pycache__/
+

@@ -1,0 +1,10 @@
+! Milestone 0 of doc/fst-analyzer-plan.md: the smallest possible lexc file,
+! one root and no affixes, to confirm the HFST toolchain (hfst-lexc,
+! hfst-lookup) actually works in this environment before any real
+! linguistics goes into it.
+
+LEXICON Root
+Nouns ;
+
+LEXICON Nouns
+mot # ;

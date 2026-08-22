@@ -102,6 +102,8 @@ for domain in \
     "dl.google.com" \
     "maven.google.com" \
     "androidx.dev" \
+    "dagshub.com" \
+    "www.dagshub.com" \
     "cdn.playwright.dev" \
     "tusaalanga.ca" \
     "inuktitutcomputing.ca" \

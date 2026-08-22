@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   jq \
   unzip \
   gh \
+  hfst \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # --- Android SDK ---
