@@ -1592,5 +1592,41 @@ if __name__ == "__main__":
 # as lu/1q. li's own t-context is not exercised by any gold word in
 # reach yet (every candidate needs an unimplemented dependency, e.g.
 # "apiqqutigali" needs ut/1vn's "ga"-continuation).
+#
+# ── niq/2vn (migrated from lexicon.lexc) ──
+# V-context plain ("qimirruniq"); q-context Nasalization -- the root's
+# final q -> r ("ilinniarniq"). Deterministic: Action.kt's
+# Nasalization.surfaceForm() returns its input unchanged, the real
+# rewrite is MorphAnalyzerValidation.kt's validate_nasalization_null via
+# Roman.nasalOfOcclusiveUnvoicedLat (k->ng, q->r, t->n, p->m) -- this is
+# the FST's NASAL marker. t-context ("niq niq" / "nas s", no
+# disambiguator) skipped. niq is verb->noun, so it continues into the
+# noun-ending lexicons, not just "#".
+#
+# ── liuq/1nv (migrated from lexicon.lexc) ──
+# Attaches to a q-final stem (e.g. after gaq/1vn, whose own trailing q
+# survives), so it needs its own SUPPR to delete that q. Suffixes.csv
+# q-form lists "liuq"/"jjiuq" (both Suppression); gold ALSO attests
+# "liur" (q -> r) for the same context, a spelling the CSV row doesn't
+# list ("maligaliurti" beside "maligaliuqti" -- free variation). "jjiuq"
+# unattested here; V/k contexts alone not independently gold-attested.
+#
+# ── giik/1nn (migrated from lexicon.lexc) ──
+# condPrec is a grammatical-feature condition the bulk generator can't
+# model. Its V-context literal drops its own trailing k before a further
+# ending -- "gii" not "giik" ("katujjiqatigiingit"/"katujjiqatigiit").
+#
+# ── innaq/1nn, innaq/2vv (migrated from lexicon.lexc) ──
+# Every context's action2 is "i(ng)" (Insertion of ng), unmodelled; with
+# only action1 (Neutral) wired, the plain V-context literal is what gold
+# needs (no gold example shows any "ng"). Both drop their own trailing q
+# before a following vowel-initial suffix ("inna" before u/1nv, ut/1vn).
+#
+# ── ralaaq/1nn (migrated from lexicon.lexc) ──
+# Suffixes.csv V-form is a single Neutral "ralaaq", but every gold
+# attachment (incl. the bare terminal "katimajiralaa") shows the trailing
+# q simply absent -- not a conditional SUPPR-deletion, the surface is
+# unconditionally "ralaa". "katimajiralaat" then falls out of the
+# existing DECAP mechanism (two vowels before the ending).
 # ═
 # ════════════════════════════════════════════════════════════════════════

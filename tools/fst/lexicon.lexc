@@ -956,38 +956,6 @@ LEXICON VnSuffixes
 ++vik+3vn:SUPPRvvik NounContinuations ;
 ++vik+3vn:SUPPRvvi NounContinuations ;
 
-! "niq"/2vn: "qimirruniq" = {qimirru:qimirru/1v}{niq:niq/2vn} (V-context,
-! plain concatenation) and "ilinniarniq" = {ilinniar:ilinniaq/1v}
-! {niq:niq/2vn} (q-context: root's final "q" becomes "r"). Nasalization
-! -- confirmed (Action.kt's Nasalization.surfaceForm() returns its input
-! unchanged, i.e. same "marker, not text change" shape as Suppression;
-! the real transformation lives in MorphAnalyzerValidation.kt's
-! validate_nasalization_null, using Roman.nasalOfOcclusiveUnvoicedLat:
-! k->"ng" ('N' internally), q->"r", t->"n", p->"m") -- genuinely
-! deterministic, not corpus-disambiguated (unlike this same row's
-! t-context, "niq niq" with two candidate actions "nas"/"s" and no
-! algorithmic disambiguator -- skipped). New NASAL marker, same invisible-
-! flag pattern as SUPPR/VVNG: k/q immediately before it get rewritten (not
-! just deleted), then the marker itself is dropped. Also gained an
-! own-q-deleted candidate, "ni" (needed for "matuiqtauninga" before
-! "nga"/tn-nom-s-4s, which -- unlike "it"/"ngit"/etc -- carries no SUPPR
-! of its own to do this for free), and a continuation beyond "#"
-! (originally only ever validated as the word-final morpheme
-! "qimirruniq"/"ilinniarniq" -- "tigusinirmut" needs "niq" to continue
-! into "mut"; since "niq" is verb-to-noun, the noun-ending lexicon is the
-! right continuation).
-
-! Not implemented, revisit only if a real disambiguating condition turns
-! up (in the source CSV or by tracing MorphAnalyzerValidation.kt) rather
-! than picking the first-listed candidate by convention: "ut"/1vn's V/q
-! candidate sets before the CSV-vs-gold investigation above resolved most
-! of them -- Suffixes.csv's own row has 12 space-separated V-form
-! candidates and 12 more q-form candidates with no condPrec or other
-! disambiguating column; "ma"/1vv -- every context lists TWO full
-! candidates ("ma"/"uma") with matching actions and no condition
-! selecting between them (see "ma"/1vv's investigation note in
-! generate_affixes.py for how gold ultimately resolved this one anyway).
-
 LEXICON NounEndingsAfterQTriggerSuffix
 
 ! "nut"/tn-dat-p ("ajjigiinngittunut", same trigger list) and
@@ -1037,25 +1005,6 @@ LEXICON NvSuffixes
 ! --pipeline).
 ++liaq+2nv:SUPPRliar VerbContinuations ;
 
-! "liuq"/1nv ("to be building/working on s.t."): gaq/1vn's own SUPPR only
-! deletes what PRECEDES gaq (malik's own final consonant) -- gaq's OWN
-! trailing "q" survives ("maligaq" bare, "malik"+"gaq"). So liuq attaches
-! to a Q-FINAL stem here, not a vowel-final one as it first looked from
-! the surface alone: liuq needs ITS OWN SUPPR marker to delete gaq's
-! trailing q. Suffixes.csv's q-form gives "liuq"/"jjiuq" (both
-! Suppression) as the two listed candidates -- but gold ALSO attests
-! "liur" (q -> r) for the exact same context, a candidate this CSV row
-! doesn't list anywhere at all ("maligaliurti" alongside "maligaliuqti",
-! same preceding "ga", same following "ti"/ji -- genuine free variation).
-! Same "wire both literal spellings in parallel" treatment as
-! ngagut/agut above: "SUPPRliuq" and "SUPPRliur" are different strings
-! once SUPPR resolves, so no extra rule needed -- whichever the real
-! word's own spelling is picks the matching path. "jjiuq" not attempted:
-! unattested in this gold cluster. V+k contexts (V-form=liuq/Neutral,
-! k-form=liuq/Suppression) alone, without the q-context above, are not
-! independently gold-attested here: every gold example attaches liuq
-! directly after a q-final suffix.
-
 ! "u"/1nv: "ministaujuq" = {minista:minista/1n}{u:u/1nv}{juq:juq/1vn} and
 ! "piliriangujuq" = {piliria:piliriaq/1n}{ngu:u/1nv}{juq:juq/1vn}.
 ! Suffixes.csv's "u" row has action1+action2 in every context, same shape
@@ -1087,15 +1036,6 @@ LEXICON NvSuffixes
 
 LEXICON NnSuffixes
 
-! "giik"/1nn ("a pair of two; a group of three or more"): Suffixes.csv's
-! own condPrec is a grammatical-feature condition the bulk generator
-! can't model, but 2 gold words ("katujjiqatigiingit"/"katujjiqatigiit")
-! confirm the V-context literal needs its own trailing k dropped before
-! a further ending attaches ("gii", not "giik") -- same "own consonant
-! dropped before a further suffix" pattern used throughout this
-! session, confirmed via the real Java analyzer's own output before
-! wiring.
-
 ! "juaq"/1nn ("large; big"): completely unwired until now (the existing
 ! JGUARD/"-rjuaq" machinery only ever protected this SAME spelling as a
 ! ROOT-internal augmentative in place names, e.g. "tikirarjuaq", never
@@ -1116,16 +1056,6 @@ LEXICON NnSuffixes
 
 ++kkut+1nn:SUPPRkkut QParticles ;
 
-! "innaq"/1nn ("exclusiveness: 'just', 'only'"): Suffixes.csv's own row
-! has NO condition column, but every context's action2 is "i(ng)", a
-! code generate_affixes.py doesn't handle yet (see round-checkpoint notes
-! on innaq/2vv's identical gap) -- so this row currently produces ZERO
-! candidates, not even the plain V-context one. "qaujimajuinnaugatta"
-! (gold's only innaq/1nn example) needs its own trailing q dropped
-! before "u"/1nv attaches ("inna", not "innaq") -- wired directly as a
-! plain literal rather than guessing at "i(ng)"'s general semantics from
-! one data point.
-
 ! "&iq"/1nn ("superlativeness, the most of all"): the "&" in the CSV's
 ! own morpheme spelling is a placeholder/notation artifact (same "&" seen
 ! in generate_roots.py's filtered-out root rows, e.g. "ak&a"), not a
@@ -1142,19 +1072,6 @@ LEXICON NnSuffixes
 ++&iq+1nn:lliq # ;
 ++&iq+1nn:llir NounContinuations ;
 ++&iq+1nn:llir # ;
-
-! "ralaaq"/1nn ("small"): Suffixes.csv's V-form is a single clean
-! candidate (Neutral, "ralaaq"), but ALL gold examples -- including the
-! BARE terminal one ("katimajiralaa", no further suffix at all) -- show
-! the trailing q absent. Not a conditional SUPPR-deletion like every
-! other q-final suffix elsewhere in this file: the CSV's "ralaaq" is the
-! canonical/dictionary citation form, but the actual literal surface text
-! at every attested attachment point is just "ralaa", unconditionally.
-! Implemented as a plain literal (no marker at all) rather than guessing
-! at a delete-trigger that no example actually needs. "katimajiralaat"
-! (truncated "t", not "it") falls out for free from the existing DECAP
-! mechanism: "ralaa" ends in two vowels, the same trigger
-! "kikkulimaat" already exercises.
 
 ! "tamaaq"/1nn: "arraagutamaat" = {arraagu:arraagu/1n}{tamaa:tamaaq/1nn}
 ! {t:it/tn-nom-p} -- own rule is trivial (all four contexts Neutral,
@@ -1401,20 +1318,6 @@ LEXICON VvSuffixes
 ! trigger (generate_affixes.py's TRANSINFIX_LEXICON) already covers
 ! them precisely, without granting gi/4vv to every other verb stem too
 ! -- confirmed via snapshot_correct.py before removing this duplicate.
-
-! "innaq"/2vv ("to do nothing but; exclusively"): Suffixes.csv's own
-! action2 in every context is "i(ng)" (Insertion of "ng"), not modeled
-! by the bulk generator -- but neither gold example shows any "ng" at
-! all, so only the plain action1 (Neutral) literal is wired, same
-! "ignore an unexplained action2" precedent as juq/1vn's/jaq/1vn's own
-! unimplemented action2 codes elsewhere in this file.
-! "katimajiralaanguinnaqtut" needs the bare V-context literal "innaq"
-! (own q kept, since "jut"/tv-ger-3p follows); "aaqqiumainnarutinut"
-! needs it with its OWN trailing q ALSO dropped ("inna", since
-! "ut"/1vn follows) -- same "own q dropped before a further vowel-
-! initial suffix" pattern used throughout this session (juq's "tu",
-! jaq's "ta", mata's own literal, etc.), confirmed via the real Java
-! analyzer's own output before wiring.
 
 ! "i"/1vv: the unconditioned hand-wiring this comment used to describe
 ! ("iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut", needing i/1vv
