@@ -247,6 +247,14 @@ def protect_internal_j(literal: str) -> str:
 # used to live in lexicon.lexc as a gold-standard-fitting stand-in for
 # exactly this mechanism. `ng` is the literal digraph here (Dialect.kt
 # writes it as the single char `N`).
+#
+# What this does NOT cover, and so still needs a hand entry in
+# lexicon.lexc: alternations that are not one of these cluster
+# substitutions -- a word-final consonant swap (miliat->milian,
+# tausat->tausan, avik->avit: t/k -> n/t), a vowel-length change
+# (arraagu->arragu: aa->a), a single dropped consonant with no
+# compensatory doubling (unnuksaq->unnusaq: lone k drop), or a
+# root-specific gemination (naamak->naammap). Those stay hand-wired.
 _DIALECT_GROUPS = [
     ("bl", "ll"), ("bj", "jj"), ("bg", "gg"), ("bv", "vv"),
     ("pl", "ll"), ("pk", "kk"), ("pg", "gg"), ("pv", "vv"), ("pq", "qq"),

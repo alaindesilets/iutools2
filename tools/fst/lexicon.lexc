@@ -105,17 +105,14 @@ DemonstrativePronounRootsGenerated ;
 
 LEXICON Nouns
 
-! "illu" spelling variant of "iglu" (1n, canonical "iglu" per gold:
-! "{illu:iglu/1n}") -- NOT a conditioned alternation despite looking
-! like one at first (many gold "illu*" words involve a
-! consonant-initial ending, which invited the wrong guess that this
-! might be phonologically triggered): gold attests the BARE root itself
-! both ways ("illu" alone, no ending at all) and lists
-! "iglulirijikkut"/"illulirijikkut" (and two more "liri"-suffixed
-! siblings) as separate entries for the IDENTICAL decomposition -- free
-! spelling variation across every context, same "wire both, let the
-! input string pick" treatment as missa/mitsa (miksa) and issiva/itsiva
-! (iksiva) above.
+! Root-internal DIALECTAL CLUSTER spelling variants (iglu<->illu gl/ll,
+! nunatsiaq<->nunattiaq ts/tt, miksa<->missa/mitsa ks/ss/ts,
+! kanangnaq<->kanannaq ngn/nn, ublaaq<->ullaaq bl/ll, ...) are now
+! emitted automatically by generate_roots.py's dialect_variants() from
+! the _DIALECT_GROUPS table (a port of Dialect.groups) -- they no longer
+! need hand-wiring here. What still needs a hand entry below is an
+! alternation NOT in that cluster table: a word-final t->n, a vowel
+! length aa<->a, a lone dropped k, or a root-specific gemination.
 
 ! "qulluktuq" spelling variant of "kugluktuk" (1n, already bulk-
 ! generated from RootsSpalding.csv's own "variant" column) needs KGUARD
@@ -125,11 +122,6 @@ LEXICON Nouns
 ! (the plain bulk-generated one stays, just never actually reachable
 ! for this literal without the guard).
 kugluktuk+1n:qullukKGUARDtuq NounContinuations ;
-
-! "tulli" spelling variant of "tugli" (1n, canonical "tugli" per gold:
-! "{tulli:tugli/1n}") -- same unexplained "gl"->"ll" alternation
-! category as "iglu"->"illu"/"iglaq"->"illaq" above, confirmed via the
-! real Java analyzer's own output before wiring ("tullia").
 
 ! "qallunaa" spelling variant of "qaplunaaq" (1n, canonical "qaplunaaq"
 ! per gold: "{qallunaa:qaplunaaq/1n}") -- an unexplained root-internal
@@ -146,52 +138,18 @@ qaplunaaq+1n:qallunaa NounContinuations ;
 ! failing "arragumi").
 arraagu+1n:arragu NounContinuations ;
 
-! "nunattiaq" spelling variant of "nunatsiaq"/1n (ts->tt), found the
-! same way: "nunatsiap" is already correct, "nunattiap" shares its
-! exact decomposition.
-
-! Three more root-internal spelling variants, found via the false-
-! positive cluster analysis (a wrong SHORTER root was winning because
-! the CSV's own canonical spelling didn't match gold's surface at all):
-! "ullaaq" variant of "ublaaq"/1n ("morning", b->l -- gold: "ullaaq"
-! bare and "ullaakkut"); "unikkaaq" variant of "unipkaaq"/1n ("story",
-! p->k plus the resulting cluster doubling -- gold: "unikkaaq"/
-! "unikkaat"/"unikkaangat"/"unikkaangit"); "unnusaq" variant of
-! "unnuksaq"/1n ("afternoon", own "k" dropped -- gold: "unnusami").
+! "unnusaq" variant of "unnuksaq"/1n ("afternoon", own "k" dropped --
+! gold: "unnusami"). Lone dropped k, not a _DIALECT_GROUPS cluster sub,
+! so still hand-wired.
 unnuksaq+1n:unnusaq NounContinuations ;
 
-! Eight more bare-root spelling variants, all found the same
-! systematic way as the demonstrative-system sweep above (a script
-! cross-referencing every gold word that's a SINGLE atomic root against
-! every currently-wired spelling for that exact canonical+tag, rather
-! than noticing mismatches one at a time): "iqaluttuuttiaq" variant of
-! "iqaluktuutsiaq"/1n; "milian" 4th variant of "miliat"/1n (alongside
-! the existing miliat/milliat/milijat) -- this ALSO resolves the
-! previously-accepted "milianik"/"milianit" false-positive collisions
-! documented elsewhere in this file, since gold's own canonical for
-! bare "milian" is this SAME "miliat" root, not a coincidental
-! unrelated homograph as first assumed; "namminiq" variant of
-! "nangminiq"/1n; "natsilik" variant of "nattilik"/1n; "panniqtuuq"
-! variant of "pangnirtuuq"/1n; "qauppat" variant of "qaukpat"/1n;
-! "tausan" variant of "tausat"/1n (alongside the existing "tausa");
-! "ulluq" variant of "ubluq"/1n.
+! "milian" 4th variant of "miliat"/1n and "tausan" variant of
+! "tausat"/1n -- a word-final t->n, not a _DIALECT_GROUPS cluster sub,
+! so still hand-wired. ("milian" also resolves the old
+! "milianik"/"milianit" false-positive collisions: gold's canonical for
+! bare "milian" is this SAME "miliat" root, not an unrelated homograph.)
 miliat+1n:milian NounContinuations ;
 tausat+1n:tausan NounContinuations ;
-
-! "kanannaq"/"uannaq" spelling variants of "kanangnaq"/1n ("the
-! north-east") and "uangnaq"/1n ("the north-west") -- needed for
-! "kanannangani"/"uannangani", both gold-attested as root+"ngani"/
-! tn-loc-s-4s. Not the same as RootsSpalding.csv's own "variant" column
-! for these two rows (kanangniq/uangniq -- a different alternation,
-! unrelated), so hand-added here rather than read from the CSV: the
-! root's own internal "ngn"->"nn" simplifies before "ngani" attaches
-! ("kanangnaq"->"kanannaq"+SUPPR(own q)+"ngani" = "kanannangani"),
-! same free-variation-by-evidence treatment as "iglu"/"illu" above,
-! just for a root-internal cluster instead of the whole word.
-
-! "missa"/"mitsa" spelling variants of the bulk-generated "miksa" root
-! (1n, canonical "miksa" per gold: "{missa:miksa/1n}"/"{mitsa:miksa/1n}")
-! -- the bulk generator only emits the identity spelling for this root.
 
 ! "nunavut" ("Nunavut", 1n) -- a legitimate root generate_roots.py's bulk
 ! pass never covers: it lives in Locations.csv, a root-source CSV the
@@ -505,10 +463,11 @@ LEXICON NounEndings
 
 LEXICON Verbs
 
-! "illaq" spelling variant of "iglaq" (1v, canonical "iglaq" per gold:
-! "{illaq:iglaq/1v}") -- same unexplained root-internal "gl"->"ll"
-! alternation category as "iglu"->"illu" above, confirmed via the real
-! Java analyzer's own output before wiring ("illaqtut").
+! Root-internal dialectal cluster spelling variants (iglaq<->illaq,
+! iksiva<->issiva/itsiva, makpiq<->mappiq, ...) are emitted by
+! generate_roots.py's dialect_variants() -- see the note in the Nouns
+! block above. The hand entries left below are alternations NOT in the
+! _DIALECT_GROUPS cluster table.
 
 ! "aglat" spelling variant of "allak" (1v, canonical "allak" per gold:
 ! "{aglat:allak/1v}") -- an unexplained root-internal alternation
@@ -517,14 +476,6 @@ LEXICON Verbs
 ! ("aglattiu"); not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
 allak+1v:aglat VerbContinuations ;
-
-! "issiva"/"itsiva" spelling variants of the bulk-generated "iksiva" root
-! (1v, canonical "iksiva" per gold: "{issiva:iksiva/1v}"/
-! "{itsiva:iksiva/1v}") -- generate_roots.py's bulk pass only ever emits
-! the identity spelling (iksiva+1v:iksiva), so these dialectal surface
-! variants need hand-adding the same way as "taimait" above, rather than
-! looping the generator in over one CSV row's worth of extra spellings it
-! was never designed to emit.
 
 ! "niqsu"/"nirtu"/"niqtu" spelling variants of the bulk-generated
 ! "niqtuq" root (1v, canonical "niqtuq" per gold: "{niqsu:niqtuq/1v}"/
@@ -551,10 +502,6 @@ naamak+1v:naammap VerbContinuations ;
 ! already-correct gold sibling ("avittuqsimajuni" alongside the
 ! failing "aviktursimajuni", identical decomposition).
 avik+1v:avit VerbContinuations ;
-
-! "mappiq" spelling variant of "makpiq"/1v (kp->pp, the same cluster
-! simplification already seen for "qaukpat"->"qauppat"): "makpigaq" is
-! already correct, "mappigaq" shares its exact decomposition.
 
 ! "aulat" ("to direct/govern s.t."): WordsRelatedToRoots.csv records this
 ! as "aula/1v+t/1vv", a compositional decomposition filtered out by
