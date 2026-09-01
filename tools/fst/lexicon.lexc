@@ -345,7 +345,6 @@ LEXICON NounEndings
 ! agreeing on the same q-context form, not a guess. t/k-context
 ! (Insertion "i" / Suppression) not attempted: no gold word in this
 ! cluster needs them.
-++ga+tn-nom-s-1s:ga QParticles ;
 
 
 ! "it"/tn-nom-p: {arna:arnaq/1n}{it:it/tn-nom-p} = "arnait" and
@@ -490,7 +489,6 @@ LEXICON NounEndings
 ! SUPPR unchanged. t-context has two candidates (Insertion "i" vs
 ! Suppression, no algorithmic disambiguator) -- deferred, same policy as
 ! every such case.
-++ngit+tn-nom-p-4s:SUPPRngit QParticles ;
 
 ! Also an unconditional "ngi"-only spelling (own trailing "t"
 ! dropped), found via already-correct gold siblings ("asingit"/
@@ -520,12 +518,10 @@ LEXICON NounEndings
 ! numbPoss=p) -- used the numbPoss=s one (matches the gold id
 ! "tn-dat-p-4s" exactly); the numbPoss=p row is a different id, not
 ! implemented.
-++nginnut+tn-dat-p-4s:SUPPRnginnut QParticles ;
 
 ! "nginnik"/tn-acc-p-4s: same shape as nginnut/nginnit/nginni (V-context
 ! Neutral, reuses SUPPR for the k/q-context Suppression rows, none of
 ! which are gold-attested here).
-++nginnik+tn-acc-p-4s:SUPPRnginnik QParticles ;
 
 ! "nut"/tn-dat-p: same shared NounEndings hub deliberately serves "it"
 ! (reached from bare noun roots via NounContinuations) and "nut" (reached
@@ -557,9 +553,6 @@ LEXICON NounEndings
 ! "inuusilirijikkunullu" needs "nut"/tn-dat-p to ALSO reach QParticles
 ! (lu/1q's own enclitic can follow a fully-inflected noun, same
 ! established pattern as "ga"/tn-nom-s-1s etc above).
-++nut+tn-dat-p:nut QParticles ;
-++nut+tn-dat-p:NASALnut QParticles ;
-++nut+tn-dat-p:SUPPRnut QParticles ;
 ++nut+tn-dat-p:nu QParticles ;
 
 ! "inuktitut" (k preserved, NOT assimilated) is ALSO gold-attested
@@ -630,7 +623,6 @@ LEXICON NounEndings
 ++tigut+tn-via-p:tigu # ;
 ++tigut+tn-via-p:tigu AfterViaCaseEnding ;
 
-++nginnit+tn-abl-p-4s:SUPPRnginnit QParticles ;
 
 ! "ngagut"/tn-via-s-4s: Endings_noun.csv's row gives TWO V-context
 ! candidates in every column: full "ngagut" and reduced "agut" (missing
@@ -1849,7 +1841,6 @@ LEXICON TvEndings
 ! "uqaqqaugamailaak" needs "gama"/tv-caus-1s to ALSO reach QParticles
 ! (ilaak/1e's own enclitic can follow a fully-inflected verb, same
 ! established pattern as "ga"/tn-nom-s-1s etc above on the noun side).
-++gama+tv-caus-1s:gama QParticles ;
 
 ! "gipsi"/tv-imp-2p ("tunngasugitsi"): the CSV's own k-form is literally
 ! "gipsi" (Fusion), but the gold surface is "...gitsi", not "...gipsi"

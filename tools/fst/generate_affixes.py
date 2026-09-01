@@ -891,7 +891,26 @@ def gen_endings():
                     CASE_LEXICON.get(row.get("case", "").strip())
                     if fn == "Endings_noun.csv" else None
                 )
-                end_continuations = ["#"] + ([case_lexicon] if case_lexicon else [])
+                # An enclitic particle (-lu / -li / qai / ttauq, the
+                # QParticles block) can attach after a fully-inflected
+                # noun or (non-participle) verb -- a general phenomenon
+                # that lexicon.lexc only ever wired for the handful of
+                # specific endings a gold word happened to exercise
+                # ("wiring what a real gold word needs, not the fully
+                # general"). Generalised here to every such ending, so
+                # that hand-scoped wiring can be removed. Participle
+                # endings are left out (a clitic on a subordinate
+                # participle is not the same claim). This trades ~6
+                # first-decomposition-correct words (the FST has no
+                # tie-break, so every "...+lu" reading now competes) for
+                # not carrying a gold-scoped shortcut -- accepted
+                # deliberately.
+                allows_clitic = fn in ("Endings_noun.csv", "Endings_verb.csv")
+                end_continuations = (
+                    ["#"]
+                    + (["QParticles"] if allows_clitic else [])
+                    + ([case_lexicon] if case_lexicon else [])
+                )
 
                 # For condOnNext (a suffix requiring THIS specific ending
                 # immediately after itself, e.g. gi/2vv's own
