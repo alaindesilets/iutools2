@@ -315,6 +315,18 @@ def candidates_for_context(row: dict, context: str):
             # literally says "s".
             prefix = "SUPPR" if "SUPPR" not in (marker1 or "") else marker1
             yield f"{prefix}{lit}"
+            if a1 == "n":
+                # action1 Neutral: the ending's own plain literal is ALSO
+                # a valid surface -- action2 Suppression only ADDS the
+                # "also delete a preceding q/k/t" variant on top of it.
+                # The plain form is otherwise emitted only when a sibling
+                # candidate in the same cell supplies it (true for
+                # mik/nik/mut/nut/ni/mi/nit, whose cells carry a separate
+                # Neutral candidate), but NOT for the 4s "nga a" / "ngani
+                # ani" / "nganut anut" / "nganik anik" / "ngagut agut"
+                # rows, where this second candidate is the only source of
+                # the reduced spelling.
+                yield lit
             continue
         if a2:
             continue

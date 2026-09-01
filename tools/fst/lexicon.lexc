@@ -209,22 +209,6 @@ LEXICON NounEndings
 ! variant happens to coincide with a DIFFERENT tag's own spelling.
 ++ngangnit+tn-abl-s-4d:ngannit # ;
 
-! "nga"/tn-nom-s-4s's own SECOND V-context candidate: Endings_noun.csv
-! gives V-form "nga a" (2 space-separated candidates), the first
-! ("nga", already wired) with a clean action2 ("-"), the second ("a")
-! with action2 "s" -- not the same "preceding-stem-vowel-suppression"
-! shape confirmed for nganit/tn-abl-s-4s's own "anit" candidate (that
-! one paired action2="s" with action1="s" too; here action1 is "n"), so
-! left uninvestigated for its general semantics -- "naasautaa"/
-! "uqaalautaa" both need this literal ("a", already a plain reduced
-! form in the CSV, not derived) directly, confirmed via the real Java
-! analyzer's own output before wiring.
-++nga+tn-nom-s-4s:a # ;
-
-! Same "a" literal, q-context (SUPPR deletes a preceding q-final root's
-! own trailing q): "tungilia" (root "tungiliq", q-final) needs it,
-! confirmed via the real Java analyzer's own output before wiring.
-
 ! "nganit"/tn-abl-s-4s's own SECOND q-context candidate: Endings_noun.csv
 ! gives q-form "nganit anit" (2 space-separated candidates), both
 ! action1 Suppression -- the bulk generator only ever wires the FIRST
@@ -416,46 +400,17 @@ LEXICON NounEndings
 ++tigut+tn-via-p:tigu AfterViaCaseEnding ;
 
 
-! "ngagut"/tn-via-s-4s: Endings_noun.csv's row gives TWO V-context
-! candidates in every column: full "ngagut" and reduced "agut" (missing
-! its own leading "ng"). Checked every gold-attested root first (all
-! vowel-final: asi/ila/ilu/kinguni/sivuni/tunga): NOT a phonological
-! split by which vowel precedes -- "ila" (final a) needs the FULL form
-! ("ilangagut") while "tunga" (also final a) needs the REDUCED form
-! ("tungaagut") -- genuinely root-specific, not guessable from the CSV.
-! Real gold words attest BOTH outcomes for different roots, so both are
-! wired as parallel candidates rather than picked/abandoned -- matches
-! how the source analyzer's own backtracking search would explore both.
-! All 6 gold roots are vowel-final, so t/k/q-context are not
-! gold-attested here and not attempted.
-++ngagut+tn-via-s-4s:agut # ;
-
-! "ngani"/tn-loc-s-4s: same shape as tn-via-s-4s just above (two
-! candidates, different strings, wired in parallel exactly like
-! ngagut/agut). Confirmed genuinely root-specific, not phonologically
-! conditioned: "sivuni" (root, ends in "i") takes BOTH forms in separate
-! gold words ("sivuniani" short, "sivuningani" full) -- proof this is
-! real free variation, not something a vowel-class rule could predict
-! either way. Also needed SUPPR-prefixed variants of both candidates for
-! q-final roots ("qitiq" -> "qitingani", root's own trailing q deleted)
-! -- same "V-context-only assumption breaks on a q-final root" trap seen
-! throughout this file. Two gold words ("kanannangani"/"uannangani") NOT
-! reached: their roots ("kanangnaq"/"uangnaq") undergo their OWN internal
-! "ngn"->"nn" simplification before "ngani" attaches -- a genuine
-! root-internal alternation, not ngani's problem, and only 2 words share
-! it, not enough evidence to guess a general rule from.
-++ngani+tn-loc-s-4s:ani # ;
-
-! "nganut"/tn-dat-s-4s: sibling of "ngani" just above, identical shape
-! and identical treatment, same free-variation confirmation ("miksa"
-! root attested with BOTH "missaanut"/"mitsaanut" alternate root
-! spellings, both taking the reduced "anut" form).
-++nganut+tn-dat-s-4s:anut # ;
-
-! "nganik"/tn-acc-s-4s: sibling of nganut/ngani above, same shape and
-! same free-variation confirmation technique -- both target words attest
-! the reduced "anik".
-++nganik+tn-acc-s-4s:anik # ;
+! ngagut/ngani/nganut/nganik + nga /tn-*-s-4s: Endings_noun.csv gives
+! each of these a SECOND V-context candidate ("agut"/"ani"/"anut"/
+! "anik"/"a", each missing its own leading "ng") tagged action1=Neutral
+! action2=Suppression. generate_affixes.py now emits the plain reduced
+! literal for that action pair (see its candidates_for_context comment on
+! the "nga a" family) -- so these no longer need a hand entry. The choice
+! between full and reduced is genuinely root-specific, not CSV-derivable
+! (e.g. "sivuni" attests both "sivuniani" and "sivuningani"): both stay
+! wired as parallel candidates. The SUPPR-prefixed q-final variants
+! ("qitiq" -> "qitingani") come from the same row's k/q columns and were
+! already generated.
 
 ! "amittuq" = {amit:amit/1v}{tuq:juq/1vn} -- verb root + derivational
 ! (verb-to-noun) suffix whose canonical form "juq" surfaces as "tuq"
