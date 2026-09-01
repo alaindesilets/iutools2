@@ -1,4 +1,4 @@
-# iutools-mobile
+# iutools2
 
 A port of some of the tools and libraries of the [iutools](https://github.com/iutools/iutools) project. These are tools to help learners, speakers and writers of Inuktitut, the language of the Inuit people of Canada.
 
@@ -44,7 +44,7 @@ across worktrees via fixed-name Docker volumes instead of being duplicated
 per worktree.
 
 1. Create a worktree as a sibling folder of the main checkout:
-   `git worktree add ../iutools-mobile-feature-x feature-x`
+   `git worktree add ../iutools2-feature-x feature-x`
 2. One-time per machine: uncomment the git-worktree bind mount near the
    bottom of `.devcontainer/devcontainer.json`'s `mounts` — needed because
    a worktree's `.git` is just a text file pointing at an absolute host
@@ -61,7 +61,7 @@ per worktree.
    project.
 
 To remove a worktree once done: close its VS Code window/container, then
-from the main repo run `git worktree remove ../iutools-mobile-feature-x`.
+from the main repo run `git worktree remove ../iutools2-feature-x`.
 
 ## Testing
 

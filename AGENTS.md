@@ -1,4 +1,4 @@
-# About iutools-mobile
+# About iutools2
 
 Started as a Kotlin Multiplatform port of the morphological analyzer core
 from [iutools](https://github.com/iutools/iutools) (Java), which decomposes
@@ -175,7 +175,7 @@ line, every time, and hand off only what genuinely needs a device:
   on.
 
 **Android Studio's test dropdown, mapped to Gradle** (root project name is
-`iutools-mobile`, hence the `iutools-mobile.*` label prefix): there is
+`iutools2`, hence the `iutools2.*` label prefix): there is
 no single dropdown entry that runs every test in the whole project at
 once — run both rows below when work spans both modules (`:core` has no
 test source set of its own; its tests live in `:cli`).

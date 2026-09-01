@@ -46,7 +46,7 @@ by uninstalling or clearing app data) one of two ways:
    ```
    gh release create hansard-db-v1 tools/hansard.db.gz \
      --title "Nunavut Hansard bilingual index v1" \
-     --notes "SQLite index built from the Nunavut Hansard Inuktitut-English Parallel Corpus 3.0.1 (NRC, CC BY 4.0) for iutools-mobile's bilingual-examples feature. See tools/README-hansard.md."
+     --notes "SQLite index built from the Nunavut Hansard Inuktitut-English Parallel Corpus 3.0.1 (NRC, CC BY 4.0) for iutools2's bilingual-examples feature. See tools/README-hansard.md."
    ```
    Bump the tag number (`hansard-db-v2`, ...) for the next build, and update
    `NunavutHansardDownloader.DOWNLOAD_URL` to match, in the same commit that
