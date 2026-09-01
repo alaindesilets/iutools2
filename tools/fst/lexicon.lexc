@@ -398,15 +398,11 @@ niqtuq+1v:niqsu VerbContinuations ;
 niqtuq+1v:nirtu VerbContinuations ;
 niqtuq+1v:niqtu VerbContinuations ;
 
-! "naammap" spelling variant of the bulk-generated "naamak" root (1v,
-! canonical "naamak" per gold: "{naammap:naamak/1v}") -- an "m"-
-! gemination + k->p change specific to this root before a following
-! p-initial ending ("puq"/tv-dec-3s), not something the general v->p/k->p
-! PMARK mechanism produces (same "generator only emits the identity
-! spelling" gap as the others above, but the actual alternation here is
-! root-internal and unexplained beyond this one attested word --
-! hand-spelled rather than guessed as a general rule).
-naamak+1v:naammap VerbContinuations ;
+! ("naammap" of "naamak"/1v used to be hand-wired here for "naammappuq".
+!  RootsSpalding.csv's own variant column already gives "naammak" (the
+!  m-gemination), and "naamak"+"vuq"/tv-dec-3s -> "naammappuq" via the
+!  general k->p-before-p-PMARK rule -- so the hand entry is redundant,
+!  removed with 0 gold words lost.)
 
 ! "avit" spelling variant of "avik"/1v (k->t), found via an
 ! already-correct gold sibling ("avittuqsimajuni" alongside the
