@@ -240,15 +240,36 @@ def candidates_for_context(row: dict, context: str):
             # literal, no marker (same shape as iallV(X) above). Proven
             # 5 times over this same session (lugu/lugit's own prespas/
             # fut pairs, plus lunga/luta/lutik) with zero counterexamples
-            # before generalizing here -- deliberately NOT extending this
-            # same treatment to the OTHER "i(X)" insertion codes (i(ng),
-            # i(a), i(i)): i(ng) is already known (round 14) to sometimes
-            # need conditional gating instead of unconditional insertion,
-            # and i(a)/i(i) have zero gold-verified examples in this
-            # project at all -- guessing at those risks the same silent
-            # corpus-wide corruption class already seen twice (the
-            # TNNOMD and j->t bugs), not just wasted effort.
+            # before generalizing here.
             yield f"l{lit}"
+            continue
+        if a1 == "i(i)" and not a2:
+            # Insertion of "i" -- same unconditional-prepend model as
+            # i(l) above (Action.kt's Insertion class: surfaceForm =
+            # insertedText + form, no conditioning coded there). This is
+            # overwhelmingly the T-CONTEXT candidate on noun/verb endings
+            # (epenthetic "i" breaking up a t-final stem + the ending's
+            # own consonant-initial form -- a well-known, general
+            # Inuktitut pattern, not a one-off), 248 candidates across
+            # ~90 distinct morphemes when this was added -- tried in
+            # isolation from the other "i(X)" codes below (NOT i(ng)/
+            # i(a)/etc. together) specifically so that a
+            # full_corpus_check.py correct-not-present regression, if any,
+            # is attributable to this one code. See i(ng)'s own comment
+            # below for why THAT code is treated more cautiously.
+            yield f"i{lit}"
+            continue
+        if a1 == "i(ng)" and not a2:
+            # Insertion of "ng" -- NOT generalized the same unconditional
+            # way as i(l)/i(i) above: already known (round 14, prior
+            # session -- no further detail survives in this repo) to
+            # sometimes need conditional gating instead of unconditional
+            # insertion. Guessing at the condition risks the same silent
+            # corpus-wide corruption class already seen twice (the TNNOMD
+            # and j->t bugs in phonology.xfscript, both only caught by a
+            # correct-not-present SPIKE, not by inspection) -- left
+            # unhandled (skipped) until the actual condition is
+            # rediscovered, not guessed at.
             continue
 
         if a1 not in KNOWN_ACTION1:
