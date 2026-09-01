@@ -626,20 +626,13 @@ LEXICON VnSuffixes
 ! plain literal with no SUPPR of its own).
 ++vik+3vn:SUPPRvi NounContinuations ;
 
-! Two more free-variant spellings, own "v" doubled instead of the
-! preceding consonant being voiced/deleted: "vvik" (own k kept,
-! terminal) and "vvi" (own k dropped, continuing). Found via
-! already-correct gold siblings: "pilirivik"/"piliriviit"/
-! "pilirivinga" (single v) alongside the failing "pilirivvik"/
-! "pilirivviit"/"pilirivvinga" (double v, identical decomposition
-! each), and "ikupigvilirijikkut"/"ikupigvilirijikkunnut" (VOICE
-! reading, k->g) alongside the failing "ikupivvilirijikkut"/
-! "ikupivvilirijikkunnut" (SUPPR+double-v reading instead) -- so the
-! k-deleting variant needs the SUPPR prefix too, same as "SUPPRvi"
-! above.
-++vik+3vn:vvik # ;
-++vik+3vn:vvik NounContinuations ;
-++vik+3vn:vvi NounContinuations ;
+! "vv"-doubled spellings of "vik" (own "v" geminated instead of the
+! preceding consonant being voiced/deleted). The plain "vvik"/"vvi"
+! variants are now redundant (removed, 0 gold words lost -- covered by
+! the generator). The SUPPR-prefixed k-deleting variants stay:
+! "ikupivvilirijikkut"/"ikupivvilirijikkunnut" need the preceding root's
+! own k gone before the geminated "vv" (a cross-boundary q/k deletion,
+! see the Friday note in the memory log).
 ++vik+3vn:SUPPRvvik NounContinuations ;
 ++vik+3vn:SUPPRvvi NounContinuations ;
 
@@ -665,7 +658,8 @@ LEXICON NvSuffixes
 ! ONLY via AfterItTriggerSuffix, not from the general VerbContinuations
 ! hub it used to reach through the *Speculative lexicon (which is
 ! reachable from every verb stem, not just after it/3nv specifically).
-++it+3nv:it AfterItTriggerSuffix ;
+! (The plain "++it+3nv:it AfterItTriggerSuffix" route is now generated
+!  -- redundant hand line removed, 0 gold words lost.)
 ++it+3nv:SUPPRit AfterItTriggerSuffix ;
 
 ! "uq"/1nv ("to go through", the "via"-case-only sibling suffix):
@@ -795,11 +789,11 @@ LEXICON NnSuffixes
 ! the final morpheme of the word (no further SUPPR-marked ending follows
 ! to eat the q); reuses the same SUPPR prefix (deletes jjuti's own
 ! trailing consonant if any), harmless no-op here since "jjuti" ends in a
-! vowel. And a continuation into NounEndingsAfterQTriggerSuffix --
-! "maligaksanit" needs "nit"/tn-abl-p's own trigger-branch (Suppression)
-! reached right after "ksaq", since ksaq/1nn is one of the trigger ids
-! for Lever A (see generate_affixes.py's investigation note).
-++ksaq+1nn:SUPPRksaq NounEndingsAfterQTriggerSuffix ;
+! vowel.
+! (The "++ksaq+1nn:SUPPRksaq NounEndingsAfterQTriggerSuffix" continuation
+!  that used to sit here -- for "maligaksanit" -- is redundant now: the
+!  SUPPRssaq/SUPPRtsaq siblings below carry the same route, and removal
+!  lost 0 gold words.)
 
 ! "ksaq" also has two further literal spellings Suffixes.csv doesn't
 ! list at all: "ssaq" and "tsaq" (own leading "k" surfacing as "s"/"t"
@@ -920,16 +914,14 @@ tama+rad-ml:tam TadEndings ;
 
 LEXICON Pronouns
 
-! Demonstrative-root spelling variants. The cluster-family ones
-! (ivvit/igvit, taassuma/taatsuma from taapsu, tamassuminga from
-! tamaksu, taanna from taamna) now come from generate_demonstratives.py
-! feeding each root through dialect_variants() -- verified those words
-! still analyse without a hand entry. The three below are NOT a
-! _DIALECT_GROUPS cluster sub, so they stay hand-wired: "tanna" of
-! "taamna"/pd-sc-s (m -> nn), "taikua" of "taikkua"/pd-sc-p (kk -> k),
-! "takkua" of "taakkua"/pd-sc-p (aa -> a). STILL A GAP (no hand entry,
-! not generator-reachable): "taissu"/"taitsu" of "taiksu"/rpd-sc-s,
-! "taqqakku" of "taqqapku"/rpd-mlsc-p.
+! Demonstrative-root spelling variants NOT reachable from a
+! _DIALECT_GROUPS cluster sub: "tanna" of "taamna"/pd-sc-s (m -> nn),
+! "taikua" of "taikkua"/pd-sc-p (kk -> k), "takkua" of "taakkua"/pd-sc-p
+! (aa -> a). Each individual line looks redundant (its "#" and
+! "QParticles" twin cover for each other), but removing a whole pair
+! loses the bare standalone word -- so both twins stay. STILL A GAP:
+! "taissu"/"taitsu" of "taiksu"/rpd-sc-s, "taqqakku" of "taqqapku"/
+! rpd-mlsc-p.
 taamna+pd-sc-s:tanna # ;
 taamna+pd-sc-s:tanna QParticles ;
 taikkua+pd-sc-p:taikua # ;
@@ -1196,16 +1188,12 @@ LEXICON TvEndings
 ! "KGUARDtu" above. Not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
 
-! "lugu"/tv-part-1s-3s-fut: same V-context "l"-insertion shape as the
-! prespas sibling above (baked-in "llugu", unconditional insertion, no
-! marker). Additionally needed a SUPPR-prefixed variant for
-! consonant-final stems: "malillugu" (root "malik", k-final) -- gold
-! shows the preceding k simply deleted, "mali"+"llugu", not converted via
-! VOICE despite the CSV's k-form action reading "son" (Voicing) --
-! trusted the empirical gold string over the CSV action code here, same
-! "gold overrides a misleading CSV cell" precedent as several suffixes in
-! this file.
-++lugu+tv-part-1s-3s-fut:llugu # ;
+! "lugu"/tv-part-1s-3s-fut: the plain "llugu" V-context spelling is now
+! generated (candidates_for_context bakes in the CSV's "i(l)" action --
+! redundant hand entry removed, 0 gold words lost). The SUPPR-prefixed
+! variant stays: "malillugu" (root "malik", k-final) needs the preceding
+! k simply deleted, "mali"+"llugu", not VOICE-converted despite the
+! CSV's k-form "son" -- empirical gold string trusted over the CSV code.
 ++lugu+tv-part-1s-3s-fut:SUPPRllugu # ;
 
 
@@ -1218,11 +1206,8 @@ LEXICON TvEndings
 ! into "malittugit". Not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
 
-! "lugit"/tv-part-1s-3p-fut: same V-context "l"-insertion shape as
-! "lugu"/tv-part-1s-3s-fut above, plus the same SUPPR-prefixed variant
-! for consonant-final stems ("malillugit", root "malik", k-final -- same
-! shape as "malillugu" above).
-++lugit+tv-part-1s-3p-fut:llugit # ;
+! "lugit"/tv-part-1s-3p-fut: plain "llugit" now generated (as "llugu"
+! above). SUPPR variant kept for consonant-final stems ("malillugit").
 ++lugit+tv-part-1s-3p-fut:SUPPRllugit # ;
 
 ! "lutik"/tv-part-3p-prespas (intransitive, no object): V-context follows
