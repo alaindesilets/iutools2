@@ -116,7 +116,6 @@ LEXICON Nouns
 ! spelling variation across every context, same "wire both, let the
 ! input string pick" treatment as missa/mitsa (miksa) and issiva/itsiva
 ! (iksiva) above.
-iglu+1n:illu NounContinuations ;
 
 ! "qulluktuq" spelling variant of "kugluktuk" (1n, already bulk-
 ! generated from RootsSpalding.csv's own "variant" column) needs KGUARD
@@ -131,7 +130,6 @@ kugluktuk+1n:qullukKGUARDtuq NounContinuations ;
 ! "{tulli:tugli/1n}") -- same unexplained "gl"->"ll" alternation
 ! category as "iglu"->"illu"/"iglaq"->"illaq" above, confirmed via the
 ! real Java analyzer's own output before wiring ("tullia").
-tugli+1n:tulli NounContinuations ;
 
 ! "qallunaa" spelling variant of "qaplunaaq" (1n, canonical "qaplunaaq"
 ! per gold: "{qallunaa:qaplunaaq/1n}") -- an unexplained root-internal
@@ -151,7 +149,6 @@ arraagu+1n:arragu NounContinuations ;
 ! "nunattiaq" spelling variant of "nunatsiaq"/1n (ts->tt), found the
 ! same way: "nunatsiap" is already correct, "nunattiap" shares its
 ! exact decomposition.
-nunatsiaq+1n:nunattiaq NounContinuations ;
 
 ! Three more root-internal spelling variants, found via the false-
 ! positive cluster analysis (a wrong SHORTER root was winning because
@@ -161,8 +158,6 @@ nunatsiaq+1n:nunattiaq NounContinuations ;
 ! p->k plus the resulting cluster doubling -- gold: "unikkaaq"/
 ! "unikkaat"/"unikkaangat"/"unikkaangit"); "unnusaq" variant of
 ! "unnuksaq"/1n ("afternoon", own "k" dropped -- gold: "unnusami").
-ublaaq+1n:ullaaq NounContinuations ;
-unipkaaq+1n:unikkaaq NounContinuations ;
 unnuksaq+1n:unnusaq NounContinuations ;
 
 ! Eight more bare-root spelling variants, all found the same
@@ -180,14 +175,8 @@ unnuksaq+1n:unnusaq NounContinuations ;
 ! variant of "pangnirtuuq"/1n; "qauppat" variant of "qaukpat"/1n;
 ! "tausan" variant of "tausat"/1n (alongside the existing "tausa");
 ! "ulluq" variant of "ubluq"/1n.
-iqaluktuutsiaq+1n:iqaluttuuttiaq NounContinuations ;
 miliat+1n:milian NounContinuations ;
-nangminiq+1n:namminiq NounContinuations ;
-nattilik+1n:natsilik NounContinuations ;
-pangnirtuuq+1n:panniqtuuq NounContinuations ;
-qaukpat+1n:qauppat NounContinuations ;
 tausat+1n:tausan NounContinuations ;
-ubluq+1n:ulluq NounContinuations ;
 
 ! "kanannaq"/"uannaq" spelling variants of "kanangnaq"/1n ("the
 ! north-east") and "uangnaq"/1n ("the north-west") -- needed for
@@ -199,14 +188,10 @@ ubluq+1n:ulluq NounContinuations ;
 ! ("kanangnaq"->"kanannaq"+SUPPR(own q)+"ngani" = "kanannangani"),
 ! same free-variation-by-evidence treatment as "iglu"/"illu" above,
 ! just for a root-internal cluster instead of the whole word.
-kanangnaq+1n:kanannaq NounContinuations ;
-uangnaq+1n:uannaq NounContinuations ;
 
 ! "missa"/"mitsa" spelling variants of the bulk-generated "miksa" root
 ! (1n, canonical "miksa" per gold: "{missa:miksa/1n}"/"{mitsa:miksa/1n}")
 ! -- the bulk generator only emits the identity spelling for this root.
-miksa+1n:missa NounContinuations ;
-miksa+1n:mitsa NounContinuations ;
 
 ! "nunavut" ("Nunavut", 1n) -- a legitimate root generate_roots.py's bulk
 ! pass never covers: it lives in Locations.csv, a root-source CSV the
@@ -524,7 +509,6 @@ LEXICON Verbs
 ! "{illaq:iglaq/1v}") -- same unexplained root-internal "gl"->"ll"
 ! alternation category as "iglu"->"illu" above, confirmed via the real
 ! Java analyzer's own output before wiring ("illaqtut").
-iglaq+1v:illaq VerbContinuations ;
 
 ! "aglat" spelling variant of "allak" (1v, canonical "allak" per gold:
 ! "{aglat:allak/1v}") -- an unexplained root-internal alternation
@@ -541,8 +525,6 @@ allak+1v:aglat VerbContinuations ;
 ! variants need hand-adding the same way as "taimait" above, rather than
 ! looping the generator in over one CSV row's worth of extra spellings it
 ! was never designed to emit.
-iksiva+1v:issiva VerbContinuations ;
-iksiva+1v:itsiva VerbContinuations ;
 
 ! "niqsu"/"nirtu"/"niqtu" spelling variants of the bulk-generated
 ! "niqtuq" root (1v, canonical "niqtuq" per gold: "{niqsu:niqtuq/1v}"/
@@ -573,7 +555,6 @@ avik+1v:avit VerbContinuations ;
 ! "mappiq" spelling variant of "makpiq"/1v (kp->pp, the same cluster
 ! simplification already seen for "qaukpat"->"qauppat"): "makpigaq" is
 ! already correct, "mappigaq" shares its exact decomposition.
-makpiq+1v:mappiq VerbContinuations ;
 
 ! "aulat" ("to direct/govern s.t."): WordsRelatedToRoots.csv records this
 ! as "aula/1v+t/1vv", a compositional decomposition filtered out by
@@ -1055,12 +1036,8 @@ LEXICON Adverbs
 ! "suurlu"/1a; "uattiaru" variant of "uattiaruk"/1a (own trailing k
 ! dropped).
 asuilaak+1a:asuillaak NounContinuations ;
-aksualuk+1a:atsualuk NounContinuations ;
 immaqaa+1a:immagaa NounContinuations ;
 immaqaa+1a:immaqa NounContinuations ;
-ikpaksaq+1a:ippaksaq NounContinuations ;
-ikpaksaq+1a:ippassaq NounContinuations ;
-ikpaksaq+1a:ippatsaq NounContinuations ;
 suurlu+1a:surlu NounContinuations ;
 
 maanna+1a:maanna # ;
@@ -1076,18 +1053,13 @@ maanna+1a:maanna # ;
 ! SAME root+ending pair) -- free spelling variation, not a conditioned
 ! alternation (same trap "iglu"/"illu" above was originally
 ! mis-suspected of).
-tagva+ad-sc:tavva # ;
-tagva+ad-sc:tavva QParticles ;
 tagv+rad-sc:tav TadEndings ;
-tagv+rad-sc:tavv TadEndings ;
 
 ! "uvva" spelling variant of "ubva"/ad-sc ("right here beside me" --
 ! yes, the SAME meaning as "tagva" above; two distinct demonstrative
 ! rows share it in Demonstratives.csv) -- same free-variation
 ! treatment, found the same way (gold attests "uvva" directly, no
 ! ending).
-ubva+ad-sc:uvva # ;
-ubva+ad-sc:uvva QParticles ;
 
 ! "tam" spelling variant of "tama"/rad-ml, needed for "tamani" =
 ! tama+ani/tad-loc: plain concatenation "tama"+"ani" would give
@@ -1105,20 +1077,16 @@ LEXICON Pronouns
 ! "ivvit" spelling variant of "igvit"/1p ("you"), found by the same
 ! systematic root sweep as the Nouns block above -- a third spelling
 ! alongside the two already bulk-generated ("igvit"/"ipvit").
-igvit+1p:ivvit NounContinuations ;
 
 ! "taapsu"/rpd-sc-s (root-taking-an-ending form behind "taamna"/
 ! pd-sc-s "this one right here") is attested with "taass"/"taats"
 ! spelling variants too (e.g. "taassuma"/"taatsuma" alongside canonical
 ! "taapsu"+"ma"/tpd-gen-s) -- same free-variation treatment as
 ! "tagv"/rad-sc above.
-taapsu+rpd-sc-s:taassu TpdEndings ;
-taapsu+rpd-sc-s:taatsu TpdEndings ;
 
 ! "tamaksu"/rpd-ml-s (a sibling root, same alternation) gets the same
 ! "ss"-spelled variant: "tamassuminga"/"tamassumunga" alongside
 ! canonical "tamaksu"+"minga"/"munga".
-tamaksu+rpd-ml-s:tamassu TpdEndings ;
 
 ! Six more demonstrative spelling variants, all found the same
 ! systematic way (a sweep comparing every gold demonstrative word
@@ -1135,19 +1103,12 @@ tamaksu+rpd-ml-s:tamassu TpdEndings ;
 ! vs double "a"); "taqqakku" variant of "taqqapku"/rpd-mlsc-p (p->k,
 ! matching the pku/kku split already visible as separate lexical items
 ! elsewhere in the generated demonstrative set).
-taamna+pd-sc-s:taanna # ;
-taamna+pd-sc-s:taanna QParticles ;
 taamna+pd-sc-s:tanna # ;
 taamna+pd-sc-s:tanna QParticles ;
 taikkua+pd-sc-p:taikua # ;
 taikkua+pd-sc-p:taikua QParticles ;
-taingna+pd-sc-s:tainna # ;
-taingna+pd-sc-s:tainna QParticles ;
-taiksu+rpd-sc-s:taissu TpdEndings ;
-taiksu+rpd-sc-s:taitsu TpdEndings ;
 taakkua+pd-sc-p:takkua # ;
 taakkua+pd-sc-p:takkua QParticles ;
-taqqapku+rpd-mlsc-p:taqqakku TpdEndings ;
 
 ! "manna"/pd-ml-s (bulk-generated in demonstratives-generated.lexc,
 ! never hand-edited) only ever continued to "#"/QParticles -- gold

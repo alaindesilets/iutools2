@@ -55,6 +55,8 @@ Usage (from tools/fst/):
 import csv
 from pathlib import Path
 
+from generate_roots import dialect_variants  # Dialect.groups cluster-spelling variants
+
 REPO_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = REPO_ROOT / "core/src/commonMain/resources/org/iutools/linguisticdata/dataCSV"
 OUTPUT_FILE = Path(__file__).parent / "demonstratives-generated.lexc"
@@ -91,12 +93,9 @@ def main():
             morpheme = row["morpheme"]
             s_tag = standalone_tag(row)
             tags_used.add(s_tag)
-            standalone_entries[row_type].append(
-                f"{morpheme}+{s_tag}:{morpheme} # ;"
-            )
-            standalone_entries[row_type].append(
-                f"{morpheme}+{s_tag}:{morpheme} QParticles ;"
-            )
+            for surf in [morpheme] + dialect_variants(morpheme):
+                standalone_entries[row_type].append(f"{morpheme}+{s_tag}:{surf} # ;")
+                standalone_entries[row_type].append(f"{morpheme}+{s_tag}:{surf} QParticles ;")
 
             root = row["root"]
             r_tag = root_tag(row)
@@ -112,9 +111,10 @@ def main():
             # parallel" precedent as mut/tn-dat-s's own default branch,
             # see lexicon.lexc's comment on "mut"/tn-dat-s in NounEndings.
             for variant in root.split(" "):
-                root_entries[row_type].append(
-                    f"{variant}+{r_tag}:{variant} {endings_lexicon} ;"
-                )
+                for surf in [variant] + dialect_variants(variant):
+                    root_entries[row_type].append(
+                        f"{variant}+{r_tag}:{surf} {endings_lexicon} ;"
+                    )
 
     # Endings_demonstrative.csv has no "variant" column at all (unlike
     # the root-source CSVs generate_roots.py reads), but gold attests a

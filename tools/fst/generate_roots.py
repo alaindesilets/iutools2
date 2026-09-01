@@ -236,6 +236,57 @@ def protect_internal_j(literal: str) -> str:
     return _JGUARD_RE.sub(r"\1JGUARDj", literal)
 
 
+# core/.../phonology/Dialect.kt's `groups` table -- pairs of consonant
+# clusters that are dialectal spelling equivalents. Benoit's analyzer has
+# no per-root spelling patches: every root is stored once in the CSV in
+# one canonical spelling, and Dialect.newRootCandidates() generates the
+# alternate spellings by substituting these clusters (both directions),
+# then looks each up. Materialised here so a canonical CSV root also gets
+# its dialectal-variant lexc entries -- replaces the ~50 hand-added
+# spelling-variant entries (iglu->illu, kanangnaq->kanannaq, ...) that
+# used to live in lexicon.lexc as a gold-standard-fitting stand-in for
+# exactly this mechanism. `ng` is the literal digraph here (Dialect.kt
+# writes it as the single char `N`).
+_DIALECT_GROUPS = [
+    ("bl", "ll"), ("bj", "jj"), ("bg", "gg"), ("bv", "vv"),
+    ("pl", "ll"), ("pk", "kk"), ("pg", "gg"), ("pv", "vv"), ("pq", "qq"),
+    ("ps", "ts"), ("ps", "ss"), ("pt", "tt"),
+    ("mng", "ngng"), ("mn", "nn"), ("mp", "pp"),
+    ("tp", "pp"), ("tk", "kk"), ("tj", "jj"), ("ts", "ss"), ("ts", "tt"),
+    ("lv", "vv"),
+    ("nng", "ngng"), ("nm", "mm"),
+    ("kt", "tt"), ("ks", "ss"), ("kp", "pp"), ("kv", "vv"), ("ks", "ts"),
+    ("gl", "ll"), ("gv", "vv"), ("gj", "jj"),
+    ("ngm", "mm"), ("ngn", "nn"),
+    ("qt", "tt"), ("qt", "rt"), ("ql", "rl"), ("qp", "rp"), ("qs", "rs"),
+    ("rq", "qq"),
+]
+_DIALECT_SUBS = [(a, b) for a, b in _DIALECT_GROUPS] + [(b, a) for a, b in _DIALECT_GROUPS]
+
+
+def dialect_variants(literal: str, max_depth: int = 2):
+    """All alternate spellings of `literal` reachable by up to `max_depth`
+    _DIALECT_GROUPS cluster substitutions (either direction), excluding
+    `literal` itself. Mirrors Dialect.correspondingTermsEquivalentGroups
+    (which recurses over every cluster position)."""
+    seen = {literal}
+    frontier = {literal}
+    for _ in range(max_depth):
+        nxt = set()
+        for w in frontier:
+            for a, b in _DIALECT_SUBS:
+                start = w.find(a)
+                while start != -1:
+                    cand = w[:start] + b + w[start + len(a):]
+                    if cand not in seen:
+                        seen.add(cand)
+                        nxt.add(cand)
+                    start = w.find(a, start + 1)
+        frontier = nxt
+    seen.discard(literal)
+    return sorted(seen)
+
+
 def load_roots_csv(filename: str, skip_if_combination: bool = False):
     """Yields (morpheme, nb, type) from a RootsSpalding.csv-shaped file.
 
@@ -432,6 +483,12 @@ def main():
             surfaces = [morpheme] + [
                 v for v in variant.split(" ") if v and is_clean_morpheme(v)
             ]
+            # Dialectal spelling variants of every surface so far (Benoit's
+            # Dialect.newRootCandidates, materialised) -- see dialect_variants.
+            for base in list(surfaces):
+                for dv in dialect_variants(base):
+                    if dv not in surfaces and is_clean_morpheme(dv):
+                        surfaces.append(dv)
             for surface in surfaces:
                 for cont in continuations:
                     entry = f"{morpheme}{tag}:{protect_internal_j(surface)} {cont} ;"
