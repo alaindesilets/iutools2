@@ -296,18 +296,17 @@ LEXICON NounEndings
 ! deeper phonology gap -- confirmed for several at once
 ! ("piliriaksat"/"piqujaksat"/"uqausiksat", all ksaq/1nn+it chains;
 ! "pigiaqtitat", a jaq/1vn+it chain), not just "katimajit".
+! "SUPPRt": the ending's own LEADING "i" dropped AND a preceding
+! suffix's final consonant deleted -- "katimajit", and the ksaq/1nn+it /
+! jaq/1vn+it chains "piliriaksat"/"piqujaksat"/"uqausiksat"/
+! "pigiaqtitat"/"maligaliuqtit". LENIENT (word-final consonant deletion)
+! does NOT reach this ("i" is not word-final and not a consonant), and
+! the FST has no unconditional "drop the ending's leading vowel"
+! mechanism (DECAP only fires after exactly two vowels) -- so this stays
+! a hand entry. The "i"-only free variant (own trailing "t" dropped,
+! "titiraqtii" for "...ji+it") is now covered by LENIENT and was
+! removed.
 ++it+tn-nom-p:SUPPRt # ;
-
-! "i"-only spelling (own trailing "t" dropped, "i" kept -- NOT the
-! DECAP mechanism, which deletes the ending's OWN LEADING letter, and
-! doesn't apply here since "ji"/1vn's own trailing "i" is only ONE
-! vowel, not DECAP's required two): "titiraqtii"/"uqartii"/
-! "maligaliuqtii" all need it directly after "ji"'s own "ti" spelling
-! (j->t already automatic via the general rule). None of these three
-! words are decomposable by the real Java analyzer either (confirmed
-! via --pipeline) -- this project's own gold-evidence-driven
-! methodology, no reference output to check against here.
-++it+tn-nom-p:i # ;
 
 ! "ngit"/tn-nom-p-4s: "akingit" = {aki:aki/1n}{ngit:ngit/tn-nom-p-4s}
 ! (V-context, plain) and "atingit" = {ati:atiq/1n}{ngit:ngit/tn-nom-p-4s}
@@ -317,12 +316,8 @@ LEXICON NounEndings
 ! Suppression, no algorithmic disambiguator) -- deferred, same policy as
 ! every such case.
 
-! Also an unconditional "ngi"-only spelling (own trailing "t"
-! dropped), found via already-correct gold siblings ("asingit"/
-! "ilangit" alongside the failing "asingi"/"ilangi", same
-! decomposition each) -- same "extra truncated free variant"
-! shape as "it"/tn-nom-p's own "t"-only candidate above.
-++ngit+tn-nom-p-4s:SUPPRngi # ;
+! The "ngi"-only free variant (own trailing "t" dropped, "asingi" for
+! "asi+ngit") is now covered by LENIENT and was removed.
 
 ! "nut"/tn-dat-p: same shared NounEndings hub deliberately serves "it"
 ! (reached from bare noun roots via NounContinuations) and "nut" (reached
@@ -338,24 +333,12 @@ LEXICON NounEndings
 ! jaq/3vn) is wired in NounEndingsAfterQTriggerSuffix below, confirmed
 ! via "ajjigiinngittunut".
 
-! Also an unconditional "nu"-only spelling (own trailing "t" dropped),
-! found via already-correct gold siblings ("inunnut"/"inungnut"
-! alongside the failing "inunnu"; "nunalingnut"/"nunalinnut" alongside
-! the failing "nunalinnu"). Plain, NOT SUPPR-prefixed: the doubled "n"
-! these words need ("inuk"+"nu" -> "inunnu") comes from a NEW general
-! k->n assimilation rule (phonology.xfscript, same total-regressive-
-! assimilation family as t->n/k->t/p->t/t->m/k->m/m->n) firing on the
-! PRECEDING root's own final k -- SUPPR would delete that k outright
-! before the assimilation rule ever got a chance, giving the wrong
-! single-n "inunu" instead. The same new rule also resolves
-! "inunnut"/"nunalinnut" for free via the EXISTING plain "nut"
-! candidate above, no lexc change needed for those two.
-++nut+tn-dat-p:nu # ;
-
-! "inuusilirijikkunullu" needs "nut"/tn-dat-p to ALSO reach QParticles
-! (lu/1q's own enclitic can follow a fully-inflected noun, same
-! established pattern as "ga"/tn-nom-s-1s etc above).
-++nut+tn-dat-p:nu QParticles ;
+! The "nu"-only free variant of "nut" (own trailing "t" dropped,
+! "inunnut"/"inunnu") is now covered by LENIENT and was removed. The
+! doubled "n" in "inuk"+"nut" -> "inunnut" still comes from the general
+! k->n assimilation rule in phonology.xfscript firing on the preceding
+! root's own final k (SUPPR would delete that k before assimilation
+! could double it).
 
 ! "up"/tn-gen-s: "arraaguup" = {arraagu:arraagu/1n}{up:up/tn-gen-s}
 ! (V-context, plain concatenation). Same action1+action2 shape as
@@ -371,33 +354,18 @@ LEXICON NounEndings
 ! Insertion), deferred as usual.
 ++up+tn-gen-s:SUPPRup # ;
 
-! Two more free-variant spellings, found the same way as "it"/
-! tn-nom-p's own "t"-only candidate above (checking whether an
-! already-correct gold "sibling" exists with one extra/fewer letter):
-! "u"-only (own trailing "p" dropped -- gold attests both
-! "ministaup" and "ministau" for the identical decomposition) and
-! "p"-only (own leading "u" dropped, merging with a preceding vowel --
-! gold attests both "iksivautaup" and "iksivautap"). This was ALSO an
-! already-documented gap ("a bare 'p'-only candidate for up/tn-gen-s
-! (blocks 'iksivautap')", noted under "ut"/1vn's own comment above)
-! finally closed with a real example in hand.
-++up+tn-gen-s:SUPPRu # ;
+! "SUPPRp": "up"'s own LEADING "u" dropped, merging with a preceding
+! vowel ("iksivautaup"/"iksivautap"; also "nunatsiap"/"nunattiap").
+! Not reachable via LENIENT (leading vowel, not word-final consonant)
+! and no unconditional leading-vowel-drop mechanism -- stays a hand
+! entry, same shape as "it"/tn-nom-p's "SUPPRt" above. The "u"-only
+! free variant (own trailing "p" dropped, "ministaup"/"ministau") is
+! now covered by LENIENT and was removed.
 ++up+tn-gen-s:SUPPRp # ;
 
-! Also an unconditional "tigu"-only spelling (own trailing "t"
-! dropped), found via an already-correct gold sibling
-! ("tusaajitigut" alongside the failing "tusaajitigu"/
-! "tusaajititigu", identical decomposition -- the latter also needs
-! "ji"/1vn's own "titigu" spelling investigated separately, not
-! attempted here). Also needs AfterViaCaseEnding (replacing the old
-! unconditioned "NounContinuations" this used to route into): gold
-! "tusaajitiguuqtuq"/"tusaajitiguurunniiqtuq" attach uq/1nv (cas:via)
-! directly onto this SHORT "tigu" spelling specifically, not the full
-! "tigut" one above -- generate_affixes.py's own CASE_LEXICON
-! mechanism (built for the bulk-generated endings) narrows this to
-! only after a via-case ending, instead of after every noun stem.
-++tigut+tn-via-p:tigu # ;
-++tigut+tn-via-p:tigu AfterViaCaseEnding ;
+! The "tigu"-only free variant of "tigut" (own trailing "t" dropped,
+! "tusaajitigut"/"tusaajitigu") is now covered by LENIENT and was
+! removed, along with its AfterViaCaseEnding continuation.
 
 
 ! ngagut/ngani/nganut/nganik + nga /tn-*-s-4s: Endings_noun.csv gives
