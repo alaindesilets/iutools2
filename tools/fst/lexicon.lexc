@@ -965,16 +965,14 @@ QParticlesGeneratedSpeculative ;
 
 LEXICON Adverbs
 
-! Eight more spelling variants found by the same systematic root sweep
-! as the Nouns block above: "asuillaak" variant of "asuilaak"/1a
-! (double "l"); "atsualuk" variant of "aksualuk"/1a; "immagaa"/"immaqa"
-! variants of "immaqaa"/1a; "ippaksaq"/"ippassaq"/"ippatsaq" variants
-! of "ikpaksaq"/1a (three parallel candidates, same free-variation
-! shape as everywhere else in this file); "qanu" variant of "qanuq"/1a
-! (own trailing q dropped); "qujannamii" variant of
-! "qujannamiik"/1a (own trailing k dropped); "surlu" variant of
-! "suurlu"/1a; "uattiaru" variant of "uattiaruk"/1a (own trailing k
-! dropped).
+! Adverb spelling variants that are NOT a _DIALECT_GROUPS cluster sub
+! (those -- atsualuk/aksualuk, ippassaq/ippatsaq/ikpaksaq -- are now
+! emitted by generate_roots.py's dialect_variants(); "qanu"/"qujannamii"
+! surface from the LENIENT final-consonant rule): "asuillaak" of
+! "asuilaak"/1a (single l -> ll), "immagaa" (q -> g) and "immaqa"
+! (aa -> a) of "immaqaa"/1a, "surlu" of "suurlu"/1a (uu -> u).
+! STILL A GAP: "uattiaru" of "uattiaruk"/1a (own trailing k dropped) --
+! no hand entry, not generator-reachable.
 asuilaak+1a:asuillaak NounContinuations ;
 immaqaa+1a:immagaa NounContinuations ;
 immaqaa+1a:immaqa NounContinuations ;
@@ -995,12 +993,6 @@ maanna+1a:maanna # ;
 ! mis-suspected of).
 tagv+rad-sc:tav TadEndings ;
 
-! "uvva" spelling variant of "ubva"/ad-sc ("right here beside me" --
-! yes, the SAME meaning as "tagva" above; two distinct demonstrative
-! rows share it in Demonstratives.csv) -- same free-variation
-! treatment, found the same way (gold attests "uvva" directly, no
-! ending).
-
 ! "tam" spelling variant of "tama"/rad-ml, needed for "tamani" =
 ! tama+ani/tad-loc: plain concatenation "tama"+"ani" would give
 ! "tamaani" (double a), but gold's own attested surface drops one --
@@ -1014,35 +1006,16 @@ tama+rad-ml:tam TadEndings ;
 
 LEXICON Pronouns
 
-! "ivvit" spelling variant of "igvit"/1p ("you"), found by the same
-! systematic root sweep as the Nouns block above -- a third spelling
-! alongside the two already bulk-generated ("igvit"/"ipvit").
-
-! "taapsu"/rpd-sc-s (root-taking-an-ending form behind "taamna"/
-! pd-sc-s "this one right here") is attested with "taass"/"taats"
-! spelling variants too (e.g. "taassuma"/"taatsuma" alongside canonical
-! "taapsu"+"ma"/tpd-gen-s) -- same free-variation treatment as
-! "tagv"/rad-sc above.
-
-! "tamaksu"/rpd-ml-s (a sibling root, same alternation) gets the same
-! "ss"-spelled variant: "tamassuminga"/"tamassumunga" alongside
-! canonical "tamaksu"+"minga"/"munga".
-
-! Six more demonstrative spelling variants, all found the same
-! systematic way (a sweep comparing every gold demonstrative word
-! against every currently-wired spelling combination, instead of
-! chasing individual sub-clusters): "taanna"/"tanna" variants of
-! "taamna"/pd-sc-s ("this one right here", standalone); "taikua"
-! variant of "taikkua"/pd-sc-p (single vs double "k"); "tainna"
-! variant of "taingna"/pd-sc-s (the same "ngn"->"nn"-family
-! simplification already seen for "kanangnaq"->"kanannaq"); "taissu"/
-! "taitsu" variants of "taiksu"/rpd-sc-s (the same "ksu"->"ssu"/"tsu"
-! alternation already confirmed for "taapsu"/"tamaksu" above -- a
-! genuinely recurring pattern across every "-ksu"-final demonstrative
-! root, not a one-off); "takkua" variant of "taakkua"/pd-sc-p (single
-! vs double "a"); "taqqakku" variant of "taqqapku"/rpd-mlsc-p (p->k,
-! matching the pku/kku split already visible as separate lexical items
-! elsewhere in the generated demonstrative set).
+! Demonstrative-root spelling variants. The cluster-family ones
+! (ivvit/igvit, taassuma/taatsuma from taapsu, tamassuminga from
+! tamaksu, taanna from taamna) now come from generate_demonstratives.py
+! feeding each root through dialect_variants() -- verified those words
+! still analyse without a hand entry. The three below are NOT a
+! _DIALECT_GROUPS cluster sub, so they stay hand-wired: "tanna" of
+! "taamna"/pd-sc-s (m -> nn), "taikua" of "taikkua"/pd-sc-p (kk -> k),
+! "takkua" of "taakkua"/pd-sc-p (aa -> a). STILL A GAP (no hand entry,
+! not generator-reachable): "taissu"/"taitsu" of "taiksu"/rpd-sc-s,
+! "taqqakku" of "taqqapku"/rpd-mlsc-p.
 taamna+pd-sc-s:tanna # ;
 taamna+pd-sc-s:tanna QParticles ;
 taikkua+pd-sc-p:taikua # ;
