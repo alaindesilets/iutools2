@@ -340,19 +340,10 @@ LEXICON NounEndings
 ! root's own final k (SUPPR would delete that k before assimilation
 ! could double it).
 
-! "up"/tn-gen-s: "arraaguup" = {arraagu:arraagu/1n}{up:up/tn-gen-s}
-! (V-context, plain concatenation). Same action1+action2 shape as
-! "it"/tn-nom-p: V/k/q-form all carry Selfdecapitation as action2, which
-! only fires when the stem left behind by action1 would end in two
-! vowels -- not the case for "arraagu" (single-vowel-final), so not
-! modeled here, same deliberate deferral as "it". k/q-context reuses
-! SUPPR unchanged (Suppression, same mechanism as "it"/"liri"/"gaq"/
-! "lik"/"ngit") -- mechanically identical and low-risk to extend even
-! without its own gold-standard-attested k/q example handy, verified
-! instead by the standard negative-form-rejected + full-corpus-
-! regression checks. t-context has two candidates (Suppression/
-! Insertion), deferred as usual.
-++up+tn-gen-s:SUPPRup # ;
+! "up"/tn-gen-s k/q-context (Suppression, deletes a preceding q/k/t):
+! now generated as "SUPPRDECAPup" (DECAP is inert after a single-vowel
+! stem, so it equals the old hand "SUPPRup" for every gold word -- 0
+! change on removal).
 
 ! "SUPPRp": "up"'s own LEADING "u" dropped, merging with a preceding
 ! vowel ("iksivautaup"/"iksivautap"; also "nunatsiap"/"nunattiap").
