@@ -259,6 +259,15 @@ def candidates_for_context(row: dict, context: str):
             # below for why THAT code is treated more cautiously.
             yield f"i{lit}"
             continue
+        if a1 == "i(jj)" and not a2:
+            # Insertion of "jj" -- same unconditional-prepend model as
+            # i(i)/i(l). Only 5 morphemes carry it (ut/uti/usiq's own
+            # "jj"-geminated V-context family, plus ujjaq/ujji), all
+            # u-initial; "ut" -> "jjut"/"jjuti"/"jjutik"/"jjutaq" is the
+            # one the gold standard exercises. Tried in isolation like
+            # i(i); i(ng) stays off (see its comment below).
+            yield f"jj{lit}"
+            continue
         if a1 == "i(ng)" and not a2:
             # Insertion of "ng" -- NOT generalized the same unconditional
             # way as i(l)/i(i) above: already known (round 14, prior

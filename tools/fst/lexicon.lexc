@@ -732,13 +732,6 @@ LEXICON VnSuffixes
 ! working.
 ++ut+1vn:SUPPRuta # ;
 ++ut+1vn:SUPPRuta NounContinuations ;
-++ut+1vn:jjut # ;
-++ut+1vn:jjut NounContinuations ;
-++ut+1vn:jjuti # ;
-++ut+1vn:jjuti NounContinuations ;
-++ut+1vn:jjutik # ;
-++ut+1vn:jjutaq # ;
-++ut+1vn:jjutaq NounContinuations ;
 
 ! "saqqitaujuq" family (root "saqqik", k-final): "taq" above still spells
 ! its own trailing q, but the general (unmarked) k->t assimilation rule
