@@ -312,6 +312,28 @@ def candidates_for_context(row: dict, context: str):
         yield f"{marker1 or ''}{lit}"
 
 
+def guarded_candidates(row: dict, context: str):
+    """candidates_for_context(), plus a KGUARD-protected copy of every
+    candidate that starts with a bare "t".
+
+    The blanket k->t assimilation rule (phonology.xfscript) turns a
+    k-final stem + t-initial affix into "tt" -- right for some words
+    ("quviak"+"junga" -> "quviattunga") but wrong for others
+    ("makkuk"+"tu" stays "makkuktu", "inuk"+"titut" stays "inuktitut").
+    Inuktitut has both outcomes and the CSV form/action columns do not
+    distinguish them. KGUARD sits between the stem's k and the affix's t
+    and blocks the rule, giving the non-assimilated reading as a parallel
+    path; phonology.xfscript deletes it immediately after, and it is a
+    no-op when no k precedes. This mirrors, at the morpheme boundary,
+    what generate_roots.py's protect_internal_j does inside a root, and
+    it replaces the hand-added "KGUARDtu"/"KGUARDtut"/"KGUARDtitut"/...
+    entries that used to live in lexicon.lexc."""
+    for lower in candidates_for_context(row, context):
+        yield lower
+        if lower[:1] == "t":
+            yield "KGUARD" + lower
+
+
 def has_condition(row: dict, *cols) -> bool:
     return any((row.get(c) or "").strip() for c in cols)
 
@@ -711,7 +733,7 @@ def gen_suffixes():
 
                 any_candidate = False
                 for context in ("V", "t", "k", "q"):
-                    for lower in candidates_for_context(row, context):
+                    for lower in guarded_candidates(row, context):
                         any_candidate = True
                         for cont in continuations:
                             entry = f"++{morpheme}{tag}:{lower} {cont} ;"
@@ -935,7 +957,7 @@ def gen_endings():
 
                 any_candidate = False
                 for context in ("V", "t", "k", "q"):
-                    for lower in candidates_for_context(row, context):
+                    for lower in guarded_candidates(row, context):
                         any_candidate = True
                         for extra in extra_lexicons:
                             extra_entry = f"++{morpheme}+{tag}:{lower} # ;"

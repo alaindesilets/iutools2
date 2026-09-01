@@ -566,7 +566,6 @@ LEXICON NounEndings
 ! above still assimilates normally for whatever other roots need it --
 ! not decomposable by the real Java analyzer either (confirmed via
 ! --pipeline).
-++titut+tn-sim-p:KGUARDtitut # ;
 
 ! "mi"/tn-loc-s: "arraagumi" = {arraagu:arraagu/1n}{mi:mi/tn-loc-s} --
 ! V-context only (V-form=mi/Neutral, single candidate). t/k/q-contexts
@@ -1747,7 +1746,6 @@ LEXICON TvEndings
 ! assimilated to "makkuttut" -- same KGUARD trick as juq/1vn's
 ! "KGUARDtu" above. Not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
-++jut+tv-ger-3p:KGUARDtut # ;
 
 ! "lugu"/tv-part-1s-3s-fut: same V-context "l"-insertion shape as the
 ! prespas sibling above (baked-in "llugu", unconditional insertion, no
@@ -1770,7 +1768,6 @@ LEXICON TvEndings
 ! protection since the resulting k/t boundary would otherwise assimilate
 ! into "malittugit". Not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
-++lugit+tv-part-1s-3p-prespas:KGUARDtugit # ;
 
 ! "lugit"/tv-part-1s-3p-fut: same V-context "l"-insertion shape as
 ! "lugu"/tv-part-1s-3s-fut above, plus the same SUPPR-prefixed variant
