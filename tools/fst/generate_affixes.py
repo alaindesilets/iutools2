@@ -1574,5 +1574,23 @@ if __name__ == "__main__":
 # "git"/tv-imp-2s: see "suk"/1vv's comment in VvSuffixes above for the
 # full imperative-mood investigation. k-context, Fusion == SUPPR reused,
 # deletes suk's own trailing k: "tunngasu"+"git" = "tunngasugit".
+#
+# ── lu/1q, li/1q (enclitic particles, from lexicon.lexc's old LEXICON QParticles) ──
+# "lu"/1q ("and"): V-context "lu"/Neutral ("ammalu" = amma/1c + lu/1q).
+# Its t/k/q-context is Voicing ("son"): a single candidate, "lu" itself
+# unchanged, the PRECEDING stem's final consonant rewritten (marker, not
+# text change -- same shape as Suppression/Nasalization). "asingillu" =
+# {asi:asi/1n}{ngil:ngit/tn-nom-p-4s}{lu:lu/1q}: ngit's own always-literal
+# final "t" -> "l" before "lu". Confirmed via asinginnillu/asinginnullu
+# (nginnit/nginnut) and inulirijikkullu (kkut). The VOICE-marked "lu"
+# candidate is generic in QParticlesGenerated, not scoped per source
+# suffix -- safe because VOICE is a no-op when nothing t/k/q precedes.
+# (The four endings ngit/nginnit/nginnut/kkut originally each needed a
+# hand-added QParticles continuation for this; b8fbf39 later gave EVERY
+# noun/verb ending that continuation, so the hand wiring went away.)
+# "li"/1q ("but"): V-only ("kisianili" = kisiani/1c + li/1q), same shape
+# as lu/1q. li's own t-context is not exercised by any gold word in
+# reach yet (every candidate needs an unimplemented dependency, e.g.
+# "apiqqutigali" needs ut/1vn's "ga"-continuation).
 # ═
 # ════════════════════════════════════════════════════════════════════════

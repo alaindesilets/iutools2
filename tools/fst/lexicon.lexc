@@ -45,7 +45,6 @@ LEXICON Root
 Nouns ;
 Verbs ;
 Conjunctions ;
-Exclamations ;
 Adverbs ;
 Pronouns ;
 
@@ -1312,54 +1311,20 @@ LEXICON Conjunctions
 uvvalu+1c:uvalu QParticles ;
 uvvaluunniit+1c:uvvaluunni QParticles ;
 
-LEXICON Exclamations
-ilaak+1e:ilaak QParticles ;
+! LEXICON Exclamations (the single hand entry "ilaak"/1e) removed: it is
+! byte-identical to an ExclamationsGenerated entry, and Root reaches
+! ExclamationsGenerated directly.
 
 LEXICON QParticles
 QParticlesGenerated ;
 QParticlesGeneratedSpeculative ;
 # ;
-++ttauq+1q:ttauq # ;
-++qai+1q:SUPPRqai # ;
-++lu+1q:lu # ;
-
-! Enclitic particles can stack ("taimaliqai" = li/1q then qai/1q) --
-! each hand-authored particle above also gets a QParticles continuation
-! alongside its "#" terminal, so a second particle can follow.
-++ttauq+1q:ttauq QParticles ;
-++qai+1q:SUPPRqai QParticles ;
-++lu+1q:lu QParticles ;
-
-! "lu"/1q: "ammalu" = {amma:amma/1c}{lu:lu/1q} -- V-context only
-! (V-form=lu/Neutral). t/k/q-form is Voicing ("son") -- a single
-! candidate ("lu" itself unchanged, so this rewrites the PRECEDING stem,
-! same "marker not text change" shape as Suppression/Nasalization).
-! Confirmed once the VOICE marker existed: "asingillu" =
-! {asi:asi/1n}{ngil:ngit/tn-nom-p-4s}{lu:lu/1q}: "ngit"'s own trailing t
-! (always literal "ngit", t-final) rewrites to l before "lu", giving
-! "asingil"+"lu" = "asingillu". Same mechanism confirmed via
-! "asinginnillu"/"asinginnullu" (nginnit/nginnut, also always t-final)
-! and "inulirijikkullu" (kkut, likewise t-final). VOICElu is a SECOND,
-! generic entry in the shared QParticles hub (not scoped per
-! source-suffix) -- safe because VOICE is a no-op when nothing t/k/q
-! precedes it, same as every other marker reused in a hub reachable from
-! multiple contexts (e.g. SUPPR-marked entries already coexisting with
-! plain ones throughout this file). ngit/nginnit/nginnut/kkut each needed
-! a NEW continuation into QParticles (none of the four ever reached it
-! before -- discourse particles like "-lu"/"-li" attaching after a
-! fully-inflected noun is a general phenomenon, but only these four
-! specific endings are wired here, matching this project's minimal-scope
-! policy of wiring what a real gold word needs, not the fully general
-! case).
-++lu+1q:VOICElu # ;
-
-! "li"/1q ("but"): "kisianili" = {kisiani:kisiani/1c}{li:li/1q} --
-! V-only, same shape as "lu"/1q (t/k/q use the Voicing primitive; li's
-! own t-context is NOT wired: no gold word in this lexicon's reach
-! exercises it yet -- every candidate needs an unimplemented dependency,
-! e.g. "apiqqutigali" needs "ut"/1vn's "ga"-continuation, which doesn't
-! exist).
-++li+1q:li # ;
+! The hand entries that used to sit here (ttauq/qai/lu/li/1q, plain and
+! with a stacking QParticles continuation, plus lu's VOICE "son"
+! t/k/q-context form) were all byte-identical to QParticlesGenerated
+! entries -- this lexicon already fans out to QParticlesGenerated above,
+! so they were pure duplication. Their investigation notes moved to
+! generate_affixes.py's PER-MORPHEME INVESTIGATION NOTES.
 
 LEXICON Adverbs
 
