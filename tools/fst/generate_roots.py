@@ -236,6 +236,23 @@ def protect_internal_j(literal: str) -> str:
     return _JGUARD_RE.sub(r"\1JGUARDj", literal)
 
 
+# Same rationale as protect_internal_j, mirrored for phonology.xfscript's
+# blanket "k -> t || _ t" rule: a root's own lexically-fixed internal "kt"
+# (e.g. "qulluktuq", a dialect/variant spelling of "kugluktuk") is not
+# subject to that productive morpheme-boundary alternation, but the
+# context-blind xfst rule can't tell and corrupts it to "...ttuq". KGUARD
+# inserted between the "k" and "t" breaks the rule's adjacency during
+# composition; phonology.xfscript deletes KGUARD right after that rule
+# runs. Was previously a single hand-inserted marker in lexicon.lexc for
+# "qulluktuq" only, with a "revisit as a systemic generator fix if more
+# examples turn up" note -- this is that fix.
+_KGUARD_RE = re.compile(r"k(t)")
+
+
+def protect_internal_k(literal: str) -> str:
+    return _KGUARD_RE.sub(r"kKGUARD\1", literal)
+
+
 # core/.../phonology/Dialect.kt's `groups` table -- pairs of consonant
 # clusters that are dialectal spelling equivalents. Benoit's analyzer has
 # no per-root spelling patches: every root is stored once in the CSV in
@@ -499,7 +516,7 @@ def main():
                         surfaces.append(dv)
             for surface in surfaces:
                 for cont in continuations:
-                    entry = f"{morpheme}{tag}:{protect_internal_j(surface)} {cont} ;"
+                    entry = f"{morpheme}{tag}:{protect_internal_k(protect_internal_j(surface))} {cont} ;"
                     if entry in seen_entries:
                         skipped += 1
                         continue

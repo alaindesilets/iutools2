@@ -114,14 +114,10 @@ LEXICON Nouns
 ! alternation NOT in that cluster table: a word-final t->n, a vowel
 ! length aa<->a, a lone dropped k, or a root-specific gemination.
 
-! "qulluktuq" spelling variant of "kugluktuk" (1n, already bulk-
-! generated from RootsSpalding.csv's own "variant" column) needs KGUARD
-! protection (phonology.xfscript) -- its own internal "k" immediately
-! precedes its own "t", which the blanket k->t rule silently corrupts
-! into "qulluttuq" otherwise. Added here as a parallel, GUARDED entry
-! (the plain bulk-generated one stays, just never actually reachable
-! for this literal without the guard).
-kugluktuk+1n:qullukKGUARDtuq NounContinuations ;
+! ("qulluktuq", the KGUARD-protected variant spelling of "kugluktuk"/1n,
+!  used to be hand-wired here -- generate_roots.py's protect_internal_k()
+!  now inserts KGUARD into every root's own internal "kt", so the bulk
+!  entry is already "qullukKGUARDtuq". Removed, byte-identical.)
 
 ! "qallunaa" spelling variant of "qaplunaaq" (1n, canonical "qaplunaaq"
 ! per gold: "{qallunaa:qaplunaaq/1n}") -- an unexplained root-internal
