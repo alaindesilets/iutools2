@@ -24,6 +24,27 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
     protected abstract fun makeAnalyzer(): MorphologicalAnalyzer
 
+    // Extension points for a second analyzer whose output/expectations differ
+    // from R2L's (see MorphologicalAnalyzer_FST__AccuracyTest). Defaults keep
+    // the R2L subclass behaving exactly as before.
+
+    // Applied to every gold-standard decomposition string before it is
+    // matched against the analyzer's own output. R2L emits full
+    // {surface:canonical/id} components, so the default is identity; the FST
+    // only knows canonical/id, so its subclass strips the "surface:" part.
+    protected open fun normalizeGoldDecompForComparison(goldDecomp: String): String = goldDecomp
+
+    // When false, skip the "outcomes haven't regressed vs the committed
+    // current-expectations file" and runtime-baseline assertions -- for an
+    // analyzer that has no such snapshot yet, where the run is only meant to
+    // report its histogram.
+    protected open val hasRecordedExpectations: Boolean = true
+
+    // Called once with the actual outcome histogram after every gold word
+    // has been analyzed -- a hook for a subclass to assert against a fixed,
+    // externally-known set of numbers (e.g. the C++ FST's own coverage).
+    protected open fun assertOutcomeHistogram(gotOutcomeHist: FrequencyHistogram<OutcomeType>) {}
+
     @BeforeTest
     fun setUp() {
         if (morphAnalyzer == null) {
@@ -111,7 +132,11 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
         printPerformanceStats()
 
-        assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
+        assertOutcomeHistogram(gotOutcomeHist)
+
+        if (hasRecordedExpectations) {
+            assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
+        }
 
         // Fail if the time to decompose the whole gold standard has drifted
         // by more than 30% -- in EITHER direction -- from the baseline last
@@ -121,7 +146,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         // uncommitted JSON file under the build tree (see AssertRuntime); the
         // first run after a checkout or `./gradlew clean` just records it and
         // passes. This does not touch the accuracy histogram above.
-        if (runtimeBaselineTestInfo != null) {
+        if (runtimeBaselineTestInfo != null && hasRecordedExpectations) {
             AssertRuntime.runtimeHasNotChanged(
                 elapsed.toDouble(), 0.30,
                 "decompose all ${goldStandard.allWords().size} gold-standard words",
@@ -259,6 +284,8 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         expOutcomeHist.updateFreq(expOutcomeType)
 
         val correctDecomps = goldStandard.correctDecomps(word)
+            ?.map { normalizeGoldDecompForComparison(it) }
+            ?.toTypedArray()
         val gotOutcomeType = expectations.type4outcome(gotOutcome, correctDecomps)
         gotOutcomeHist.updateFreq(gotOutcomeType)
 

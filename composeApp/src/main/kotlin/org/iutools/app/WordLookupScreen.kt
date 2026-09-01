@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -67,8 +68,11 @@ import kotlinx.coroutines.withContext
 import org.iutools.linguisticdata.LinguisticData
 import org.iutools.linguisticdata.Morpheme
 import org.iutools.morph.Decomposition
+import org.iutools.morph.MorphologicalAnalyzer
 import org.iutools.morph.MorphologicalAnalyzerException
+import org.iutools.morph.fst.MorphologicalAnalyzer_FST
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
+import java.io.File
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
 import java.util.Locale
@@ -216,6 +220,15 @@ internal fun LocalizedAlertDialog(
 // falling back to Roman -- see displayForm().
 enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
 
+// Which morphological analyzer decomposes a word. UQAILAUT is Benoit
+// Farley's original R2L analyzer (MorphologicalAnalyzer_R2L), the default.
+// FST is the newer HFST finite-state analyzer (:fst module's
+// MorphologicalAnalyzer_FST), reading the transducer shipped as an app
+// asset -- still experimental (partial lexicon, no ranking of its
+// candidates yet). If its asset fails to load, findWord() falls back to
+// R.string.error_fst_not_available.
+enum class AnalyzerChoice { UQAILAUT, FST }
+
 // One hit from one dictionary source (Spalding, Tusaalanga, ...). Carries its own
 // display title (source name, already localized) rather than a source enum, since
 // DictionaryResultSection just needs to print it -- no other code branches on which
@@ -296,6 +309,9 @@ internal data class MorphemeRow(
 internal sealed interface FailureReason {
     data object Timeout : FailureReason
     data class AnalysisError(val detail: String?) : FailureReason
+    // The user picked the FST analyzer in Settings, but its transducer asset
+    // couldn't be loaded (see AnalyzerChoice / fstTransducerFile).
+    data object FstNotAvailable : FailureReason
 }
 
 // internal (not private): referenced by WordLookupScreenState below, which
@@ -315,12 +331,20 @@ internal sealed interface DecomposeState {
 
 private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
     val linguisticData = LinguisticData.getInstance()
-    val surfaceForms = surfaceForms()
-    val morphemeIds = getMorphemes()
-    return surfaceForms.indices.map { i ->
-        val morphemeId = morphemeIds[i]
+    // Parsed here rather than via Decomposition.surfaceForms()/getMorphemes()
+    // so a component with no "surface:" prefix is tolerated: the FST analyzer
+    // (MorphologicalAnalyzer_FST) only knows the canonical morpheme + tag
+    // ("atuaq/1v"), not the surface substring it matched, so its components
+    // are just "atuaq/1v". For those, the canonical form ("atuaq") stands in
+    // for the surface form in the "Morpheme" column, rather than leaving it
+    // blank.
+    return components().map { raw ->
+        val comp = raw.removeSurrounding("{", "}")
+        val colon = comp.indexOf(':')
+        val morphemeId = if (colon >= 0) comp.substring(colon + 1) else comp
+        val surfaceForm = if (colon >= 0) comp.substring(0, colon) else morphemeId.substringBefore('/')
         MorphemeRow(
-            surfaceForm = surfaceForms[i],
+            surfaceForm = surfaceForm,
             morphemeId = morphemeId,
             fullRecord = linguisticData.getMorpheme(morphemeId),
         )
@@ -482,8 +506,24 @@ internal fun shouldOfferGuessMeaning(
  * than we display (PREVIEW_LIMIT + 1) -- enough to know whether a "More"
  * button is warranted, without paying for an exhaustive search up front.
  */
+// The compiled FST transducer ships as an app asset; the pure-Java reader
+// (see MorphologicalAnalyzer_FST) needs a real File, so the asset is copied
+// into the app's files dir on first use.
+private const val FST_TRANSDUCER_ASSET = "lexicon-analyser.hfstol"
+
+private fun fstTransducerFile(context: Context): File {
+    val dest = File(context.filesDir, FST_TRANSDUCER_ASSET)
+    // Re-copy whenever the bundled asset differs in size (e.g. after an app
+    // update that rebuilt the transducer) -- cheap, ~690 KB.
+    val assetBytes = context.assets.open(FST_TRANSDUCER_ASSET).use { it.readBytes() }
+    if (!dest.exists() || dest.length() != assetBytes.size.toLong()) {
+        dest.writeBytes(assetBytes)
+    }
+    return dest
+}
+
 private suspend fun analyze(
-    analyzer: MorphologicalAnalyzer_R2L,
+    analyzer: MorphologicalAnalyzer,
     word: String,
     lenient: Boolean,
     expandAll: Boolean,
@@ -570,7 +610,6 @@ internal fun WordLookupScreen(
     useLocalModel: Boolean = false,
     guessMeaningModelStats: SnapshotStateMap<String, AggregatedBackendStats> = mutableStateMapOf(),
 ) {
-    val analyzer = remember { MorphologicalAnalyzer_R2L() }
     val scope = rememberCoroutineScope()
     val baseContext = LocalContext.current
 
@@ -585,6 +624,20 @@ internal fun WordLookupScreen(
     // "Morphological analysis" section -- loaded eagerly like the two above,
     // not held in screenState (see that class's note).
     var lenient by remember { mutableStateOf(AppSettings.loadLenientAnalysis(baseContext)) }
+    // Same section of Settings. Default UQAILAUT (Benoit's R2L analyzer).
+    var analyzerChoice by remember { mutableStateOf(AppSettings.loadAnalyzerChoice(baseContext)) }
+    // The FST transducer is an app asset; materialize it to a file once, and
+    // remember whether it actually loads. If FST is selected but this failed,
+    // findWord() shows R.string.error_fst_not_available instead of analysing.
+    val fstTransducerFile = remember { runCatching { fstTransducerFile(baseContext) }.getOrNull() }
+    val fstAvailable = remember(fstTransducerFile) {
+        fstTransducerFile != null && MorphologicalAnalyzer_FST.isAvailable(fstTransducerFile)
+    }
+    val useFst = analyzerChoice == AnalyzerChoice.FST && fstAvailable
+    val analyzer: MorphologicalAnalyzer = remember(useFst) {
+        if (useFst) MorphologicalAnalyzer_FST(fstTransducerFile!!) else MorphologicalAnalyzer_R2L()
+    }
+    DisposableEffect(analyzer) { onDispose { runCatching { analyzer.close() } } }
     // The user's own Claude.ai API key, per Alain's request -- replaces the
     // developer-only key baked into the build (see GuessMeaningEngine.kt).
     // Loaded eagerly, like uiLanguage/displayScript above -- GuessMeaningSection
@@ -749,6 +802,10 @@ internal fun WordLookupScreen(
             }
         }
 
+        if (analyzerChoice == AnalyzerChoice.FST && !fstAvailable) {
+            state = DecomposeState.Failure(FailureReason.FstNotAvailable)
+            return
+        }
         state = DecomposeState.Loading
         scope.launch {
             state = analyze(analyzer, wordToAnalyze, lenientAtSearch, expandAll = false)
@@ -808,6 +865,11 @@ internal fun WordLookupScreen(
                     onLenientAnalysisChanged = {
                         lenient = it
                         AppSettings.saveLenientAnalysis(baseContext, it)
+                    },
+                    analyzerChoice = analyzerChoice,
+                    onAnalyzerChoiceSelected = {
+                        analyzerChoice = it
+                        AppSettings.saveAnalyzerChoice(baseContext, it)
                     },
                     apiKey = apiKey,
                     onApiKeyChanged = {
@@ -1045,6 +1107,7 @@ internal fun WordLookupScreen(
                         is FailureReason.Timeout -> stringResource(R.string.error_timeout)
                         is FailureReason.AnalysisError ->
                             stringResource(R.string.error_analysis, reason.detail ?: "")
+                        is FailureReason.FstNotAvailable -> stringResource(R.string.error_fst_not_available)
                     },
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -1166,6 +1229,8 @@ private fun SettingsDialog(
     onDisplayScriptSelected: (DisplayScript) -> Unit,
     lenientAnalysis: Boolean,
     onLenientAnalysisChanged: (Boolean) -> Unit,
+    analyzerChoice: AnalyzerChoice,
+    onAnalyzerChoiceSelected: (AnalyzerChoice) -> Unit,
     apiKey: String,
     onApiKeyChanged: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -1245,6 +1310,31 @@ private fun SettingsDialog(
                         onCheckedChange = onLenientAnalysisChanged,
                         modifier = Modifier.scale(0.8f).testTag("lenient_analysis_switch"),
                     )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Same visual treatment as the display-script choice above.
+                Text(
+                    text = stringResource(R.string.settings_choose_analyzer_label),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Column {
+                    val analyzerLabelFor = mapOf(
+                        AnalyzerChoice.UQAILAUT to R.string.analyzer_choice_uqailaut,
+                        AnalyzerChoice.FST to R.string.analyzer_choice_fst,
+                    )
+                    AnalyzerChoice.entries.forEach { choice ->
+                        TextButton(
+                            onClick = { onAnalyzerChoiceSelected(choice) },
+                            modifier = Modifier.testTag("analyzer_choice_${choice.name.lowercase()}"),
+                        ) {
+                            Text(
+                                text = stringResource(analyzerLabelFor.getValue(choice)),
+                                fontWeight = if (choice == analyzerChoice) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

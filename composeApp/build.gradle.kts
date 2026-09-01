@@ -81,6 +81,12 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    // The HFST finite-state analyzer (MorphologicalAnalyzer_FST) + its
+    // vendored pure-Java optimized-lookup reader. The compiled transducer
+    // ships as an asset (src/main/assets/lexicon-analyser.hfstol), copied
+    // from tools/fst/ -- rebuild it there and re-copy when the .lexc lexicon
+    // changes (and update MorphologicalAnalyzer_FST__AccuracyTest's numbers).
+    implementation(project(":fst"))
 
     // Guess Meaning spike: Anthropic's official Java SDK (Kotlin uses the
     // Java SDK -- there is no separate Kotlin SDK).

@@ -6,6 +6,8 @@ plugins {
 dependencies {
     implementation(project(":core"))
     testImplementation(kotlin("test"))
+    // For MorphologicalAnalyzer_FST__AccuracyTest.
+    testImplementation(project(":fst"))
 }
 
 kotlin {

@@ -364,6 +364,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
             text = when (val reason = s.reason) {
                 is FailureReason.Timeout -> stringResource(R.string.error_timeout)
                 is FailureReason.AnalysisError -> stringResource(R.string.error_analysis, reason.detail ?: "")
+                is FailureReason.FstNotAvailable -> stringResource(R.string.error_fst_not_available)
             },
             color = MaterialTheme.colorScheme.error,
         )

@@ -130,11 +130,12 @@ abstract class MorphologicalAnalyzer : AutoCloseable {
     @Throws(MorphologicalAnalyzerException::class, TimeoutException::class)
     internal fun doDecompose(word: String): Array<Decomposition> = doDecompose(word, null)
 
-    // internal (not protected): MorphAnalyzerTask, in the same package but not
-    // a subclass, needs to call this too — Kotlin's `protected` is subclass-only,
-    // unlike Java's package+subclass visibility.
+    // protected (not internal): MorphologicalAnalyzer_FST lives in its own
+    // Gradle module (:fst), so it must be able to override this from outside
+    // :core. (The only in-module non-subclass caller, MorphAnalyzerTask, was
+    // dead code from the original port and has been removed.)
     @Throws(MorphologicalAnalyzerException::class, TimeoutException::class)
-    internal abstract fun doDecompose(word: String, lenient: Boolean?): Array<Decomposition>
+    protected abstract fun doDecompose(word: String, lenient: Boolean?): Array<Decomposition>
 
     fun setTimeout(value: Long?): MorphologicalAnalyzer {
         if (value != null) {

@@ -7,12 +7,12 @@ import androidx.security.crypto.MasterKey
 
 /*
  * Persists the settings-panel choices (interface language, display script,
- * lenient morphological analysis, the user's own Claude.ai API key) across
- * app restarts.
+ * lenient morphological analysis, which analyzer to use, the user's own
+ * Claude.ai API key) across app restarts.
  *
- * Language/display script/lenient analysis use plain SharedPreferences --
- * Jetpack DataStore would be overkill for a few flat, non-secret values, and
- * there's nothing in them worth protecting.
+ * Everything except the API key uses plain SharedPreferences -- Jetpack
+ * DataStore would be overkill for a few flat, non-secret values, and there's
+ * nothing in them worth protecting.
  *
  * The API key is different: it's the user's own credential, so it's stored
  * in a *separate* EncryptedSharedPreferences file instead (AES256-GCM,
@@ -32,11 +32,16 @@ object AppSettings {
     private const val KEY_LANGUAGE = "ui_language"
     private const val KEY_DISPLAY_SCRIPT = "display_script"
     private const val KEY_LENIENT_ANALYSIS = "lenient_analysis"
+    private const val KEY_ANALYZER_CHOICE = "analyzer_choice"
 
     // Lenient morphological analysis is on unless the user turns it off --
     // it surfaces more decompositions for words the strict analyzer rejects,
     // which is the more useful default for a lookup tool.
     private const val DEFAULT_LENIENT_ANALYSIS = true
+
+    // Benoit Farley's original R2L analyzer is the default; the FST analyzer
+    // is newer and still experimental.
+    private val DEFAULT_ANALYZER_CHOICE = AnalyzerChoice.UQAILAUT
 
     // Matches the file name excluded in res/xml/backup_rules.xml and
     // res/xml/data_extraction_rules.xml -- keep those in sync if this ever
@@ -109,6 +114,15 @@ object AppSettings {
 
     fun saveLenientAnalysis(context: Context, lenient: Boolean) {
         prefs(context).edit().putBoolean(KEY_LENIENT_ANALYSIS, lenient).apply()
+    }
+
+    fun loadAnalyzerChoice(context: Context): AnalyzerChoice {
+        val stored = prefs(context).getString(KEY_ANALYZER_CHOICE, null) ?: return DEFAULT_ANALYZER_CHOICE
+        return AnalyzerChoice.entries.firstOrNull { it.name == stored } ?: DEFAULT_ANALYZER_CHOICE
+    }
+
+    fun saveAnalyzerChoice(context: Context, choice: AnalyzerChoice) {
+        prefs(context).edit().putString(KEY_ANALYZER_CHOICE, choice.name).apply()
     }
 
     fun loadApiKey(context: Context): String =

@@ -15,6 +15,9 @@
     <string name="display_script_syllabic">Syllabique</string>
     <string name="display_script_as_entered">Script tel qu\'entré</string>
     <string name="settings_morphology_section">Analyse morphologique</string>
+    <string name="settings_choose_analyzer_label">Choix de l\'analyseur</string>
+    <string name="analyzer_choice_uqailaut">Uqailaut (mature mais lent)</string>
+    <string name="analyzer_choice_fst">FST (rapide mais encore expérimental)</string>
     <string name="settings_ai_section">Fonctions IA</string>
     <string name="settings_api_key_message">Cette fonctionnalité nécessite une connexion à Claude.ai. Entre ta clé API Claude.ai.</string>
     <string name="settings_api_key_label">Clé API Claude.ai</string>
@@ -47,6 +50,7 @@
     <string name="hansard_attribution">Source : Corpus parallèle inuktitut–anglais du Hansard du Nunavut 3.0 (Conseil national de recherches Canada, CC BY 4.0).</string>
     <string name="error_timeout">La commande a expiré (timeout).</string>
     <string name="error_analysis">Erreur d\'analyse : %1$s</string>
+    <string name="error_fst_not_available">L\'analyseur FST n\'a pas pu être chargé sur cet appareil. Choisis Uqailaut dans les Réglages pour décomposer des mots.</string>
     <string name="no_decompositions">Aucune décomposition trouvée pour « %1$s ».</string>
     <string name="decompositions_header_partial">Décompositions pour « %1$s » (%2$d premières affichées) :</string>
     <string name="decompositions_header_full">%1$d décomposition(s) pour « %2$s » :</string>
