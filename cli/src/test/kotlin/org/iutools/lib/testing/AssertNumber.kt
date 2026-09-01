@@ -5,9 +5,12 @@ import kotlin.test.fail
 /**
  * Port of ca.nrc.testing.AssertNumber.performanceHasNotChanged from
  * https://github.com/nrc-cnrc/java-utils (java-utils-core), trimmed to the
- * single overload iutools' accuracy test actually calls:
+ * two overloads this project actually calls:
  *
  *   performanceHasNotChanged(ofWhat, gotPerf, oldPerf, tolerance, highIsGood)
+ *       -- the accuracy test's outcome-count checks
+ *   performanceHasNotChanged(ofWhat, gotPerf, oldPerf, tolerances, highIsGood, mess)
+ *       -- AssertRuntime's per-machine timing baseline check
  *
  * Faithful translation of the real algorithm (not a guess): it computes a
  * signed delta = got - old, classifies it as WORSENED/IMPROVED/SAME
@@ -52,6 +55,53 @@ object AssertNumber {
                 "Delta           : $absDelta\n" +
                 "Max tolerance   : $tolerance"
             fail(mess)
+        }
+    }
+
+    /**
+     * Port of the ca.nrc.testing.AssertNumber.performanceHasNotChanged
+     * overload that takes SEPARATE absolute tolerances for a worsening
+     * (`tolerances.first`) versus an improvement (`tolerances.second`).
+     * Either tolerance may be null, meaning "do not flag a change in that
+     * direction at all". `mess` is a caller-supplied prefix prepended to the
+     * failure message. Used by AssertRuntime.
+     *
+     * As in the single-tolerance overload above, an exact-zero delta always
+     * passes, and the comparison is `absDelta > tolerance` with the raw
+     * tolerance value.
+     */
+    fun performanceHasNotChanged(
+        ofWhat: String,
+        gotPerf: Double,
+        oldPerf: Double,
+        tolerances: Pair<Double?, Double?>,
+        highIsGood: Boolean,
+        mess: String,
+    ) {
+        val delta = gotPerf - oldPerf
+        val absDelta = Math.abs(delta)
+        val changeType = when {
+            delta < 0 -> if (highIsGood) PerfChange.WORSENED else PerfChange.IMPROVED
+            delta > 0 -> if (highIsGood) PerfChange.IMPROVED else PerfChange.WORSENED
+            else -> PerfChange.SAME
+        }
+        if (changeType == PerfChange.SAME) return
+
+        val changeLabel: String? = when (changeType) {
+            PerfChange.WORSENED ->
+                tolerances.first?.let { if (absDelta > it) "WORSENED" else null }
+            else ->
+                tolerances.second?.let { if (absDelta > it) "IMPROVED" else null }
+        }
+        if (changeLabel != null) {
+            fail(
+                mess +
+                    "\nPerformance of '$ofWhat' has significantly $changeLabel\n" +
+                    "New performance : $gotPerf\n" +
+                    "Old performance : $oldPerf\n" +
+                    "Delta           : $absDelta\n" +
+                    "Max tolerances  : worsening <= ${tolerances.first}, improv. <= ${tolerances.second}"
+            )
         }
     }
 }

@@ -1,6 +1,7 @@
 package org.iutools.morph
 
 import org.iutools.morph.MorphAnalCurrentExpectationsAbstract
+import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
 import org.iutools.utilities.StopWatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -97,29 +98,72 @@ abstract class MorphologicalAnalyzerTest {
         val goldStandard = MorphAnalGoldStandard_Hansard()
         val words = goldStandard.allWords().sorted().subList(0, firstNWords)
 
-        // First, time how long it takes, asking for all decomps
+        // The analyzer keeps a process-wide decomposition cache whose key
+        // includes the stopAfterN value. Without the eviction below, a word
+        // already decomposed by an earlier test (or by the warm-up pass)
+        // turns one of the two timed passes into a pure cache hit and makes
+        // the comparison meaningless -- we once measured 2ms "for all
+        // decomps" against 281ms "for one". Evict both keys for every word
+        // right before each timed pass.
+        fun evictCacheFor(theWords: List<String>) {
+            for (word in theWords) {
+                MorphologicalAnalyzer_R2L.removeFromCache(word, null, true)
+                MorphologicalAnalyzer_R2L.removeFromCache(word, 1, true)
+            }
+        }
+
+        // Warm the JIT up on this workload before taking any measurement, so
+        // the first timed pass isn't penalised for compiling hot code.
+        for (word in words) {
+            analyzer.decomposeWord(word)
+        }
+
+        // First, time how long it takes, asking for all decomps. Measure in
+        // milliseconds, not whole seconds: on a fast machine the whole run is
+        // barely over a second, and second-resolution rounding turned the
+        // speedup ratio into pure noise (2.0 one run, Infinity the next).
+        evictCacheFor(words)
         var sw = StopWatch().start()
         for (word in words) {
             analyzer.decomposeWord(word)
         }
-        val secsAllDecomps = sw.totalTime(TimeUnit.SECONDS)
+        val msecsAllDecomps = sw.totalTime(TimeUnit.MILLISECONDS)
 
         // Then, time how long it takes, asking only for one decomp
+        evictCacheFor(words)
         sw = StopWatch().start()
         analyzer.stopAfterN(1)
         for (word in words) {
             analyzer.decomposeWord(word)
         }
-        val secsSingleDecomp = sw.totalTime(TimeUnit.SECONDS)
+        val msecsSingleDecomp = sw.totalTime(TimeUnit.MILLISECONDS)
 
-        val gotSpeedup = 1.0 * secsAllDecomps / secsSingleDecomp
-        println("Got speedup of: $gotSpeedup")
+        val gotSpeedup = 1.0 * msecsAllDecomps / msecsSingleDecomp
+        println("stopAfterN(1) speedup: $gotSpeedup " +
+            "(${msecsAllDecomps}ms for all decomps vs ${msecsSingleDecomp}ms for one)")
 
-        val expSpeedup = 4
+        // This is a two-sided expectation on purpose. The lower bound is the
+        // real point of the test: stopping after the first decomp must save a
+        // substantial amount of work. The upper bound is a deliberate
+        // "you improved something" tripwire -- if the speedup comes in well
+        // above what we recorded, the analyzer (or the machine) got markedly
+        // faster at this, and BOTH bounds below should be ratcheted up so the
+        // test can still catch a future slowdown from the new, better level.
+        // Observed on this dev container (Aug 2026), warmed up and with the
+        // cache evicted: ~6.8-7.1x (all decomps ~1.7s, one decomp ~0.24s).
+        // Widen the band, don't delete it, if this proves flaky on CI.
+        val minSpeedup = 5.0
+        val maxSpeedup = 10.0
         assertTrue(
-            gotSpeedup >= expSpeedup,
-            "Asking for just one decomp should have been at least ${expSpeedup}x times faster, " +
-                "but got a speedup of only $gotSpeedup"
+            gotSpeedup >= minSpeedup,
+            "Asking for just one decomp should have been at least ${minSpeedup}x faster, " +
+                "but got a speedup of only $gotSpeedup -- stopAfterN(1) may have regressed."
+        )
+        assertTrue(
+            gotSpeedup <= maxSpeedup,
+            "stopAfterN(1) speedup was $gotSpeedup, above the expected ceiling of ${maxSpeedup}x. " +
+                "That's good news, not a bug: something got faster. Raise minSpeedup (and this " +
+                "ceiling) to lock in the gain so a later slowdown still trips this test."
         )
     }
 

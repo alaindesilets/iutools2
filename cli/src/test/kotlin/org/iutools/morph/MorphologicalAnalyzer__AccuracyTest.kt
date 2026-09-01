@@ -1,8 +1,10 @@
 package org.iutools.morph
 
 import org.iutools.lib.testing.AssertNumber
+import org.iutools.lib.testing.AssertRuntime
 import org.iutools.lib.testing.FrequencyHistogram
 import org.iutools.morph.MorphAnalCurrentExpectationsAbstract.OutcomeType
+import org.junit.jupiter.api.TestInfo
 import java.util.concurrent.TimeoutException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -40,7 +42,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
     }
 
     @Test
-    fun test_accuracy_with_GoldStandard_Hansard() {
+    fun test_accuracy_with_GoldStandard_Hansard(testInfo: TestInfo) {
         println("Running test_accuracy_with_GoldStandard_Hansard.")
 
         goldStandard = MorphAnalGoldStandard_Hansard()
@@ -50,7 +52,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         // next line.
         // expectations.focusOnWord = "someword"
 
-        evaluateAccuracy()
+        evaluateAccuracy(testInfo)
     }
 
     @Test
@@ -60,10 +62,13 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         goldStandard = MorphAnalGoldStandard_WordsThatFailedBefore()
         expectations = MorphAnalCurrentExpectations_WordsThatFailedBefore()
 
-        evaluateAccuracy()
+        // No runtime baseline check here: this gold standard is only a
+        // handful of words, so its total decomposition time is dominated by
+        // noise.
+        evaluateAccuracy(null)
     }
 
-    private fun evaluateAccuracy() {
+    private fun evaluateAccuracy(runtimeBaselineTestInfo: TestInfo?) {
         println("This test can take a few minutes to complete.")
 
         // Uncomment for debugging.
@@ -107,6 +112,22 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         printPerformanceStats()
 
         assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
+
+        // Fail if the time to decompose the whole gold standard has drifted
+        // by more than 30% -- in EITHER direction -- from the baseline last
+        // recorded on THIS machine. A big speed-up trips it too, on purpose:
+        // that means the baseline is stale and should be re-recorded lower so
+        // a later slow-down is still caught. The baseline lives in an
+        // uncommitted JSON file under the build tree (see AssertRuntime); the
+        // first run after a checkout or `./gradlew clean` just records it and
+        // passes. This does not touch the accuracy histogram above.
+        if (runtimeBaselineTestInfo != null) {
+            AssertRuntime.runtimeHasNotChanged(
+                elapsed.toDouble(), 0.30,
+                "decompose all ${goldStandard.allWords().size} gold-standard words",
+                runtimeBaselineTestInfo,
+            )
+        }
 
         if (expectations.focusOnWord != null) {
             fail(
