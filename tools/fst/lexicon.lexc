@@ -843,51 +843,6 @@ LEXICON VnSuffixes
 ! Java analyzer either (confirmed via --pipeline).
 ++ji+1vn:VOICEti NounContinuations ;
 
-! "usiq"/1vn ("custom/way/habit"): Suffixes.csv's q-form lists three
-! candidates ("usiq"/"usiq"/"qusiq") with actions Suppression/Voicing/
-! Neutral -- but gold reveals SIX distinct literal spellings are actually
-! needed, not three, because usiq's own trailing q behaves differently
-! depending on what FOLLOWS it (own q kept bare, own q deleted, own q
-! converted to r) -- the CSV under-lists the real variation. All six are
-! wired as parallel literal spellings (different strings, no collision),
-! each also carrying its own SUPPR prefix to delete the PRECEDING root's
-! trailing q where gold needs that ("uqaq" family) -- except the
-! "q"-prefixed trio (qusiq/qusi/qusir), which do NOT delete the preceding
-! q, matching the "apiq" family's doubled-q surface ("apiqqusi..."013).
-! Confirmed via:
-!   - "uqausiq" (bare terminal): uqaq's own q deleted (SUPPR) + "usiq"
-!     kept whole -- SUPPRusiq -> "#".
-!   - "uqausiqtigut": same SUPPRusiq, reaching "tigut"/tn-via-p (which has
-!     no SUPPR of its own, so usiq's own q must survive here too).
-!   - "uqausiit"/"uqausiksait"/"uqausiksangit"/"uqausikkut"/
-!     "uqausilirinirmut": SUPPRusiq would ALSO work here (the following
-!     ending's own SUPPR eats usiq's trailing q for free), but "uqausinga"/
-!     "uqausingit" need usiq's own q gone even though "nga" carries no
-!     SUPPR marker at all -- so a genuinely separate "SUPPRusi" (own q
-!     already gone) candidate is needed; wired uniformly rather than
-!     picking per-word which of SUPPRusiq/SUPPRusi would happen to work.
-!   - "uqausirmik"/"uqausirnik"/"uqausirnut": own q converted to r
-!     (SUPPRusir) -- mik/nik/nut all already have their own bare/NASAL/
-!     SUPPR variants from Lever A, and it's the BARE one that matches here
-!     (SUPPRusir + bare "mik" = "usirmik").
-!   - "apiqqusiit"/"apiqqusiksait": "qusiq" (own q kept, preceding q also
-!     kept -- doubled "qq") -- the following SUPPR-marked ending eats
-!     qusiq's own trailing q the same way as the uqaq family.
-!   - "apiqqusirnut": "qusir" (own q -> r, preceding q kept).
-!   - "apiqqusira"/"apiqqusirijara": would need "qusi" reaching
-!     "ga"/tn-nom-s-1s and "gi"/1nv respectively -- both remain unreached
-!     for other reasons (see "gi"/1nv's own comment below).
-! "uqausirijanga"/"uqausissangit"/"uqausitsangit"/"uqausituinnakkut" also
-! remain unreached: the first needs "jaq"/1vn chained after "gi"/1nv
-! (gi's own continuations don't reach jaq yet), the middle two need
-! "ssaq"/"tsaq" spelling variants of ksaq/1nn that don't exist, the last
-! needs checking whether "tuinnaq"/2nn and "kkut"/1nn chain together the
-! way this word needs -- none blocked by usiq itself, all separate small
-! gaps left for a future pass.
-++usiq+1vn:SUPPRusi NounContinuations ;
-++usiq+1vn:SUPPRusir NounContinuations ;
-++usiq+1vn:qusi NounContinuations ;
-++usiq+1vn:qusir NounContinuations ;
 
 ! "ut"/1vn ("object/instrument/tool for doing s.t."): Suffixes.csv's
 ! V-form alone lists 12 space-separated candidates. Tracing every gold
@@ -1021,7 +976,6 @@ LEXICON VnSuffixes
 ! "qimirruniq"/"ilinniarniq" -- "tigusinirmut" needs "niq" to continue
 ! into "mut"; since "niq" is verb-to-noun, the noun-ending lexicon is the
 ! right continuation).
-++niq+2vn:NASALni NounContinuations ;
 
 ! Not implemented, revisit only if a real disambiguating condition turns
 ! up (in the source CSV or by tracing MorphAnalyzerValidation.kt) rather
@@ -1101,7 +1055,6 @@ LEXICON NvSuffixes
 ! k-form=liuq/Suppression) alone, without the q-context above, are not
 ! independently gold-attested here: every gold example attaches liuq
 ! directly after a q-final suffix.
-++liuq+1nv:SUPPRliur VerbContinuations ;
 
 ! "u"/1nv: "ministaujuq" = {minista:minista/1n}{u:u/1nv}{juq:juq/1vn} and
 ! "piliriangujuq" = {piliria:piliriaq/1n}{ngu:u/1nv}{juq:juq/1vn}.
@@ -1142,7 +1095,6 @@ LEXICON NnSuffixes
 ! dropped before a further suffix" pattern used throughout this
 ! session, confirmed via the real Java analyzer's own output before
 ! wiring.
-++giik+1nn:gii NounContinuations ;
 
 ! "juaq"/1nn ("large; big"): completely unwired until now (the existing
 ! JGUARD/"-rjuaq" machinery only ever protected this SAME spelling as a
@@ -1173,7 +1125,6 @@ LEXICON NnSuffixes
 ! before "u"/1nv attaches ("inna", not "innaq") -- wired directly as a
 ! plain literal rather than guessing at "i(ng)"'s general semantics from
 ! one data point.
-++innaq+1nn:inna NounContinuations ;
 
 ! "&iq"/1nn ("superlativeness, the most of all"): the "&" in the CSV's
 ! own morpheme spelling is a placeholder/notation artifact (same "&" seen
@@ -1464,7 +1415,6 @@ LEXICON VvSuffixes
 ! initial suffix" pattern used throughout this session (juq's "tu",
 ! jaq's "ta", mata's own literal, etc.), confirmed via the real Java
 ! analyzer's own output before wiring.
-++innaq+2vv:inna VerbContinuations ;
 
 ! "i"/1vv: the unconditioned hand-wiring this comment used to describe
 ! ("iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut", needing i/1vv
@@ -1565,7 +1515,6 @@ LEXICON VvSuffixes
 ! "tukisinaliqtissimajuq" needs the related but DIFFERENT "na" spelling
 ! (n NOT doubled, own q also gone) flagged above, confirmed via the
 ! real Java analyzer's own output before wiring.
-++naq+1vv:na VerbContinuations ;
 
 ! "tit"/1vv ("to cause s.o. to do s.t."): Suffixes.csv's V/k/q-form is a
 ! single clean candidate (Neutral, bare "tit"), confirmed correct before
@@ -1603,7 +1552,6 @@ LEXICON VvSuffixes
 ! preserved, NOT assimilated to "uuttu" -- same KGUARD trick as
 ! juq/1vn's own "KGUARDtu" elsewhere in this file. Not decomposable by
 ! the real Java analyzer either (confirmed via --pipeline).
-++tuq+1vv:KGUARDtu VerbContinuations ;
 
 ! "aviktursimajuni" (root "avik", k-final) needs the own-q->r "tur"
 ! spelling (free variant, not in any CSV context column, same shape as
