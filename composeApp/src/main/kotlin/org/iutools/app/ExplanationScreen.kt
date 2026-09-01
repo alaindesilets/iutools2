@@ -82,10 +82,7 @@ internal fun ExplanationScreen(
     val context = LocalContext.current
     val apiKey = remember { AppSettings.loadApiKey(context) }
     val unauthorizedErrorMessage = stringResource(R.string.chat_error_unauthorized)
-    val localModelMissingMessage = stringResource(
-        R.string.local_llm_model_missing,
-        LocalLlmEngine.modelDirectory(context).absolutePath,
-    )
+    val localModelDisabledMessage = stringResource(R.string.local_llm_disabled_message)
     val genericErrorTemplate = stringResource(R.string.chat_error)
     var showInspectPrompt by remember { mutableStateOf(false) }
     var resubmitting by remember { mutableStateOf(false) }
@@ -197,7 +194,7 @@ internal fun ExplanationScreen(
                         apiKey = apiKey,
                         modelStats = modelStats,
                         unauthorizedErrorMessage = unauthorizedErrorMessage,
-                        localModelMissingMessage = localModelMissingMessage,
+                        localModelDisabledMessage = localModelDisabledMessage,
                         genericErrorTemplate = genericErrorTemplate,
                         onMessagesChanged = { conversations[conversationKey] = it },
                     )

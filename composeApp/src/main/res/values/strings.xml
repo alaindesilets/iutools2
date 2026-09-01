@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">iutools2</string>
     <string name="screen_title">Find information about a word</string>
     <string name="word_label">Enter the word</string>
+    <string name="section_title_definition_meaning">Definition and meaning</string>
+    <string name="section_title_decomposition">Word decomposition</string>
+    <string name="section_title_examples">Bilingual examples of use</string>
     <string name="lenient_switch_label">Lenient analysis (lenient-decomps)</string>
     <string name="ui_language_label">Interface language</string>
     <string name="settings_button">Settings</string>
@@ -9,6 +13,8 @@
     <string name="display_script_roman">Roman</string>
     <string name="display_script_syllabic">Syllabic</string>
     <string name="display_script_as_entered">Script as entered</string>
+    <string name="settings_morphology_section">Morphological analysis</string>
+    <string name="settings_ai_section">AI features</string>
     <string name="settings_api_key_message">This feature requires a connection to Claude.ai. Please enter your Claude.ai API key.</string>
     <string name="settings_api_key_label">Claude.ai API key</string>
     <string name="settings_api_key_hint">You can create one at platform.claude.com (Settings → API Keys).</string>
@@ -23,7 +29,7 @@
     <string name="dictionary_shorter_word_suffix">”:</string>
     <string name="no_definition_found">No definition found.</string>
     <string name="hansard_examples_button">Find bilingual examples of use</string>
-    <string name="hansard_examples_header">Bilingual examples from the Nunavut Hansard:</string>
+    <string name="hansard_examples_header">From the Nunavut Hansard:</string>
     <string name="hansard_checking_label">Searching the Nunavut Hansard…</string>
     <string name="hansard_no_examples">No bilingual examples found in the Nunavut Hansard for “%1$s”.</string>
     <string name="hansard_shorter_word_prefix">No occurrences found of “</string>
@@ -31,6 +37,7 @@
     <string name="hansard_shorter_word_suffix">”:</string>
     <string name="hansard_index_missing">Hansard database not found on this device (debug only) — see tools/README-hansard.md.</string>
     <string name="hansard_index_version_mismatch">Hansard database is out of date (debug only): found v%1$d, expected v%2$d — see tools/README-hansard.md.</string>
+    <string name="hansard_install_prompt">To see bilingual examples of how this word is used, install the National Research Council of Canada\'s aligned Nunavut Hansard.</string>
     <string name="hansard_download_button">Download bilingual examples (~155 MB)</string>
     <string name="hansard_download_hint">Requires an internet connection and may take a few minutes.</string>
     <string name="hansard_download_progress">Downloading… %1$d%%</string>
@@ -82,13 +89,8 @@
     <string name="guess_meaning_seed_hansard_shorter_word_intro">You\'ll also find a list of aligned Inuktitut-English sentence pairs from the Nunavut Hansard. Note: these sentence pairs are not for the exact word being searched, %1$s, but for a shorter, related Inuktitut word. You do not need to make sure your proposed meanings match the English sentences below, since they are about a different (though related) word:</string>
     <string name="chat_system_prompt">You are helping guess the meaning of an Inuktitut word. You do not have web search or dictionary lookup tools in this conversation -- work only from what the user\'s message provides, following any instructions given there about how to use it.\n\nFor your first reply about a given word, keep your reasoning brief (at most 1-2 sentences) -- save a longer, more detailed explanation for later, in case the user asks for one. If you\'re not confident in a candidate, a short note saying so is enough, no need to elaborate yet.\n\nAlways end your answer with a section titled exactly \"Candidate meanings:\", followed by a short bulleted list (at most 5) of single English words or short phrases that could stand in for the word\'s meaning, ordered from most to least likely.\n\nIf the user later asks for more detail or an explanation, give a fuller explanation in that follow-up reply of how you arrived at your candidates -- covering both the morphological decomposition and, when you were given bilingual example sentences and asked to check your candidates against them, how those sentences confirmed or ruled out your choices.\n\nRespond in English throughout.</string>
 
-    <!-- local-llm-spike branch: on-device model backend (see LocalLlmEngine.kt and doc/spike-llm-local-iutools-mobile.md, Phase 6) -->
-    <string name="local_llm_toggle_label">Local model</string>
-    <string name="local_llm_pick_model_button">Choose model file…</string>
-    <string name="local_llm_model_imported">Model file imported.</string>
-    <string name="local_llm_model_import_failed">Could not import the model file: %1$s</string>
-    <string name="local_llm_model_missing">No local model file found. Download a .litertlm file in this device\'s browser, then tap "Choose model file…" above and pick it (or push it to %1$s via adb push).</string>
-    <string name="local_llm_role_label">Local model</string>
+    <!-- On-device model backend: disabled, code kept out of the compiled app; see composeApp/disabled-features/local-llm/README.md. GuessMeaningEngine.send() shows this if useLocalModel is ever true, which no current caller does. -->
+    <string name="local_llm_disabled_message">On-device model support is currently disabled in this build.</string>
     <string name="ai_best_guesses_title">AI best guesses</string>
     <string name="guess_meaning_cost_summary">Estimated cost — this word: $%1$.4f · today: $%2$.4f · this week: $%3$.4f · this month: $%4$.4f</string>
     <string name="guess_meaning_loading_label">Guessing the meaning…</string>

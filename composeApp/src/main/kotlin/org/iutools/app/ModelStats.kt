@@ -1,19 +1,17 @@
 package org.iutools.app
 
 /*
- * Aggregate performance stats per backend/model for Guess Meaning, per
- * Alain's request while comparing Claude against the local model: average
+ * Aggregate performance stats per backend/model for Guess Meaning: average
  * latency, average input tokens, average output tokens. Deliberately only
- * fed from real backend calls (see the call sites in GuessMeaningScreen.kt --
- * inside send()'s Claude success branch and sendToLocalModel()'s
- * LocalGenerationEvent.Done handling) -- a conversation replayed from the
- * cache (see GuessMeaningConversationKey) never reaches those call sites, so
- * it's excluded automatically rather than needing an explicit check.
+ * fed from real backend calls (see the call site in GuessMeaningEngine.kt's
+ * send(), inside the Claude success branch) -- a conversation replayed from
+ * the cache (see GuessMeaningConversationKey) never reaches that call site,
+ * so it's excluded automatically rather than needing an explicit check.
  *
- * Keyed by a per-backend/model label (the Claude model constant, or the
- * local model file's name -- see ModelStats key construction in
- * GuessMeaningScreen.kt) so switching to a different local model file tracks
- * separately rather than blending into one "local model" bucket.
+ * Keyed by a per-backend/model label (currently only ever the Claude model
+ * constant) -- the on-device backend this once also tracked, keyed by its
+ * model file's name so different local models tracked separately, is
+ * disabled; see composeApp/disabled-features/local-llm/README.md.
  */
 
 data class BackendCallStats(

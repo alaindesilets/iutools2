@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Product name, identical in both languages; kept here so the launcher label has a fr translation too and never falls back. -->
+    <string name="app_name">iutools2</string>
     <string name="screen_title">Trouver de l\'information sur un mot</string>
     <string name="word_label">Entrer le mot</string>
+    <string name="section_title_definition_meaning">Définition et sens</string>
+    <string name="section_title_decomposition">Décomposition du mot</string>
+    <string name="section_title_examples">Exemples bilingues d\'utilisation</string>
     <string name="lenient_switch_label">Analyse tolérante (lenient-decomps)</string>
     <string name="ui_language_label">Langue de l\'interface</string>
     <string name="settings_button">Réglages</string>
@@ -9,6 +14,8 @@
     <string name="display_script_roman">Romain</string>
     <string name="display_script_syllabic">Syllabique</string>
     <string name="display_script_as_entered">Script tel qu\'entré</string>
+    <string name="settings_morphology_section">Analyse morphologique</string>
+    <string name="settings_ai_section">Fonctions IA</string>
     <string name="settings_api_key_message">Cette fonctionnalité nécessite une connexion à Claude.ai. Entre ta clé API Claude.ai.</string>
     <string name="settings_api_key_label">Clé API Claude.ai</string>
     <string name="settings_api_key_hint">Tu peux en créer une sur platform.claude.com, dans les paramètres de ton compte (section clés API).</string>
@@ -23,7 +30,7 @@
     <string name="dictionary_shorter_word_suffix">" » :"</string>
     <string name="no_definition_found">Aucune définition trouvée.</string>
     <string name="hansard_examples_button">Chercher des exemples bilingues d\'utilisation</string>
-    <string name="hansard_examples_header">Exemples bilingues du Hansard du Nunavut :</string>
+    <string name="hansard_examples_header">Tiré du Hansard du Nunavut :</string>
     <string name="hansard_checking_label">Recherche dans le Hansard du Nunavut…</string>
     <string name="hansard_no_examples">Aucun exemple bilingue trouvé dans le Hansard du Nunavut pour « %1$s ».</string>
     <string name="hansard_shorter_word_prefix">"Aucune occurrence trouvée de « "</string>
@@ -31,6 +38,7 @@
     <string name="hansard_shorter_word_suffix">" » ont été trouvées :"</string>
     <string name="hansard_index_missing">Base de données du Hansard introuvable sur cet appareil (débogage seulement) — voir tools/README-hansard.md.</string>
     <string name="hansard_index_version_mismatch">Base de données du Hansard désuète (débogage seulement) : trouvé v%1$d, attendu v%2$d — voir tools/README-hansard.md.</string>
+    <string name="hansard_install_prompt">Pour obtenir des exemples bilingues d\'utilisation de ce mot, veuillez installer le Hansard aligné du Conseil national de recherches du Canada.</string>
     <string name="hansard_download_button">Télécharger les exemples bilingues (~155 Mo)</string>
     <string name="hansard_download_hint">Nécessite une connexion Internet et peut prendre quelques minutes.</string>
     <string name="hansard_download_progress">Téléchargement… %1$d %%</string>
@@ -82,13 +90,8 @@
     <string name="guess_meaning_seed_hansard_shorter_word_intro">Tu trouveras aussi une liste de paires de phrases alignées iu-en, trouvées dans le Hansard du Nunavut. Attention : ces paires de phrases ne correspondent pas au mot recherché, %1$s, mais à un mot inuktitut plus court et apparenté. Tu n\'as donc pas besoin de t\'assurer que les sens que tu proposes correspondent aux phrases anglaises ci-dessous, puisqu\'elles concernent un mot différent (bien qu\'apparenté) :</string>
     <string name="chat_system_prompt">Tu aides à deviner le sens d\'un mot inuktitut. Tu n\'as pas d\'outil de recherche web ni de dictionnaire dans cette conversation -- travaille uniquement à partir de ce que le message de l\'utilisateur fournit, en suivant les instructions qui s\'y trouvent sur comment l\'utiliser.\n\nPour ta première réponse à propos d\'un mot donné, garde ton raisonnement bref (une ou deux phrases maximum) -- garde une explication plus détaillée pour plus tard, au cas où l\'utilisateur en demande une. Si tu n\'es pas certain d\'un candidat, une courte mention suffit, pas besoin d\'élaborer tout de suite.\n\nTermine toujours ta réponse par une section intitulée exactement \"Candidate meanings:\", suivie d\'une courte liste à puces (5 maximum) de mots simples ou de courtes expressions, en français, qui pourraient représenter le sens du mot, du plus au moins probable -- même si tu dois d\'abord repérer ou vérifier ces sens en anglais (par exemple par rapport à des phrases anglaises alignées fournies dans le message de l\'utilisateur), traduis-les en français avant de les inscrire dans cette liste.\n\nSi l\'utilisateur demande ensuite plus de détails ou une explication, donne une explication plus complète dans cette réponse de suivi de comment tu es arrivé à tes candidats -- en couvrant à la fois la décomposition morphologique et, quand des phrases bilingues d\'exemple t\'ont été fournies et qu\'on t\'a demandé de vérifier tes candidats par rapport à elles, comment ces phrases ont confirmé ou écarté tes choix.\n\nRéponds en français partout, y compris dans la liste de la section \"Candidate meanings:\" -- seul l\'intitulé exact de cette section (\"Candidate meanings:\") doit rester tel quel, en anglais.</string>
 
-    <!-- Branche local-llm-spike : backend modèle embarqué (voir LocalLlmEngine.kt et doc/spike-llm-local-iutools-mobile.md, Phase 6) -->
-    <string name="local_llm_toggle_label">Modèle local</string>
-    <string name="local_llm_pick_model_button">Choisir le fichier modèle…</string>
-    <string name="local_llm_model_imported">Fichier modèle importé.</string>
-    <string name="local_llm_model_import_failed">Échec de l\'importation du fichier modèle : %1$s</string>
-    <string name="local_llm_model_missing">Aucun fichier de modèle local trouvé. Télécharge un fichier .litertlm dans le navigateur de l\'appareil, puis touche « Choisir le fichier modèle… » ci-dessus et sélectionne-le (ou pousse-le vers %1$s avec adb push).</string>
-    <string name="local_llm_role_label">Modèle local</string>
+    <!-- Backend modèle embarqué : désactivé, code conservé hors de l'appli compilée ; voir composeApp/disabled-features/local-llm/README.md. GuessMeaningEngine.send() l'affiche si useLocalModel devient vrai, ce qu'aucun appelant actuel ne fait. -->
+    <string name="local_llm_disabled_message">Le support du modèle embarqué sur l\'appareil est désactivé dans cette version.</string>
     <string name="ai_best_guesses_title">Meilleures hypothèses de l\'IA</string>
     <string name="guess_meaning_cost_summary">Coût estimé — ce mot : %1$.4f $ · aujourd\'hui : %2$.4f $ · cette semaine : %3$.4f $ · ce mois-ci : %4$.4f $</string>
     <string name="guess_meaning_loading_label">Recherche du sens en cours…</string>

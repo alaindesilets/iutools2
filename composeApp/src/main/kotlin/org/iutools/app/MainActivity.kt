@@ -13,15 +13,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 
-// Three screens, no navigation library: a bare enum + mutableStateOf is
+// Two screens, no navigation library: a bare enum + mutableStateOf is
 // enough for this app's size, and avoids pulling in Navigation Compose.
-// GuessMeaning ("Advanced", the old manual chat/prompt-tuning screen) has no
-// button leading to it anymore, per Alain's request -- it's currently
-// unreachable, kept rather than deleted since it's still the only place with
-// a local-model backend toggle. Explanation ("Explications") replaced it as
-// the debug prompt-tuning entry point (see ExplanationScreen.kt's
-// "Inspecter le prompt").
-private enum class Screen { WordLookup, GuessMeaning, Explanation }
+// GuessMeaning ("Advanced", the old manual chat/prompt-tuning screen, and the
+// only place with a local-model backend toggle) is gone from this enum --
+// see composeApp/disabled-features/local-llm/README.md; it was already
+// unreachable (no button led to it) before that backend was disabled.
+// Explanation ("Explications") replaced it as the debug prompt-tuning entry
+// point (see ExplanationScreen.kt's "Inspecter le prompt").
+private enum class Screen { WordLookup, Explanation }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,19 +42,11 @@ class MainActivity : ComponentActivity() {
                 // (reported by Alain: "Guess Meaning" then back landed on an empty
                 // search screen).
                 val wordLookupScreenState = remember { WordLookupScreenState() }
-                var guessMeaningSeed by remember { mutableStateOf("") }
-                var guessMeaningCacheKey by remember { mutableStateOf<GuessMeaningCacheKey?>(null) }
                 // The attempt ExplanationScreen was opened for -- set by
                 // WordLookupScreen's onOpenExplanation (see GuessMeaningSection's
                 // onExplain) right before switching to Screen.Explanation.
                 var explanationKey by remember { mutableStateOf<GuessMeaningConversationKey?>(null) }
                 var explanationWordInfo by remember { mutableStateOf<WordInfoSnapshot?>(null) }
-                // local-llm-spike branch: which backend Guess Meaning uses, hoisted up
-                // to here (not local state inside GuessMeaningScreen) so it's "sticky"
-                // across words instead of resetting to Claude every time the screen is
-                // re-entered -- what you want while going back and forth comparing
-                // backends on several words in a row.
-                var useLocalModel by remember { mutableStateOf(false) }
                 // In-memory only (lost on process death). Keyed by GuessMeaningConversationKey
                 // (word+lenient+backend+system prompt+seed, not just word+lenient) so
                 // that re-opening a word replays the matching past attempt instead of
@@ -63,18 +55,17 @@ class MainActivity : ComponentActivity() {
                 // than colliding with or replaying a previous attempt -- see
                 // GuessMeaningEngine.kt's header comment. Owned here, shared by
                 // WordLookupScreen (the normal inline flow, see GuessMeaningSection in
-                // GuessMeaningInline.kt), ExplanationScreen (its debug-only prompt
-                // resubmission), and GuessMeaningScreen, so any of them picks up an
-                // attempt another one started rather than starting over or diverging.
+                // GuessMeaningInline.kt) and ExplanationScreen (its debug-only prompt
+                // resubmission), so either one picks up an attempt the other started
+                // rather than starting over or diverging.
                 val guessMeaningConversations = remember { mutableStateMapOf<GuessMeaningConversationKey, List<ChatMessage>>() }
                 // In-memory only, per Alain's request to track average latency/tokens
-                // per backend while comparing Claude and the local model -- see
-                // ModelStats.kt. Owned here so stats accumulate across every word
-                // tried in a session, not just the current one.
+                // per backend -- see ModelStats.kt. Owned here so stats accumulate
+                // across every word tried in a session, not just the current one.
                 val guessMeaningModelStats = remember { mutableStateMapOf<String, AggregatedBackendStats>() }
-                // The on-screen "<-" button on Explanation/GuessMeaning only covers a
-                // tap; without this, the hardware/gesture back action falls through
-                // past our own screen switching and closes the whole app instead.
+                // The on-screen "<-" button on Explanation only covers a tap; without
+                // this, the hardware/gesture back action falls through past our own
+                // screen switching and closes the whole app instead.
                 BackHandler(enabled = screen != Screen.WordLookup) {
                     screen = Screen.WordLookup
                 }
@@ -87,17 +78,7 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.Explanation
                         },
                         guessMeaningConversations = guessMeaningConversations,
-                        useLocalModel = useLocalModel,
                         guessMeaningModelStats = guessMeaningModelStats,
-                    )
-                    Screen.GuessMeaning -> GuessMeaningScreen(
-                        onBack = { screen = Screen.WordLookup },
-                        wordCacheKey = guessMeaningCacheKey,
-                        seed = guessMeaningSeed,
-                        conversations = guessMeaningConversations,
-                        useLocalModel = useLocalModel,
-                        onUseLocalModelChanged = { useLocalModel = it },
-                        modelStats = guessMeaningModelStats,
                     )
                     Screen.Explanation -> {
                         // Both are always set together right before switching here

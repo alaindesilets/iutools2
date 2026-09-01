@@ -48,7 +48,7 @@ sealed interface NunavutHansardResult {
 }
 
 private sealed interface OpenResult {
-    data class Ready(val database: SQLiteDatabase, val generatedAt: String, val pairCount: Int) : OpenResult
+    data class Ready(val database: SQLiteDatabase) : OpenResult
     data object Missing : OpenResult
     data class VersionMismatch(val found: Int) : OpenResult
 }
@@ -56,6 +56,13 @@ private sealed interface OpenResult {
 object NunavutHansardLocalIndex {
     const val DB_FILE_NAME = "hansard.db"
     const val SCHEMA_VERSION = 1
+
+    // Official source of the corpus this index is built from -- NRC Digital
+    // Repository, DOI 10.4224/40001819, CC BY 4.0. Linked from the
+    // attribution line under the bilingual examples (see
+    // HansardExamplesSection).
+    const val NRC_CORPUS_URL =
+        "https://nrc-digital-repository.canada.ca/eng/view/object/?id=c7e34fa7-7629-43c2-bd6d-19b32bf64f60"
 
     // Caps how many pair ids are pulled per lookup -- some words occur in
     // tens of thousands of Hansard sentences, and the UI only ever shows a
@@ -79,10 +86,6 @@ object NunavutHansardLocalIndex {
 
     fun dbFile(context: Context): File? =
         context.getExternalFilesDir(null)?.let { File(it, DB_FILE_NAME) }
-
-    /** Debug-panel text (build date, pair count) once the index is open; null otherwise. */
-    fun debugStatus(context: Context): String? =
-        (ensureOpen(context) as? OpenResult.Ready)?.let { "${it.pairCount} pairs, generated ${it.generatedAt}" }
 
     suspend fun fetch(context: Context, word: String): NunavutHansardResult = withContext(Dispatchers.IO) {
         when (val opened = ensureOpen(context)) {
@@ -130,11 +133,7 @@ object NunavutHansardLocalIndex {
             cached = mismatch
             return mismatch
         }
-        val ready = OpenResult.Ready(
-            database = database,
-            generatedAt = readMeta(database, "generated_at") ?: "?",
-            pairCount = readMeta(database, "pair_count")?.toIntOrNull() ?: 0,
-        )
+        val ready = OpenResult.Ready(database)
         cached = ready
         return ready
     }
@@ -199,9 +198,4 @@ object NunavutHansardLocalIndex {
     // internal (not private): unit-tested directly.
     internal fun dateFromSourceFile(sourceFile: String): String =
         Regex("""(\d{8})""").find(sourceFile)?.value ?: sourceFile
-
-    private fun readMeta(database: SQLiteDatabase, key: String): String? =
-        database.rawQuery("SELECT value FROM meta WHERE key = ?", arrayOf(key)).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
 }

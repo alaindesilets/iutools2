@@ -7,11 +7,12 @@ import androidx.security.crypto.MasterKey
 
 /*
  * Persists the settings-panel choices (interface language, display script,
- * the user's own Claude.ai API key) across app restarts.
+ * lenient morphological analysis, the user's own Claude.ai API key) across
+ * app restarts.
  *
- * Language/display script use plain SharedPreferences -- Jetpack DataStore
- * would be overkill for two flat, non-secret string values, and there's
- * nothing in them worth protecting.
+ * Language/display script/lenient analysis use plain SharedPreferences --
+ * Jetpack DataStore would be overkill for a few flat, non-secret values, and
+ * there's nothing in them worth protecting.
  *
  * The API key is different: it's the user's own credential, so it's stored
  * in a *separate* EncryptedSharedPreferences file instead (AES256-GCM,
@@ -30,6 +31,12 @@ object AppSettings {
     private const val PREFS_NAME = "app_settings"
     private const val KEY_LANGUAGE = "ui_language"
     private const val KEY_DISPLAY_SCRIPT = "display_script"
+    private const val KEY_LENIENT_ANALYSIS = "lenient_analysis"
+
+    // Lenient morphological analysis is on unless the user turns it off --
+    // it surfaces more decompositions for words the strict analyzer rejects,
+    // which is the more useful default for a lookup tool.
+    private const val DEFAULT_LENIENT_ANALYSIS = true
 
     // Matches the file name excluded in res/xml/backup_rules.xml and
     // res/xml/data_extraction_rules.xml -- keep those in sync if this ever
@@ -95,6 +102,13 @@ object AppSettings {
 
     fun saveDisplayScript(context: Context, script: DisplayScript) {
         prefs(context).edit().putString(KEY_DISPLAY_SCRIPT, script.name).apply()
+    }
+
+    fun loadLenientAnalysis(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_LENIENT_ANALYSIS, DEFAULT_LENIENT_ANALYSIS)
+
+    fun saveLenientAnalysis(context: Context, lenient: Boolean) {
+        prefs(context).edit().putBoolean(KEY_LENIENT_ANALYSIS, lenient).apply()
     }
 
     fun loadApiKey(context: Context): String =

@@ -40,19 +40,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
@@ -502,8 +508,8 @@ private suspend fun analyze(
 }
 
 // Holds everything about the current word lookup that should survive
-// navigating to Guess Meaning and back -- MainActivity.kt switches between
-// WordLookupScreen and GuessMeaningScreen with a plain `when` (no
+// navigating to Explanation and back -- MainActivity.kt switches between
+// WordLookupScreen and ExplanationScreen with a plain `when` (no
 // Navigation Compose, see its header comment), which destroys and
 // recreates WordLookupScreen's composition on every switch. Plain
 // `remember { mutableStateOf(...) }` fields don't survive that -- state
@@ -514,7 +520,10 @@ private suspend fun analyze(
 // reported.
 internal class WordLookupScreenState {
     var word by mutableStateOf("")
-    var lenient by mutableStateOf(false)
+    // Note: lenient morphological analysis is NOT here -- it's a persisted
+    // setting (AppSettings.loadLenientAnalysis), loaded fresh in
+    // WordLookupScreen the same way uiLanguage/displayScript/apiKey are, not
+    // per-session UI state.
     var showSettings by mutableStateOf(false)
     var decomposeState by mutableStateOf<DecomposeState>(DecomposeState.Idle)
     var multiWordChoices by mutableStateOf<List<String>?>(null)
@@ -570,9 +579,12 @@ internal fun WordLookupScreen(
     // actually lives in screenState, so it survives this composable being
     // torn down and recreated. See WordLookupScreenState's header comment.
     var word by screenState::word
-    var lenient by screenState::lenient
     var uiLanguage by remember { mutableStateOf(AppSettings.loadLanguage(baseContext)) }
     var displayScript by remember { mutableStateOf(AppSettings.loadDisplayScript(baseContext)) }
+    // Persisted setting (default on), edited from the Settings dialog's
+    // "Morphological analysis" section -- loaded eagerly like the two above,
+    // not held in screenState (see that class's note).
+    var lenient by remember { mutableStateOf(AppSettings.loadLenientAnalysis(baseContext)) }
     // The user's own Claude.ai API key, per Alain's request -- replaces the
     // developer-only key baked into the build (see GuessMeaningEngine.kt).
     // Loaded eagerly, like uiLanguage/displayScript above -- GuessMeaningSection
@@ -602,7 +614,7 @@ internal fun WordLookupScreen(
     var dictionaryLoading by screenState::dictionaryLoading
     // Tusaalanga's fetch failure (network/HTTP error, not just "word not found") --
     // debug-build-only, same purpose as the system-prompt inspection panel in
-    // GuessMeaningScreen.kt: alerts a developer the fetcher broke, not end-user UX.
+    // ExplanationScreen.kt: alerts a developer the fetcher broke, not end-user UX.
     var dictionaryFetchError by screenState::dictionaryFetchError
 
     // Bilingual Hansard examples (see NunavutHansardLocalIndex.kt): searched
@@ -792,6 +804,11 @@ internal fun WordLookupScreen(
                         displayScript = it
                         AppSettings.saveDisplayScript(baseContext, it)
                     },
+                    lenientAnalysis = lenient,
+                    onLenientAnalysisChanged = {
+                        lenient = it
+                        AppSettings.saveLenientAnalysis(baseContext, it)
+                    },
                     apiKey = apiKey,
                     onApiKeyChanged = {
                         apiKey = it
@@ -853,16 +870,6 @@ internal fun WordLookupScreen(
             // the sibling paste crash this same class of bug caused).
             SelectionContainer {
             Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(stringResource(R.string.lenient_switch_label))
-                Switch(checked = lenient, onCheckedChange = { lenient = it })
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             Button(
                 onClick = { findWord(spaldingResultTitle, tusaalangaResultTitle) },
                 enabled = word.isNotBlank() && state != DecomposeState.Loading,
@@ -877,6 +884,18 @@ internal fun WordLookupScreen(
             // real dictionary entry even when the analyzer below finds no
             // decomposition for it (or vice versa); both are shown, independently.
             val guessMeaningState = state
+            // Title for the first of the results area's three sections. Shown
+            // whenever that area has anything in it -- a dictionary hit, the
+            // Guess Meaning flow, a shorter-word hit, or the "checking
+            // dictionaries" spinner.
+            val showDefinitionSection = dictionaryResults.isNotEmpty() ||
+                shouldOfferGuessMeaning(dictionaryResults, dictionaryLoading, lastSearchedWord) ||
+                shorterWordDictionaryResults.isNotEmpty() ||
+                dictionaryLoading
+            if (showDefinitionSection) {
+                SectionHeading(stringResource(R.string.section_title_definition_meaning))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             if (dictionaryResults.isNotEmpty()) {
                 DictionaryResultSection(dictionaryResults, displayScript)
                 Spacer(modifier = Modifier.height(16.dp))
@@ -997,7 +1016,7 @@ internal fun WordLookupScreen(
             // Debug-build-only: alerts a developer that the Tusaalanga fetch itself
             // broke (network/HTTP error), not that the word simply wasn't found --
             // not meant for a normal user's build, same reasoning as the debug-only
-            // system-prompt panel in GuessMeaningScreen.kt.
+            // system-prompt panel in ExplanationScreen.kt.
             if (BuildConfig.DEBUG) {
                 dictionaryFetchError?.let { error ->
                     Text(
@@ -1010,7 +1029,14 @@ internal fun WordLookupScreen(
             }
 
             // Decompositions come before the Hansard bilingual examples, per
-            // Alain's request.
+            // Alain's request. Titled once a search has produced any
+            // decomposition outcome (a spinner, an error, or results);
+            // DecompositionSection's own collapsible header stays, as the
+            // per-word count line under this title.
+            if (state !is DecomposeState.Idle) {
+                SectionHeading(stringResource(R.string.section_title_decomposition))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             when (val s = state) {
                 is DecomposeState.Idle -> {}
                 is DecomposeState.Loading -> CircularProgressIndicator()
@@ -1033,6 +1059,16 @@ internal fun WordLookupScreen(
             }
             if (state is DecomposeState.Success) {
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Title for the third section -- shown whenever the Hansard area
+            // has anything: the on-demand "find examples" button, the search
+            // spinner, or a result/notice.
+            val showExamplesSection = hansardLoading || hansardResult != null ||
+                (dictionaryResults.isNotEmpty() && !dictionaryLoading)
+            if (showExamplesSection) {
+                SectionHeading(stringResource(R.string.section_title_examples))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             // A dictionary hit doesn't auto-search the Hansard (see findWord()) --
@@ -1102,17 +1138,24 @@ internal fun WordLookupScreen(
                     }
                 }
             }
-            if (BuildConfig.DEBUG) {
-                NunavutHansardLocalIndex.debugStatus(baseContext)?.let { status ->
-                    Text(text = "Hansard DB: $status", style = MaterialTheme.typography.labelSmall)
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            }
             }
             }
         }
     }
     }
+}
+
+// One consistent look for every section heading -- both the Settings dialog
+// and the three top-level sections of the results area (definition/meaning,
+// decomposition, bilingual examples): bold and a step larger than the
+// section's own body text, so the sections read as distinct blocks.
+@Composable
+private fun SectionHeading(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
@@ -1121,6 +1164,8 @@ private fun SettingsDialog(
     onLanguageSelected: (AppLanguage) -> Unit,
     displayScript: DisplayScript,
     onDisplayScriptSelected: (DisplayScript) -> Unit,
+    lenientAnalysis: Boolean,
+    onLenientAnalysisChanged: (Boolean) -> Unit,
     apiKey: String,
     onApiKeyChanged: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -1148,7 +1193,7 @@ private fun SettingsDialog(
             Column {
                 SelectionContainer {
                 Column {
-                Text(stringResource(R.string.ui_language_label), style = MaterialTheme.typography.labelMedium)
+                SectionHeading(stringResource(R.string.ui_language_label))
                 Row {
                     AppLanguage.entries.forEach { language ->
                         TextButton(onClick = { onLanguageSelected(language) }) {
@@ -1162,7 +1207,7 @@ private fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(stringResource(R.string.display_script_label), style = MaterialTheme.typography.labelMedium)
+                SectionHeading(stringResource(R.string.display_script_label))
                 Column {
                     val labelFor = mapOf(
                         DisplayScript.ROMAN to R.string.display_script_roman,
@@ -1181,12 +1226,36 @@ private fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Morphological-analysis options. Just the one toggle for now
+                // (lenient analysis, moved here from the main screen per
+                // Alain's request); its own section so more analyzer options
+                // have an obvious home later.
+                SectionHeading(stringResource(R.string.settings_morphology_section))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.lenient_switch_label))
+                    // scale(): Material3's Switch has no size parameter and
+                    // its default is visually heavy next to this dialog's
+                    // text -- Alain asked for it smaller.
+                    Switch(
+                        checked = lenientAnalysis,
+                        onCheckedChange = onLenientAnalysisChanged,
+                        modifier = Modifier.scale(0.8f).testTag("lenient_analysis_switch"),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Per Alain's request: Guess Meaning now uses the user's own
                 // Claude.ai key instead of one baked into the build (see
                 // GuessMeaningEngine.kt) -- GuessMeaningSection routes here
                 // (see its onNeedApiKey) the first time the button is tapped
                 // with none set yet, which is why this message is phrased as
                 // an explanation, not just a field label.
+                SectionHeading(stringResource(R.string.settings_ai_section))
                 Text(
                     text = stringResource(R.string.settings_api_key_message),
                     style = MaterialTheme.typography.labelMedium,
@@ -1575,8 +1644,24 @@ internal fun HansardExamplesSection(
         }
         Spacer(modifier = Modifier.height(8.dp))
     }
+    // The whole attribution line is a link to the corpus's official NRC
+    // Digital Repository page (see NunavutHansardLocalIndex.NRC_CORPUS_URL) --
+    // Text renders LinkAnnotation spans as tappable, opening the system
+    // browser, no onClick wiring of our own needed.
+    val attributionLinkColor = MaterialTheme.colorScheme.primary
     Text(
-        text = stringResource(R.string.hansard_attribution),
+        text = buildAnnotatedString {
+            withLink(
+                LinkAnnotation.Url(
+                    url = NunavutHansardLocalIndex.NRC_CORPUS_URL,
+                    styles = TextLinkStyles(
+                        SpanStyle(color = attributionLinkColor, textDecoration = TextDecoration.Underline),
+                    ),
+                ),
+            ) {
+                append(stringResource(R.string.hansard_attribution))
+            }
+        },
         style = MaterialTheme.typography.labelSmall,
     )
 }
@@ -1602,6 +1687,15 @@ private fun HansardDownloadSection(onDownloaded: suspend () -> Unit) {
 
     when (val p = progress) {
         null, is HansardDownloadProgress.Failed -> {
+            // Plain-language explanation of why there are no examples yet and
+            // what to do about it, per Alain's request -- replaces relying on
+            // the bare (debug-only) "index not found on this device" line to
+            // convey it.
+            Text(
+                text = stringResource(R.string.hansard_install_prompt),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             p?.let { failed ->
                 Text(
                     text = stringResource(R.string.hansard_download_failed, failed.message),

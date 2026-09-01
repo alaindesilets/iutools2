@@ -50,8 +50,10 @@ import kotlinx.coroutines.launch
  * AppSettings.loadApiKey), not a key baked into the build -- the button's
  * first tap checks for one before ever calling the backend, and routes to
  * Settings instead (see onNeedApiKey) if none is set yet, rather than
- * failing the call and showing an auth error. Irrelevant when useLocalModel
- * is true -- the on-device backend needs no key at all.
+ * failing the call and showing an auth error. Skipped when useLocalModel is
+ * true -- though no current caller ever sets it true, since the on-device
+ * backend it would select is disabled (see
+ * composeApp/disabled-features/local-llm/README.md).
  */
 @Composable
 internal fun GuessMeaningSection(
@@ -86,10 +88,7 @@ internal fun GuessMeaningSection(
     val context = LocalContext.current
     val systemPrompt = stringResource(R.string.chat_system_prompt)
     val unauthorizedErrorMessage = stringResource(R.string.chat_error_unauthorized)
-    val localModelMissingMessage = stringResource(
-        R.string.local_llm_model_missing,
-        LocalLlmEngine.modelDirectory(context).absolutePath,
-    )
+    val localModelDisabledMessage = stringResource(R.string.local_llm_disabled_message)
     val genericErrorTemplate = stringResource(R.string.chat_error)
 
     // Fixed for this attempt (a fresh word, a different backend, or a
@@ -127,7 +126,7 @@ internal fun GuessMeaningSection(
                 apiKey = apiKey,
                 modelStats = modelStats,
                 unauthorizedErrorMessage = unauthorizedErrorMessage,
-                localModelMissingMessage = localModelMissingMessage,
+                localModelDisabledMessage = localModelDisabledMessage,
                 genericErrorTemplate = genericErrorTemplate,
                 onMessagesChanged = { conversations[key] = it },
             )

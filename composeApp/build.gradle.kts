@@ -96,13 +96,12 @@ dependencies {
     // has the deprecated API.
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // local-llm-spike branch: on-device inference for Guess Meaning, as an
-    // alternative to the Claude API call above. LiteRT-LM, not MediaPipe's
-    // tasks-genai -- the latter is Google's own recommendation as of this
-    // writing, since MediaPipe LLM Inference is now maintenance-only. Native
-    // Kotlin API (Engine/Conversation, Flow-based streaming), Gemma models
-    // distributed as .litertlm files (see LocalLlmEngine.kt).
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.13.1")
+    // On-device inference for Guess Meaning (an alternative to the Claude API
+    // call above) is disabled for now, per Alain's request -- the code is
+    // kept, just not compiled or shipped in the app; see
+    // composeApp/disabled-features/local-llm/README.md for what it was and
+    // how to bring it back, including re-adding this dependency:
+    // implementation("com.google.ai.edge.litertlm:litertlm-android:0.13.1")
 
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)

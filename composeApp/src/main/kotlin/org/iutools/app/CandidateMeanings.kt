@@ -2,11 +2,12 @@ package org.iutools.app
 
 /*
  * Pulls the "Candidate meanings:" bullet list, and the reasoning text before
- * it, back out of a chat reply's raw text -- both backends (Claude in
- * GuessMeaningScreen.kt, the local model in LocalLlmEngine.kt) share the
- * exact same system prompt contract asking for this section verbatim, so
- * these two parsers cover either. extractCandidateMeanings() feeds the "AI
- * best guesses" section (see doc/spike-llm-local-iutools-mobile.md, Phase 6);
+ * it, back out of a chat reply's raw text -- Claude's replies follow this
+ * system prompt contract (see GuessMeaningEngine.kt), asking for this
+ * section verbatim, so this parser can extract it. (The now-disabled
+ * on-device backend shared the same contract too -- see
+ * composeApp/disabled-features/local-llm/README.md.)
+ * extractCandidateMeanings() feeds the "AI best guesses" section;
  * extractExplanation() feeds the "Explain" button next to it, added per
  * Alain's request so a normal user only sees the model's reasoning if they
  * ask for it, rather than it being part of the main answer.

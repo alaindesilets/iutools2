@@ -17,8 +17,8 @@ import org.robolectric.annotation.Config
  * SelectionContainer/TextField crash (see RealAndroidContext's header
  * comment in WordLookupScreen.kt): splitting the screen's single
  * SelectionContainer around word_input left the second half wrapping
- * several sibling composables (the lenient switch Row, the find-word
- * Button, dictionary/decomposition/Hansard sections...) directly, with no
+ * several sibling composables (the find-word Button,
+ * dictionary/decomposition/Hansard sections...) directly, with no
  * Column arranging them -- SelectionContainer doesn't stack multiple
  * children vertically the way a Column does, so everything below
  * word_input rendered on top of itself at the same position (confirmed

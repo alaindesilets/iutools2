@@ -11,8 +11,8 @@ import java.util.Calendar
  * response.usage() token counts and the price table below, not read back
  * from Anthropic's own billing. Local-model calls are never priced --
  * estimatedCostUsd() returns null for any model not in
- * PRICING_PER_MILLION_TOKENS_USD, which GuessMeaningScreen.kt takes as
- * "don't show a cost for this reply".
+ * PRICING_PER_MILLION_TOKENS_USD, which callers (GuessMeaningInline.kt,
+ * GuessMeaningEngine.kt) take as "don't show a cost for this reply".
  *
  * Broken down **per model**, not one lumped total: Alain is planning to try
  * other online models (GPT-4, Qwen, Gemini, ...) alongside Claude to compare
@@ -32,7 +32,7 @@ import java.util.Calendar
 private data class ModelPricing(val inputPerMillionUsd: Double, val outputPerMillionUsd: Double)
 
 // $/1M tokens, from Anthropic's published pricing at the time this was
-// written -- update here if MODEL (GuessMeaningScreen.kt) changes model, or
+// written -- update here if MODEL (GuessMeaningEngine.kt) changes model, or
 // Anthropic changes its prices. Add an entry here for each new online model
 // as it's wired up (see this file's header comment) -- a model with no entry
 // is simply never priced (estimatedCostUsd() returns null for it).
