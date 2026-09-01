@@ -775,14 +775,12 @@ LEXICON VnSuffixes
 ! "maannauju" = {maanna:maanna/1a}{u:u/1nv}{ju:juq/1vn} -- gold attests
 ! juq/1vn's own trailing q dropped at the bare terminal (no ending
 ! follows), a free spelling variant of the plain "juq" terminal above.
-++juq+1vn:ju # ;
 
 ! "ju" (above) had only ever been tested at the bare terminal, the same
 ! "only tested one way" gap this project keeps re-finding -- missing its
 ! own continuation meant "qaujimajuinnaugatta" (needs "ju" to reach
 ! innaq/1nn in NnSuffixes) couldn't be found at all, confirmed via the
 ! real Java analyzer's own output before wiring.
-++juq+1vn:ju NounContinuations ;
 ++juq+1vn:juq AfterJuqTriggerSuffix ;
 
 ! "naammasaqtuit"/"naammasaqtut" need juq/1vn's own "tuq" spelling with
@@ -1206,8 +1204,6 @@ LEXICON NnSuffixes
 ! (truncated "t", not "it") falls out for free from the existing DECAP
 ! mechanism: "ralaa" ends in two vowels, the same trigger
 ! "kikkulimaat" already exercises.
-++ralaaq+1nn:ralaa # ;
-++ralaaq+1nn:ralaa NounContinuations ;
 
 ! "tamaaq"/1nn: "arraagutamaat" = {arraagu:arraagu/1n}{tamaa:tamaaq/1nn}
 ! {t:it/tn-nom-p} -- own rule is trivial (all four contexts Neutral,
@@ -1345,10 +1341,7 @@ immaqaa+1a:immaqa NounContinuations ;
 ikpaksaq+1a:ippaksaq NounContinuations ;
 ikpaksaq+1a:ippassaq NounContinuations ;
 ikpaksaq+1a:ippatsaq NounContinuations ;
-qanuq+1a:qanu NounContinuations ;
-qujannamiik+1a:qujannamii NounContinuations ;
 suurlu+1a:surlu NounContinuations ;
-uattiaruk+1a:uattiaru NounContinuations ;
 
 maanna+1a:maanna # ;
 

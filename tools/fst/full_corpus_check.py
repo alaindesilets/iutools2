@@ -25,7 +25,17 @@ easily miss.
 
 Usage (from tools/fst/, after building lexicon-analyser.hfstol per
 phonology.xfscript's header):
-    python3 full_corpus_check.py [--show-wrong] [--show-missing N] [--fair]
+    python3 full_corpus_check.py [--show-wrong] [--show-missing N] [--fair] [--strict]
+
+The FST is evaluated LENIENT by default (weight <= 1.0, i.e. including
+phonology.xfscript's own LENIENT final-consonant-drop rule). That matches
+the real :cli accuracy suite -- which evaluates Benoit with
+extendedAnalysis/--lenient-decomps ON -- and matches how the gold standard
+was built, so it's a like-for-like comparison. --strict counts only
+weight-0 analyses (what this script used to do); the histograms happen to
+be identical right now, but strict-FST vs. lenient-gold is not a fair
+comparison and hand entries were being added to lexicon.lexc to paper over
+the difference.
 
 --fair drops the same misspelled/proper-name/borrowed/decomp-unknown
 words the real :cli accuracy suite itself doesn't evaluate (see
@@ -63,8 +73,16 @@ def main():
                               "skips (misspelled/proper-name/borrowed/decomp-unknown), "
                               "for a like-for-like comparison against AGENTS.md's own "
                               "919-word :cli figures")
+    parser.add_argument("--strict", action="store_true",
+                         help="count only weight-0 FST analyses. The DEFAULT is "
+                              "lenient (weight <= 1.0), matching the real :cli "
+                              "accuracy suite -- which evaluates Benoit with "
+                              "extendedAnalysis/--lenient-decomps ON -- and matching "
+                              "how the gold standard itself was built. Strict FST vs. "
+                              "lenient gold is not a like-for-like comparison.")
     args = parser.parse_args()
 
+    lenient = not args.strict
     grouped = group_by_word(load_words(exclude_flagged=args.fair))
 
     histogram = Counter()
@@ -73,7 +91,7 @@ def main():
 
     for word, gold_morph_lists in grouped.items():
         gold_parses = [list(morphemes) for morphemes in gold_morph_lists]
-        analyses = hfst_analyses(word)
+        analyses = hfst_analyses(word, lenient=lenient)
         hfst_parses = [parse_hfst_analysis(a) for a in analyses]
 
         category = categorize(gold_parses, hfst_parses)
@@ -85,7 +103,8 @@ def main():
             missing_words.append(word)
 
     total = len(grouped)
-    print(f"Full gold-standard corpus check ({total} distinct words):")
+    print(f"Full gold-standard corpus check ({total} distinct words, "
+          f"{'STRICT' if args.strict else 'lenient'} FST):")
     for category in [
         "first-decomposition-correct",
         "correct-but-not-first",

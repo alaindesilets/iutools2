@@ -27,7 +27,9 @@ def main():
 
     correct = []
     for word, gold_parses in grouped.items():
-        analyses = hfst_analyses(word)
+        # lenient, matching full_corpus_check.py's default and the real
+        # :cli accuracy suite (which runs Benoit with --lenient-decomps).
+        analyses = hfst_analyses(word, lenient=True)
         hfst_parses = [parse_hfst_analysis(a) for a in analyses]
         category = categorize(gold_parses, hfst_parses)
         if category in ("first-decomposition-correct", "correct-but-not-first"):
