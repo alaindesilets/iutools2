@@ -335,16 +335,6 @@ LEXICON NounEndings
 ++ptingnik+tn-acc-p-1p:ttinnik # ;
 ++ptingnut+tn-dat-p-1p:ttinnut # ;
 
-! "ga"/tn-nom-s-1s ("my X"): Endings_noun.csv gives TWO real candidates
-! here, not one: V-context "ga" (Neutral, plain) confirmed via
-! "apiqqutiga" (root chain ends in vowel "i"); q-context "ra" (Fusion --
-! mechanically identical to SUPPR, deletes the preceding q) confirmed via
-! BOTH "apiqqusira" (usiq's own "qusiq" candidate, q kept) and
-! "tungilira" (root "tungiliq", q-final) -- two independent roots
-! agreeing on the same q-context form, not a guess. t/k-context
-! (Insertion "i" / Suppression) not attempted: no gold word in this
-! cluster needs them.
-
 
 ! "it"/tn-nom-p: {arna:arnaq/1n}{it:it/tn-nom-p} = "arnait" and
 ! {iglu:iglu/1n}{it:it/tn-nom-p} = "igluit". Endings_noun.csv's "it" row
@@ -392,95 +382,6 @@ LEXICON NounEndings
 ! methodology, no reference output to check against here.
 ++it+tn-nom-p:i # ;
 
-! "Lever A": the id-conditional q-context pattern shared by mut/tn-dat-s,
-! mik/tn-acc-s, mi/tn-loc-s, nit/tn-abl-p, ni/tn-loc-p, nik/tn-acc-p.
-! Endings_noun.csv's q-form/q-action1/q-action2 for each of these endings
-! carries TWO space-separated candidates:
-!   candidate A: the ending's own text unchanged, action1 =
-!     "if(id:juq/1vn|id:ksaq/1nn|id:jaq/3vn[|id:jaq/1vn],s,nas)" -- a
-!     genuinely deterministic conditional (confirmed by reading
-!     core/.../morph/r2l/MorphAnalyzerValidation.kt's
-!     validate_conditionaldeletion_null/validate_conditionalnasalization_null
-!     and MorphologicalAnalyzer_R2L.kt's checkValidityOfRoot: the source
-!     analyzer defers this exact condition as a constraint checked against
-!     whichever morpheme the real search actually finds immediately
-!     preceding, NOT resolved by guessing -- so "the id of the immediately
-!     preceding morpheme" is a real, checkable fact, not lexical
-!     ambiguity): IF that preceding morpheme's id is one of {juq/1vn,
-!     ksaq/1nn, jaq/3vn} (jaq/1vn also listed for mut specifically) THEN
-!     Suppression (delete the preceding q) ELSE Nasalization (q->r,
-!     reusing NASAL).
-!   candidate B: the ending's own text unchanged, action1=Neutral,
-!     action2=Suppression -- a SECOND, unconditioned candidate that also
-!     deletes a preceding q, independent of the conditional above.
-! Real gold words confirm BOTH candidates are independently attested, not
-! redundant: "maligarmut"/"maligarmi"/"maligarmik"/"maligarnit" (root
-! "malik"+"gaq"/1vn, NOT a trigger id -> candidate A's ELSE branch,
-! Nasalization: q->r) versus "nutaamut"/"nutaami"/"nutaamik"/"nutaanit"/
-! "nutaanik" (root "nutaaq" directly, also not a trigger id, but here
-! candidate B applies: plain Suppression, q simply deleted, no "r") --
-! same root class (a bare noun root), genuinely two different outcomes,
-! not something guessable from the CSV row alone. Both wired as separate
-! lexc entries (NASAL-marked = candidate A's else-branch, SUPPR-marked =
-! candidate B) reachable from the generic NounEndings hub (any q-final
-! stem), exactly mirroring how the source analyzer's own real
-! backtracking search offers both and lets whichever one matches the
-! actual word win -- hfst-lookup does the same thing here, returning
-! multiple analyses, same accepted pattern as every other multi-candidate
-! lexc entry in this file (e.g. "vugut"'s V vs t/k branches).
-!
-! Candidate A's THEN branch (Suppression, triggered specifically by a
-! preceding juq/1vn, ksaq/1nn, or jaq/1vn -- jaq/3vn not implemented) is
-! wired separately, in a dedicated "NounEndingsAfterQTriggerSuffix"
-! lexicon below, reached from juq/1vn's own and ksaq/1nn's own entries
-! (VnSuffixes/NnSuffixes below). Confirmed against "maannaujumi" (juq
-! trigger, mi), "angijumik" (juq trigger, mik), "aviktursimajuni" (juq
-! trigger, ni), "maligaksanit" (ksaq trigger, nit) -- all four, the
-! trigger morpheme's own trailing q is deleted (Suppression) rather than
-! nasalized. mut's own trigger branch and jaq/1vn's own wire into this
-! lexicon are NOT added: no gold word in the current lexicon's reach
-! needs them yet -- deferred rather than wired speculatively. ni's own
-! default (non-trigger) NASAL/SUPPR branches are likewise NOT wired: no
-! gold word attests either one for "ni" specifically with a root already
-! in this lexicon.
-!
-! Known extra false-positive risk from this default-branch SUPPR-marked
-! entries specifically (distinct from candidate A's NASAL entries, which
-! only ever touch a genuine q): SUPPR was always defined to delete
-! whatever consonant precedes it out of q/k/t INDISCRIMINATELY, reachable
-! now from the generic NounEndings hub, it fires for a T-FINAL root
-! reaching one of these new entries too, not just the Q-final case
-! candidate B's CSV row was actually describing (confirmed:
-! "milianik"/"milianit" -- unrelated gold words with root "milian" --
-! now also match via bulk-generated root "miliat" + SUPPRnik/SUPPRnit,
-! "miliat"'s own final t deleted the same way a q would be). Same
-! accepted/canary-tracked risk category as every other plain-unmarked or
-! generically-scoped entry in this file, not a new kind of bug --
-! full_corpus_check.py's correct-not-present count is the ongoing signal.
-!
-! "mut"/tn-dat-s: "arraagumut" = {arraagu:arraagu/1n}{mut:mut/tn-dat-s}
-! (V-context, plain, single candidate). The t-context is NOT implemented:
-! it has three candidate forms and no algorithmic disambiguator. The
-! q-context is Lever A itself, described above. A consonant-final root
-! reaching the plain V-context entry concatenates "mut" unchanged, which
-! is likely WRONG for a t-final stem (not modeling the real t-context
-! behavior) -- a known, accepted risk, canary-checked by rerunning
-! tools/fst/full_corpus_check.py (its "correct-not-present" count is
-! exactly the signal for this).
-
-! "mit"/tn-abl-s: same Lever A shape as mut/nik/etc's default branch
-! (plain/NASAL/SUPPR wired in parallel; its own q-form is the same
-! id-conditional pattern as those, and "paaq"/1nn -- see
-! "kingulliqpaamit"/"sivulliqpaamit" -- isn't one of the trigger ids, so
-! it falls to the default branch).
-
-! "nik"/tn-acc-p: "arraagunik" = {arraagu:arraagu/1n}{nik:nik/tn-acc-p}
-! -- V-context only (V-form=nik/Neutral, single candidate). The
-! t/k-context is deferred the same way as mut's t-context (k-context is
-! the Lever A id-conditional pattern); same accepted plain-unmarked-entry
-! risk as "mut", canary-checked by full_corpus_check.py's
-! "correct-not-present" count.
-
 ! "ngit"/tn-nom-p-4s: "akingit" = {aki:aki/1n}{ngit:ngit/tn-nom-p-4s}
 ! (V-context, plain) and "atingit" = {ati:atiq/1n}{ngit:ngit/tn-nom-p-4s}
 ! (q-context, root's final q deleted). V-form=ngit/Neutral,
@@ -496,39 +397,14 @@ LEXICON NounEndings
 ! shape as "it"/tn-nom-p's own "t"-only candidate above.
 ++ngit+tn-nom-p-4s:SUPPRngi # ;
 
-! Also a SUPPR-prefixed default-branch candidate (Lever A's own
-! q-context pattern, described above, extended to "ni" specifically):
-! "avittuqsimajuni" needs "juq"/1vn's own trailing q deleted before
-! "ni" attaches -- not attested for "ni" before now (see the Lever A
-! comment above, which explicitly deferred this), confirmed by this
-! real example rather than wired speculatively.
-
-! "mik"/tn-acc-s: "ministamik" = {minista:minista/1n}{mik:mik/tn-acc-s}.
-! V-only, same deferral pattern as "mut"/"nik". (Not "illumik" =
-! {illu:iglu/1n}{mik:mik/tn-acc-s}, despite "iglu" already being a
-! lexicon root: it surfaces here as "illu" -- a g->l alternation not seen
-! when the same root attaches to "it"/tn-nom-p ("igluit", unchanged) --
-! not understood yet, avoided rather than guessed at.)
-
-! "nginnut"/tn-dat-p-4s: "akinginnut" =
-! {aki:aki/1n}{nginnut:nginnut/tn-dat-p-4s}. V+k+q (all single candidate,
-! k/q both Suppression, reuses SUPPR); t-context ambiguous, deferred.
-! Note: Endings_noun.csv has TWO "nginnut" rows (perPoss=4, numbPoss=s vs
-! numbPoss=p) -- used the numbPoss=s one (matches the gold id
-! "tn-dat-p-4s" exactly); the numbPoss=p row is a different id, not
-! implemented.
-
-! "nginnik"/tn-acc-p-4s: same shape as nginnut/nginnit/nginni (V-context
-! Neutral, reuses SUPPR for the k/q-context Suppression rows, none of
-! which are gold-attested here).
-
 ! "nut"/tn-dat-p: same shared NounEndings hub deliberately serves "it"
 ! (reached from bare noun roots via NounContinuations) and "nut" (reached
 ! from NnSuffixes-derived stems like "kkut"): "it" and "nut" should
 ! always be the same reachable set, since ANY noun-like stem can take ANY
 ! tn-ending -- e.g. "tuinnaq"/1nn (NnSuffixes) needs to reach "it" too.
-! Gained the same default-branch NASAL/SUPPR pair as Lever A's other
-! endings above: "surusirnut" (root "surusiq", Nasalization: q->r) versus
+! Gained the same default-branch NASAL/SUPPR pair as the other Lever A
+! endings (see generate_affixes.py's "Lever A" investigation note):
+! "surusirnut" (root "surusiq", Nasalization: q->r) versus
 ! "nutaanut"/"ukiunut" (roots "nutaaq"/"ukiuq", Suppression: q simply
 ! deleted) -- same root-dependent split, both real. nut's own TRIGGER
 ! branch (Suppression when preceded specifically by juq/1vn/ksaq/1nn/
@@ -553,31 +429,6 @@ LEXICON NounEndings
 ! (lu/1q's own enclitic can follow a fully-inflected noun, same
 ! established pattern as "ga"/tn-nom-s-1s etc above).
 ++nut+tn-dat-p:nu QParticles ;
-
-! "inuktitut" (k preserved, NOT assimilated) is ALSO gold-attested
-! alongside "inuttitut" above -- previously left unimplemented on the
-! assumption it was purely the lexicalized proper-noun spelling of the
-! language name, not reachable without "fighting" the general k->t
-! rule. Now that KGUARD exists (built for "qulluktuq"'s own root-
-! internal k->t self-corruption), the same trick generalizes to an
-! inter-morpheme boundary: a KGUARD-prefixed candidate here blocks the
-! rule for JUST this parallel path, while the plain "titut" candidate
-! above still assimilates normally for whatever other roots need it --
-! not decomposable by the real Java analyzer either (confirmed via
-! --pipeline).
-
-! "mi"/tn-loc-s: "arraagumi" = {arraagu:arraagu/1n}{mi:mi/tn-loc-s} --
-! V-context only (V-form=mi/Neutral, single candidate). t/k/q-contexts
-! NOT implemented: t-context has two candidates (Assimilation/Insertion,
-! no algorithmic disambiguator); k-context's action is the Lever A
-! id-conditional pattern. Same accepted plain-unmarked-entry risk as
-! "mut"/"nik", canary-checked by full_corpus_check.py's
-! "correct-not-present" count.
-
-! "nit"/tn-abl-p: "arraagunit" = {arraagu:arraagu/1n}{nit:nit/tn-abl-p}
-! -- V-context only (V-form=nit/Neutral, single candidate). t-context has
-! two candidates (Assimilation/Insertion, no disambiguator); q-context is
-! Lever A, described above.
 
 ! "up"/tn-gen-s: "arraaguup" = {arraagu:arraagu/1n}{up:up/tn-gen-s}
 ! (V-context, plain concatenation). Same action1+action2 shape as
@@ -820,8 +671,9 @@ LEXICON VnSuffixes
 ! "NounEndings", where "nik" ALSO independently lives, for the general
 ! case): several endings' own CSV rows delete a preceding q specifically
 ! when the id of what precedes them is juq/1vn (or ksaq/1nn, jaq/3vn/1vn
-! -- a genuinely id-conditional context, "Lever A", see NounEndings
-! above). Scoping it to a dedicated lexicon means this q-deletion stays
+! -- a genuinely id-conditional context, "Lever A", see
+! generate_affixes.py's investigation note). Scoping it to a dedicated
+! lexicon means this q-deletion stays
 ! specific to "reached right after one of these specific trigger
 ! suffixes" -- it doesn't leak into the general NounEndings case, whose
 ! own q-context uses a DIFFERENT mechanism (Nasalization by default).
@@ -1111,7 +963,7 @@ LEXICON NnSuffixes
 ! vowel. And a continuation into NounEndingsAfterQTriggerSuffix --
 ! "maligaksanit" needs "nit"/tn-abl-p's own trigger-branch (Suppression)
 ! reached right after "ksaq", since ksaq/1nn is one of the trigger ids
-! for Lever A (see NounEndings above).
+! for Lever A (see generate_affixes.py's investigation note).
 ++ksaq+1nn:SUPPRksaq NounEndingsAfterQTriggerSuffix ;
 
 ! "ksaq" also has two further literal spellings Suffixes.csv doesn't
@@ -1473,8 +1325,8 @@ LEXICON VvSuffixes
 ! "tunngasugitsi" (gipsi/tv-imp-2p) -- Hansard parliamentary transcripts
 ! essentially never contain direct commands, so this family's CSV row
 ! count wildly overstates its real marginal value in THIS corpus
-! (contrast Lever A's endings, each independently backed by many gold
-! words). Implemented only what's cleanly gold-attested: "suk"/1vv (root
+! (contrast the dat/abl/loc/acc noun endings, each independently backed
+! by many gold words). Implemented only what's cleanly gold-attested: "suk"/1vv (root
 ! "tunnga", V-context Neutral, its t/k-context Suppression is unrelated
 ! to and unaffected by the PMARK-scope issue that blocks
 ! "quviasukpunga" -- that collision is specifically about suk's own k

@@ -1628,5 +1628,33 @@ if __name__ == "__main__":
 # q simply absent -- not a conditional SUPPR-deletion, the surface is
 # unconditionally "ralaa". "katimajiralaat" then falls out of the
 # existing DECAP mechanism (two vowels before the ending).
+#
+# ── "Lever A": the q-context of mut/mik/mi/nit/ni/nik/tn-* (migrated from lexicon.lexc) ──
+# Endings_noun.csv's q-form for each of these dat/abl/loc/acc endings
+# lists TWO space-separated candidates:
+#   A. text unchanged, action1 = if(id:juq/1vn|id:ksaq/1nn|id:jaq/3vn
+#      [|id:jaq/1vn for mut], s, nas): IF the immediately-preceding
+#      morpheme's id is a trigger THEN Suppression (delete its q) ELSE
+#      Nasalization (q -> r, the NASAL marker). The condition is a real
+#      checkable fact, not lexical ambiguity -- MorphAnalyzerValidation.kt
+#      (validate_conditionaldeletion_null / _conditionalnasalization_null)
+#      and MorphologicalAnalyzer_R2L.kt's checkValidityOfRoot defer it as
+#      a constraint on whatever the search actually finds preceding.
+#   B. text unchanged, action1 Neutral, action2 Suppression -- a SECOND,
+#      UNCONDITIONED q-deletion. (This is the action2 == "s" case
+#      candidates_for_context() now handles: emits a SUPPR-prefixed
+#      variant.)
+# Both are independently gold-attested, not redundant: "maligarmut"
+# (root malik + gaq/1vn, not a trigger id -> A's ELSE branch, q->r) vs
+# "nutaamut" (root nutaaq, also not a trigger -> B: plain q deletion, no
+# "r"). The generator wires A's ELSE branch as NASAL* and B as SUPPR*,
+# both reachable from the generic NounEndings hub.
+# A's THEN branch (Suppression triggered by a preceding juq/1vn or
+# ksaq/1nn) lives in the dedicated NounEndingsAfterQTriggerSuffix
+# lexicon, reached from those trigger suffixes' own entries.
+# Accepted false-positive risk: SUPPR deletes a preceding q/k/t
+# indiscriminately, so B's SUPPR* entries also fire for a t-final root
+# (e.g. bulk root "miliat" + SUPPRnik -> "milianik"). Tracked by
+# full_corpus_check.py's correct-not-present count.
 # ═
 # ════════════════════════════════════════════════════════════════════════
