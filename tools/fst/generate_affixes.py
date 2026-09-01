@@ -608,7 +608,12 @@ def gen_suffixes():
         | set(MODE_LEXICON.values())
         | set(NOUN_NUMBER_LEXICON.values())
     )
-    entries_by_lexicon = {lex: [] for lex in all_lexicons}
+    # sorted(): all_lexicons is a set, so iterating it raw makes the
+    # order of the LEXICON blocks in the output file depend on
+    # PYTHONHASHSEED -- i.e. a different, meaningless reordering every
+    # run. Sorting makes the generated file byte-reproducible (and its
+    # git diffs readable, and hfst-lookup's enumeration order stable).
+    entries_by_lexicon = {lex: [] for lex in sorted(all_lexicons)}
     tags_used = set()
     seen = set()
     skipped_condition = 0
@@ -818,12 +823,13 @@ def gen_endings():
         "TnEndingsGenerated" + SPECULATIVE_LEXICON_SUFFIX: [],
         "TvEndingsGenerated" + SPECULATIVE_LEXICON_SUFFIX: [],
     }
-    for lex in (
+    for lex in sorted(
         set(TRIGGER_LEXICON.values())
         | set(PL_LEXICON.values())
         | set(MODE_LEXICON.values())
         | set(NOUN_NUMBER_LEXICON.values())
-    ):
+    ):  # sorted(): see the matching note in gen_suffixes() -- keeps the
+        # LEXICON-block order (and so the output file) reproducible.
         entries_by_lexicon.setdefault(lex, [])
     tags_used = set()
     seen = set()

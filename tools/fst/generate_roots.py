@@ -323,7 +323,10 @@ def load_pronouns_csv():
 
 
 def main():
-    entries_by_lexicon = {lex: [] for lex in set(ROOTS_CSV_TYPE_MAP.values())}
+    # sorted(): iterating the set raw makes the LEXICON-block order in
+    # roots-generated.lexc depend on PYTHONHASHSEED (a meaningless
+    # reshuffle every run). Sorting keeps the output byte-reproducible.
+    entries_by_lexicon = {lex: [] for lex in sorted(set(ROOTS_CSV_TYPE_MAP.values()))}
     tags_used = set()
     seen_entries = set()
     skipped = 0
