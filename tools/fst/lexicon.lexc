@@ -20,6 +20,16 @@
 ! analyser direction used by hfst-lookup is produced by composing with
 ! phonology.xfscript's rules and then inverting -- see that file's header
 ! for the exact build commands.
+!
+! GOLD-STANDARD FITTING -- read tools/fst/gold-standard-fitting.md.
+! Because this file grew one gold word at a time, some entries below exist
+! because a specific gold-standard word needed them, NOT because the CSV
+! data says so -- most notably ~40-70 Roman-orthography spelling variants
+! (iglu->illu, kanangnaq->kanannaq, taamna->tanna, ...) that are absent
+! from the CSV "variant" column and stand in for a general
+! cluster-assimilation rule Benoit's analyzer applies from the CSV alone.
+! ~62 of the 920 --fair correct words depend on this hand layer. Each such
+! entry's own comment says how it was added; the .md file inventories them.
 
 Multichar_Symbols +1n +1v +1vn +1nv +1nn +1c +1e +1a +1p +1q +1vv +2vn
   +tn-nom-s-4s +tn-dat-p +tv-ger-3p +tn-nom-p +tn-dat-s +tn-acc-p
@@ -95,9 +105,6 @@ DemonstrativePronounRootsGenerated ;
 ! phonological alternation: "akinga" = {aki:aki/1n}{nga:nga/tn-nom-s-4s}.
 
 LEXICON Nouns
-aki+1n:aki NounContinuations ;
-arnaq+1n:arnaq NounContinuations ;
-iglu+1n:iglu NounContinuations ;
 
 ! "illu" spelling variant of "iglu" (1n, canonical "iglu" per gold:
 ! "{illu:iglu/1n}") -- NOT a conditioned alternation despite looking
@@ -196,21 +203,6 @@ ubluq+1n:ulluq NounContinuations ;
 kanangnaq+1n:kanannaq NounContinuations ;
 uangnaq+1n:uannaq NounContinuations ;
 
-! "minista" (loanword "minister") and "piliriaq" ("program; item") come
-! from LoanWords.csv and UndecomposableCompositeWords.csv respectively --
-! root CSVs that exist (core/.../dataCSV/) but that generate_roots.py's
-! bulk pass doesn't cover.
-minista+1n:minista NounContinuations ;
-piliriaq+1n:piliriaq NounContinuations ;
-
-! "gavama" ("government", LoanWords.csv) hand-added, same reasoning as
-! "minista"/"piliriaq" above.
-gavama+1n:gavama NounContinuations ;
-
-! "tusaaji" ("interpreter", WordsRelatedToRoots.csv) hand-added -- a root
-! CSV generate_roots.py's bulk pass doesn't cover.
-tusaaji+1n:tusaaji NounContinuations ;
-
 ! "missa"/"mitsa" spelling variants of the bulk-generated "miksa" root
 ! (1n, canonical "miksa" per gold: "{missa:miksa/1n}"/"{mitsa:miksa/1n}")
 ! -- the bulk generator only emits the identity spelling for this root.
@@ -225,7 +217,6 @@ miksa+1n:mitsa NounContinuations ;
 ! ("nunavu", the other gold-attested outcome for the same context --
 ! genuine free variation, same shape as usiq/naq/miik elsewhere in this
 ! file).
-nunavut+1n:nunavut NounContinuations ;
 nunavut+1n:nunavu NounContinuations ;
 
 ! Fan-out hubs so EVERY noun/verb root (hand-picked or bulk-generated) can
@@ -291,7 +282,6 @@ LEXICON NounEndings
 ! Same "a" literal, q-context (SUPPR deletes a preceding q-final root's
 ! own trailing q): "tungilia" (root "tungiliq", q-final) needs it,
 ! confirmed via the real Java analyzer's own output before wiring.
-++nga+tn-nom-s-4s:SUPPRa # ;
 
 ! "nganit"/tn-abl-s-4s's own SECOND q-context candidate: Endings_noun.csv
 ! gives q-form "nganit anit" (2 space-separated candidates), both
@@ -304,7 +294,6 @@ LEXICON NounEndings
 ! via hfst-lookup before wiring -- "anit" is already the CSV's own
 ! literal (not derived by a new rule), so just needs the same SUPPR
 ! marker action1 already calls for.
-++nganit+tn-abl-s-4s:SUPPRanit # ;
 
 ! "k"/tn-nom-d (dual nominative): "ministaa"/"iksivautaa"/"ajjaqsijii"/
 ! etc. Endings_noun.csv's V-context action pair is VowelLengthening+
@@ -347,15 +336,6 @@ LEXICON NounEndings
 ++ptingnik+tn-acc-p-1p:ttinnik # ;
 ++ptingnut+tn-dat-p-1p:ttinnut # ;
 
-! "ngita"/tn-gen-p-4s: clean single V-context candidate per
-! Endings_noun.csv (Neutral, bare "ngita"). "gavamakkungita" (kkut/1nn,
-! t-final) needed SUPPR rather than the general t->n rule: t->n would
-! give "kkunngita" (double n, since ngita's own leading "ng" already
-! supplies one) instead of gold's single-n "kkungita" -- SUPPR runs
-! before the general t->n rule in the cascade (phonology.xfscript), so
-! deleting kkut's own t outright avoids the conflict.
-++ngita+tn-gen-p-4s:SUPPRngita # ;
-
 ! "ga"/tn-nom-s-1s ("my X"): Endings_noun.csv gives TWO real candidates
 ! here, not one: V-context "ga" (Neutral, plain) confirmed via
 ! "apiqqutiga" (root chain ends in vowel "i"); q-context "ra" (Fusion --
@@ -365,11 +345,8 @@ LEXICON NounEndings
 ! agreeing on the same q-context form, not a guess. t/k-context
 ! (Insertion "i" / Suppression) not attempted: no gold word in this
 ! cluster needs them.
-++ga+tn-nom-s-1s:ga # ;
 ++ga+tn-nom-s-1s:ga QParticles ;
-++ga+tn-nom-s-1s:SUPPRra # ;
 
-++nga+tn-nom-s-4s:nga # ;
 
 ! "it"/tn-nom-p: {arna:arnaq/1n}{it:it/tn-nom-p} = "arnait" and
 ! {iglu:iglu/1n}{it:it/tn-nom-p} = "igluit". Endings_noun.csv's "it" row
@@ -404,7 +381,6 @@ LEXICON NounEndings
 ! deeper phonology gap -- confirmed for several at once
 ! ("piliriaksat"/"piqujaksat"/"uqausiksat", all ksaq/1nn+it chains;
 ! "pigiaqtitat", a jaq/1vn+it chain), not just "katimajit".
-++it+tn-nom-p:SUPPRDECAPit # ;
 ++it+tn-nom-p:SUPPRt # ;
 
 ! "i"-only spelling (own trailing "t" dropped, "i" kept -- NOT the
@@ -493,18 +469,12 @@ LEXICON NounEndings
 ! behavior) -- a known, accepted risk, canary-checked by rerunning
 ! tools/fst/full_corpus_check.py (its "correct-not-present" count is
 ! exactly the signal for this).
-++mut+tn-dat-s:mut # ;
-++mut+tn-dat-s:NASALmut # ;
-++mut+tn-dat-s:SUPPRmut # ;
 
 ! "mit"/tn-abl-s: same Lever A shape as mut/nik/etc's default branch
 ! (plain/NASAL/SUPPR wired in parallel; its own q-form is the same
 ! id-conditional pattern as those, and "paaq"/1nn -- see
 ! "kingulliqpaamit"/"sivulliqpaamit" -- isn't one of the trigger ids, so
 ! it falls to the default branch).
-++mit+tn-abl-s:mit # ;
-++mit+tn-abl-s:NASALmit # ;
-++mit+tn-abl-s:SUPPRmit # ;
 
 ! "nik"/tn-acc-p: "arraagunik" = {arraagu:arraagu/1n}{nik:nik/tn-acc-p}
 ! -- V-context only (V-form=nik/Neutral, single candidate). The
@@ -512,9 +482,6 @@ LEXICON NounEndings
 ! the Lever A id-conditional pattern); same accepted plain-unmarked-entry
 ! risk as "mut", canary-checked by full_corpus_check.py's
 ! "correct-not-present" count.
-++nik+tn-acc-p:nik # ;
-++nik+tn-acc-p:NASALnik # ;
-++nik+tn-acc-p:SUPPRnik # ;
 
 ! "ngit"/tn-nom-p-4s: "akingit" = {aki:aki/1n}{ngit:ngit/tn-nom-p-4s}
 ! (V-context, plain) and "atingit" = {ati:atiq/1n}{ngit:ngit/tn-nom-p-4s}
@@ -523,7 +490,6 @@ LEXICON NounEndings
 ! SUPPR unchanged. t-context has two candidates (Insertion "i" vs
 ! Suppression, no algorithmic disambiguator) -- deferred, same policy as
 ! every such case.
-++ngit+tn-nom-p-4s:SUPPRngit # ;
 ++ngit+tn-nom-p-4s:SUPPRngit QParticles ;
 
 ! Also an unconditional "ngi"-only spelling (own trailing "t"
@@ -533,17 +499,12 @@ LEXICON NounEndings
 ! shape as "it"/tn-nom-p's own "t"-only candidate above.
 ++ngit+tn-nom-p-4s:SUPPRngi # ;
 
-! "ni"/tn-loc-p: "amisuni" = {amisu:amisu/1n}{ni:ni/tn-loc-p}. V-only
-! (V-form=ni/Neutral); t/k/q all ambiguous or id-conditional, deferred.
-++ni+tn-loc-p:ni # ;
-
 ! Also a SUPPR-prefixed default-branch candidate (Lever A's own
 ! q-context pattern, described above, extended to "ni" specifically):
 ! "avittuqsimajuni" needs "juq"/1vn's own trailing q deleted before
 ! "ni" attaches -- not attested for "ni" before now (see the Lever A
 ! comment above, which explicitly deferred this), confirmed by this
 ! real example rather than wired speculatively.
-++ni+tn-loc-p:SUPPRni # ;
 
 ! "mik"/tn-acc-s: "ministamik" = {minista:minista/1n}{mik:mik/tn-acc-s}.
 ! V-only, same deferral pattern as "mut"/"nik". (Not "illumik" =
@@ -551,9 +512,6 @@ LEXICON NounEndings
 ! lexicon root: it surfaces here as "illu" -- a g->l alternation not seen
 ! when the same root attaches to "it"/tn-nom-p ("igluit", unchanged) --
 ! not understood yet, avoided rather than guessed at.)
-++mik+tn-acc-s:mik # ;
-++mik+tn-acc-s:NASALmik # ;
-++mik+tn-acc-s:SUPPRmik # ;
 
 ! "nginnut"/tn-dat-p-4s: "akinginnut" =
 ! {aki:aki/1n}{nginnut:nginnut/tn-dat-p-4s}. V+k+q (all single candidate,
@@ -562,13 +520,11 @@ LEXICON NounEndings
 ! numbPoss=p) -- used the numbPoss=s one (matches the gold id
 ! "tn-dat-p-4s" exactly); the numbPoss=p row is a different id, not
 ! implemented.
-++nginnut+tn-dat-p-4s:SUPPRnginnut # ;
 ++nginnut+tn-dat-p-4s:SUPPRnginnut QParticles ;
 
 ! "nginnik"/tn-acc-p-4s: same shape as nginnut/nginnit/nginni (V-context
 ! Neutral, reuses SUPPR for the k/q-context Suppression rows, none of
 ! which are gold-attested here).
-++nginnik+tn-acc-p-4s:SUPPRnginnik # ;
 ++nginnik+tn-acc-p-4s:SUPPRnginnik QParticles ;
 
 ! "nut"/tn-dat-p: same shared NounEndings hub deliberately serves "it"
@@ -583,9 +539,6 @@ LEXICON NounEndings
 ! branch (Suppression when preceded specifically by juq/1vn/ksaq/1nn/
 ! jaq/3vn) is wired in NounEndingsAfterQTriggerSuffix below, confirmed
 ! via "ajjigiinngittunut".
-++nut+tn-dat-p:nut # ;
-++nut+tn-dat-p:NASALnut # ;
-++nut+tn-dat-p:SUPPRnut # ;
 
 ! Also an unconditional "nu"-only spelling (own trailing "t" dropped),
 ! found via already-correct gold siblings ("inunnut"/"inungnut"
@@ -609,32 +562,6 @@ LEXICON NounEndings
 ++nut+tn-dat-p:SUPPRnut QParticles ;
 ++nut+tn-dat-p:nu QParticles ;
 
-! "titut"/tn-sim-p is a K-CONTEXT (not q) single-candidate Neutral row --
-! same literal "titut" text as V-context, so needs no separate marker,
-! one plain entry covers both. Target word is "inuttitut" (root "inuk",
-! k-final), NOT the more obvious "inuktitut": the general k->t rule below
-! (for "quviattunga") correctly assimilates "inuk"+"titut" -> "inuttitut"
-! -- confirmed by testing the generator direction directly. "inuktitut"
-! (no assimilation) is gold-attested too but almost certainly the
-! lexicalized proper-noun spelling of the language name itself, not a
-! compositional form; left unimplemented rather than fighting an
-! already-correct general rule for one irregular spelling. Its own
-! q-context is the same Lever A trigger-conditional shape, but NOT
-! implemented: the one gold word that would exercise it
-! ("qallunaatitut") has an unrelated, unexplained root-internal
-! alternation (qaplunaaq -> qallunaa, same category as iglu->illu), so
-! there's no clean example to verify against.
-!
-! "mit"/tn-abl-s was investigated with the same V+trigger+default shape
-! as "mut" and initially left unimplemented: every gold word that would
-! exercise its q-context chained through an already-unimplemented
-! dependency (luaq/1vv) or an unrelated root alternation, and no
-! V-context example existed either -- since implemented above once
-! "kingulliqpaamit"/"sivulliqpaamit" (paaq/1nn) provided a clean example.
-! "tut"/tn-sim-s remains unattested anywhere in the 985-word gold
-! standard, not worth implementing blind.
-++titut+tn-sim-p:titut # ;
-
 ! "inuktitut" (k preserved, NOT assimilated) is ALSO gold-attested
 ! alongside "inuttitut" above -- previously left unimplemented on the
 ! assumption it was purely the lexicalized proper-noun spelling of the
@@ -655,17 +582,11 @@ LEXICON NounEndings
 ! id-conditional pattern. Same accepted plain-unmarked-entry risk as
 ! "mut"/"nik", canary-checked by full_corpus_check.py's
 ! "correct-not-present" count.
-++mi+tn-loc-s:mi # ;
-++mi+tn-loc-s:NASALmi # ;
-++mi+tn-loc-s:SUPPRmi # ;
 
 ! "nit"/tn-abl-p: "arraagunit" = {arraagu:arraagu/1n}{nit:nit/tn-abl-p}
 ! -- V-context only (V-form=nit/Neutral, single candidate). t-context has
 ! two candidates (Assimilation/Insertion, no disambiguator); q-context is
 ! Lever A, described above.
-++nit+tn-abl-p:nit # ;
-++nit+tn-abl-p:NASALnit # ;
-++nit+tn-abl-p:SUPPRnit # ;
 
 ! "up"/tn-gen-s: "arraaguup" = {arraagu:arraagu/1n}{up:up/tn-gen-s}
 ! (V-context, plain concatenation). Same action1+action2 shape as
@@ -694,20 +615,6 @@ LEXICON NounEndings
 ++up+tn-gen-s:SUPPRu # ;
 ++up+tn-gen-s:SUPPRp # ;
 
-! Three more V-context (or V+k/q) noun endings:
-!   - "tigut"/tn-via-p ("via" case): "tusaajitigut" =
-!     {tusaaji:tusaaji/1n}{tigut:tigut/tn-via-p}. V+k (both Neutral,
-!     plain, no marker); t-context needs its own Insertion("i") marker
-!     (not built, unused by this word since "tusaaji" is vowel-final);
-!     q-context is id-conditional, deferred as usual.
-!   - "nginnit"/tn-abl-p-4s: "asinginnit" =
-!     {asi:asi/1n}{nginnit:nginnit/tn-abl-p-4s}. V+k+q (k/q both
-!     Suppression, reuses SUPPR); t-context ambiguous, deferred.
-!   - "nginni"/tn-loc-p-4s: "asinginni" =
-!     {asi:asi/1n}{nginni:nginni/tn-loc-p-4s}. Same shape as "nginnit"
-!     above (V+k+q via SUPPR, t deferred).
-++tigut+tn-via-p:tigut # ;
-
 ! Also an unconditional "tigu"-only spelling (own trailing "t"
 ! dropped), found via an already-correct gold sibling
 ! ("tusaajitigut" alongside the failing "tusaajitigu"/
@@ -723,14 +630,7 @@ LEXICON NounEndings
 ++tigut+tn-via-p:tigu # ;
 ++tigut+tn-via-p:tigu AfterViaCaseEnding ;
 
-++nginnit+tn-abl-p-4s:SUPPRnginnit # ;
 ++nginnit+tn-abl-p-4s:SUPPRnginnit QParticles ;
-++nginni+tn-loc-p-4s:SUPPRnginni # ;
-
-! "ngat"/tn-nom-s-4p: "ilangat" = {ila:ila/1n}{ngat:ngat/tn-nom-s-4p} --
-! V+k+q (k/q both Suppression, reuses SUPPR); t-context ambiguous (2
-! candidates), deferred.
-++ngat+tn-nom-s-4p:SUPPRngat # ;
 
 ! "ngagut"/tn-via-s-4s: Endings_noun.csv's row gives TWO V-context
 ! candidates in every column: full "ngagut" and reduced "agut" (missing
@@ -744,7 +644,6 @@ LEXICON NounEndings
 ! how the source analyzer's own backtracking search would explore both.
 ! All 6 gold roots are vowel-final, so t/k/q-context are not
 ! gold-attested here and not attempted.
-++ngagut+tn-via-s-4s:ngagut # ;
 ++ngagut+tn-via-s-4s:agut # ;
 
 ! "ngani"/tn-loc-s-4s: same shape as tn-via-s-4s just above (two
@@ -761,36 +660,24 @@ LEXICON NounEndings
 ! "ngn"->"nn" simplification before "ngani" attaches -- a genuine
 ! root-internal alternation, not ngani's problem, and only 2 words share
 ! it, not enough evidence to guess a general rule from.
-++ngani+tn-loc-s-4s:ngani # ;
 ++ngani+tn-loc-s-4s:ani # ;
-++ngani+tn-loc-s-4s:SUPPRngani # ;
-++ngani+tn-loc-s-4s:SUPPRani # ;
 
 ! "nganut"/tn-dat-s-4s: sibling of "ngani" just above, identical shape
 ! and identical treatment, same free-variation confirmation ("miksa"
 ! root attested with BOTH "missaanut"/"mitsaanut" alternate root
 ! spellings, both taking the reduced "anut" form).
-++nganut+tn-dat-s-4s:nganut # ;
 ++nganut+tn-dat-s-4s:anut # ;
-++nganut+tn-dat-s-4s:SUPPRnganut # ;
-++nganut+tn-dat-s-4s:SUPPRanut # ;
 
 ! "nganik"/tn-acc-s-4s: sibling of nganut/ngani above, same shape and
 ! same free-variation confirmation technique -- both target words attest
 ! the reduced "anik".
-++nganik+tn-acc-s-4s:nganik # ;
 ++nganik+tn-acc-s-4s:anik # ;
-++nganik+tn-acc-s-4s:SUPPRnganik # ;
-++nganik+tn-acc-s-4s:SUPPRanik # ;
 
 ! "amittuq" = {amit:amit/1v}{tuq:juq/1vn} -- verb root + derivational
 ! (verb-to-noun) suffix whose canonical form "juq" surfaces as "tuq"
 ! after a t/k/q-final stem (rule in phonology.xfscript).
 
 LEXICON Verbs
-amit+1v:amit VerbContinuations ;
-aanniaq+1v:aanniaq VerbContinuations ;
-angi+1v:angi VerbContinuations ;
 
 ! "illaq" spelling variant of "iglaq" (1v, canonical "iglaq" per gold:
 ! "{illaq:iglaq/1v}") -- same unexplained root-internal "gl"->"ll"
@@ -805,49 +692,6 @@ iglaq+1v:illaq VerbContinuations ;
 ! ("aglattiu"); not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
 allak+1v:aglat VerbContinuations ;
-
-! "ilinniaq" ("to learn; to study") comes from CommonCompositeWords.csv --
-! a root CSV that exists but that generate_roots.py's bulk pass doesn't
-! cover. Hand-added, same reasoning as "minista"/"piliriaq" in Nouns
-! above.
-ilinniaq+1v:ilinniaq VerbContinuations ;
-
-! "akiraq" ("to oppose; to retaliate", UndecomposableCompositeWords.csv)
-! hand-added, same reasoning as "piliriaq"/"ilinniaq" above.
-akiraq+1v:akiraq VerbContinuations ;
-
-! "qaujima" ("to know") and "iqqanaijaq" ("to work") are from
-! CommonCompositeWords.csv but excluded from generate_roots.py's bulk
-! pass: "qaujima" has an empty "nb" column (the bulk generator's own
-! required field), and "iqqanaijaq" has a populated "combination" column
-! (the shadowing-risk filter). Both filters are doing their job correctly
-! in general, but here they're overcautious: "qaujima"'s recorded
-! decomposition is "qauji"+ a not-yet-implemented "ma"/1vv,
-! "iqqanaijaq"'s is a chain through three more not-yet-implemented
-! suffixes -- neither is actually reachable any other way in this
-! lexicon, so there's no real shadowing risk, just a lost word.
-! Hand-added rather than loosening the bulk filters for one row each.
-qaujima+1v:qaujima VerbContinuations ;
-
-! "apiri" ("to ask s.o. a question"): CommonCompositeWords.csv records
-! this as a spelling variant of "apiq" (its own "combination" column just
-! names "apiq", not a real multi-morpheme decomposition) -- same
-! "shadowing-risk filter overcautious for this one row" shape as
-! qaujima/iqqanaijaq above, hand-added rather than loosening the filter.
-! Needed for "apirijumajara".
-apiri+1v:apiri VerbContinuations ;
-aulat+1v:aulat VerbContinuations ;
-iqqanaijaq+1v:iqqanaijaq VerbContinuations ;
-
-! "taimait" (1v, "to be like that"): WordsRelatedToRoots.csv records its
-! own "combination" column as "taima/1a+it/3nv" -- but the gold
-! standard's own decomposition of "taimaimmat"
-! ({taimaim:taimait/1v}{mat:mat/tv-caus-4s}) treats "taimait" as its own
-! atomic 1v root, NOT as taima+it (and "it"/3nv is a whole unimplemented
-! ending category). Same "filter is overcautious for this one row" shape
-! as qaujima/iqqanaijaq above -- hand-added rather than building the
-! it/3nv ending just to reach the same surface string a different way.
-taimait+1v:taimait VerbContinuations ;
 
 ! "issiva"/"itsiva" spelling variants of the bulk-generated "iksiva" root
 ! (1v, canonical "iksiva" per gold: "{issiva:iksiva/1v}"/
@@ -937,7 +781,6 @@ makpiq+1v:mappiq VerbContinuations ;
 !     rule or lexc entry needed for it.
 
 LEXICON VnSuffixes
-++juq+1vn:juq # ;
 
 ! "maannauju" = {maanna:maanna/1a}{u:u/1nv}{ju:juq/1vn} -- gold attests
 ! juq/1vn's own trailing q dropped at the bare terminal (no ending
@@ -950,7 +793,6 @@ LEXICON VnSuffixes
 ! innaq/1nn in NnSuffixes) couldn't be found at all, confirmed via the
 ! real Java analyzer's own output before wiring.
 ++juq+1vn:ju NounContinuations ;
-++juq+1vn:juq NounContinuations ;
 ++juq+1vn:juq AfterJuqTriggerSuffix ;
 
 ! "naammasaqtuit"/"naammasaqtut" need juq/1vn's own "tuq" spelling with
@@ -982,25 +824,6 @@ LEXICON VnSuffixes
 ! reduced spelling specifically.
 ++juq+1vn:VOICEtu NounContinuations ;
 
-! "miik"/1vn (exclamation "Oh, how...!"): Suffixes.csv lists three
-! literal spellings (miik/mii/mi) crossed with Nasalization vs
-! Suppression actions in q-context -- but gold shows neither action
-! cleanly: "nakuqmi"/"nakuqmii" keep the preceding root's q UNCHANGED
-! (matching neither Suppression-deletes-it nor Nasalization-converts-it),
-! while "nakurmii"/"nakurmiik" (same root "nakuq") DO show Nasalization
-! (q->r). Same "wire plain and NASAL-marked variants in parallel, let
-! gold's own spelling pick the path" strategy as usiq/1vn's SUPPR/VOICE
-! split below -- all 3 spellings wired both plain and NASAL-prefixed (6
-! entries total). "qujannami"/"qujannamik" (a 4th spelling, "mik", plus
-! "naq"/1vv's own "nna" spelling and a "quja" root) not attempted: more
-! unexplained variation than 2 words can justify guessing a rule from.
-++miik+1vn:mi # ;
-++miik+1vn:mii # ;
-++miik+1vn:miik # ;
-++miik+1vn:NASALmi # ;
-++miik+1vn:NASALmii # ;
-++miik+1vn:NASALmiik # ;
-
 ! "juq" also reaches a THIRD continuation, straight into a noun ending:
 ! "ajjigiinngittunik" needs it (juq -> nik/tn-acc-p) -- juq (verb-to-noun)
 ! had otherwise only ever continued to "#" or into another nv-suffix,
@@ -1016,8 +839,6 @@ LEXICON VnSuffixes
 ! own q-context uses a DIFFERENT mechanism (Nasalization by default).
 ++juq+1vn:juq NounEndingsAfterQTriggerSuffix ;
 
-++ji+1vn:ji NounContinuations ;
-++ji+1vn:ji # ;
 
 ! "uqartii" needs the preceding root's own trailing q converted to r
 ! (VOICE) before "ji" attaches -- root "uqaq" (very common) has no
@@ -1033,37 +854,6 @@ LEXICON VnSuffixes
 ! as juq/1vn's own "VOICEtu" already does. Not decomposable by the real
 ! Java analyzer either (confirmed via --pipeline).
 ++ji+1vn:VOICEti NounContinuations ;
-
-! "jjut"/1vn ("reason/cause/motive for doing s.t."): same "one who/reason
-! for X" shape as "ji"/1vn just above, wired identically (bare "jjut"
-! terminal, continuing "jjuti", same 4 continuations). "katimajjutiksaq"
-! also needed a bare (non-SUPPR) terminal candidate for ksaq/1nn below --
-! own trailing q kept, since gold wants "ksaq" not "ksa" when it's the
-! FINAL morpheme. q-context ("rut"/"ruti", Fusion) not attempted: no gold
-! word in this cluster needs it.
-++jjut+1vn:jjut # ;
-++jjut+1vn:jjut NounContinuations ;
-++jjut+1vn:jjuti NounContinuations ;
-
-! "gaq"/1vn: "makpigaq" = {makpi:makpiq/1v}{gaq:gaq/1vn} -- verb-to-noun
-! derivational suffix ("forms a noun with an inherently passive
-! meaning"). Same shape as juq/1vn and kkut/1nn: Suffixes.csv's row has
-! one deterministic candidate per context (V-form/action Neutral,
-! t/k/q-form Suppression, all literally "gaq" itself unchanged) --
-! genuine rule, reuses the existing SUPPR marker exactly like
-! "liri"/"qai"/"kkut" (delete the preceding stem's final q/k/t,
-! "makpiq"->"makpi", then append "gaq"). Also continues into NnSuffixes
-! ("maligaksait" needs "ksaq"/1nn to attach directly after "gaq"), into
-! NounEndings directly ("maligarmut"/"maligarmi"/"maligarmik"/
-! "maligarnit" all attach a tn-ending directly onto "gaq" with no
-! intervening "ksaq", reaching the generic non-trigger Lever A branch
-! there -- confirmed by the attested surface "gar", Nasalization, not
-! "ga", Suppression, since "gaq"/1vn is not one of Lever A's trigger
-! ids), and into NvSuffixes (so a noun-to-verb suffix like "liuq" can
-! follow: "maligaliuqti" = mali(malik/1v)+ga(gaq/1vn)+liuq(liuq/1nv)+
-! ti(ji/1vn)).
-++gaq+1vn:SUPPRgaq # ;
-++gaq+1vn:SUPPRgaq NounContinuations ;
 
 ! "usiq"/1vn ("custom/way/habit"): Suffixes.csv's q-form lists three
 ! candidates ("usiq"/"usiq"/"qusiq") with actions Suppression/Voicing/
@@ -1106,12 +896,8 @@ LEXICON VnSuffixes
 ! needs checking whether "tuinnaq"/2nn and "kkut"/1nn chain together the
 ! way this word needs -- none blocked by usiq itself, all separate small
 ! gaps left for a future pass.
-++usiq+1vn:SUPPRusiq # ;
-++usiq+1vn:SUPPRusiq NounContinuations ;
 ++usiq+1vn:SUPPRusi NounContinuations ;
 ++usiq+1vn:SUPPRusir NounContinuations ;
-++usiq+1vn:qusiq # ;
-++usiq+1vn:qusiq NounContinuations ;
 ++usiq+1vn:qusi NounContinuations ;
 ++usiq+1vn:qusir NounContinuations ;
 
@@ -1168,24 +954,8 @@ LEXICON VnSuffixes
 ! mechanism is now in place, worth re-checking with
 ! next_affix_priority.py/full_corpus_check.py rather than assumed
 ! working.
-++ut+1vn:SUPPRut # ;
-++ut+1vn:SUPPRut NounContinuations ;
-++ut+1vn:SUPPRuti # ;
-++ut+1vn:SUPPRuti NounContinuations ;
-++ut+1vn:SUPPRutik # ;
 ++ut+1vn:SUPPRuta # ;
 ++ut+1vn:SUPPRuta NounContinuations ;
-++ut+1vn:SUPPRutaq # ;
-++ut+1vn:SUPPRutaq NounContinuations ;
-++ut+1vn:qut # ;
-++ut+1vn:qut NounContinuations ;
-++ut+1vn:quti # ;
-++ut+1vn:quti NounContinuations ;
-++ut+1vn:qutik # ;
-++ut+1vn:SUPPRrut # ;
-++ut+1vn:SUPPRrut NounContinuations ;
-++ut+1vn:SUPPRruti # ;
-++ut+1vn:SUPPRruti NounContinuations ;
 ++ut+1vn:jjut # ;
 ++ut+1vn:jjut NounContinuations ;
 ++ut+1vn:jjuti # ;
@@ -1193,51 +963,6 @@ LEXICON VnSuffixes
 ++ut+1vn:jjutik # ;
 ++ut+1vn:jjutaq # ;
 ++ut+1vn:jjutaq NounContinuations ;
-++ut+1vn:gut # ;
-++ut+1vn:gut NounContinuations ;
-++ut+1vn:guti # ;
-++ut+1vn:guti NounContinuations ;
-++ut+1vn:gutik # ;
-++ut+1vn:gutaq # ;
-++ut+1vn:gutaq NounContinuations ;
-
-! Suffixes.csv's own V-form column lists "ut uti utik utaq" TWICE --
-! once (Neutral) as this family's plain, unmarked candidates, once more
-! (further down the same cell) with action "i(jj)" for the already-
-! wired "jjut/jjuti/jjutik/jjutaq" family above. Only the "g"-inserted
-! sibling ("gut/guti/gutik/gutaq") and the "jj"-geminated one got wired
-! when this suffix was first built -- the genuinely bare, unmarked
-! forms were missed entirely. "katimautitsa" needs "uti" bare (no "g"),
-! confirmed via gold; not decomposable by the real Java analyzer either
-! (confirmed via --pipeline).
-++ut+1vn:ut # ;
-++ut+1vn:ut NounContinuations ;
-++ut+1vn:uti # ;
-++ut+1vn:uti NounContinuations ;
-++ut+1vn:utik # ;
-++ut+1vn:utaq # ;
-++ut+1vn:utaq NounContinuations ;
-
-! "jaq"/1vn: Suffixes.csv actually has TWO "jaq/1vn"-tagged rows (nb=1
-! "passive", nb=3 "similar to"), distinguished only by an id-conditional
-! condPrec (nb=1: NOT preceded by u/1nv; nb=3: preceded by u/1nv) -- but
-! unlike the "mut"/"nik" id-conditional cases (deferred because the
-! SURFACE FORM itself differs by condition), here both rows produce the
-! IDENTICAL surface rule (V-form "jaq"/Neutral, t/k/q-form "taq"/Neutral
-! -- the existing j->t-after-t/k/q rule handles the consonant contexts
-! already, no new marker needed), so the id-conditional distinction is
-! purely semantic and doesn't affect which lexc entry to write. "jaq"
-! also gained its own t/k/q-context literal spelling, "taq" -- Suffixes.csv
-! gives this directly as its own candidate (not derived via the general
-! j->t rule), needed for "pigiaqtitaq" family ("tit"/1vv ends in t, jaq
-! attaches right after) -- and a NnSuffixes continuation
-! ("qaujimajatuqanginnik" needs jaq -> tuqaq/1nn directly). "ilagijaujuq"
-! = {ila:ila/1n}{gi:gi/1nv}{jaq:jaq/1vn}{u:u/1nv}{juq:juq/1vn} needs the
-! bare terminal path too ("piqujaq"), not just mid-chain.
-++jaq+1vn:jaq NounContinuations ;
-++jaq+1vn:jaq # ;
-++jaq+1vn:taq NounContinuations ;
-++jaq+1vn:taq # ;
 
 ! "saqqitaujuq" family (root "saqqik", k-final): "taq" above still spells
 ! its own trailing q, but the general (unmarked) k->t assimilation rule
@@ -1269,8 +994,6 @@ LEXICON VnSuffixes
 ! variation, same as elsewhere in this file. "SUPPRvi" also bakes in
 ! vik's own trailing k already dropped (needed directly before liaq, a
 ! plain literal with no SUPPR of its own).
-++vik+3vn:VOICEvik # ;
-++vik+3vn:VOICEvik NounContinuations ;
 ++vik+3vn:SUPPRvi NounContinuations ;
 
 ! Two more free-variant spellings, own "v" doubled instead of the
@@ -1310,8 +1033,6 @@ LEXICON VnSuffixes
 ! "qimirruniq"/"ilinniarniq" -- "tigusinirmut" needs "niq" to continue
 ! into "mut"; since "niq" is verb-to-noun, the noun-ending lexicon is the
 ! right continuation).
-++niq+2vn:NASALniq # ;
-++niq+2vn:NASALniq NounContinuations ;
 ++niq+2vn:NASALni NounContinuations ;
 
 ! Not implemented, revisit only if a real disambiguating condition turns
@@ -1322,11 +1043,10 @@ LEXICON VnSuffixes
 ! candidates and 12 more q-form candidates with no condPrec or other
 ! disambiguating column; "ma"/1vv -- every context lists TWO full
 ! candidates ("ma"/"uma") with matching actions and no condition
-! selecting between them (see "ma"/1vv's own comment in VvSuffixes below
-! for how gold ultimately resolved this one anyway).
+! selecting between them (see "ma"/1vv's investigation note in
+! generate_affixes.py for how gold ultimately resolved this one anyway).
 
 LEXICON NounEndingsAfterQTriggerSuffix
-++ni+tn-loc-p:SUPPRni # ;
 
 ! "nut"/tn-dat-p ("ajjigiinngittunut", same trigger list) and
 ! "tigut"/tn-via-p ("avittuqsimajutigut", same juq trigger). tigut's OWN
@@ -1340,24 +1060,6 @@ LEXICON NounEndingsAfterQTriggerSuffix
 ++tigut+tn-via-p:SUPPRtigut # ;
 
 LEXICON NvSuffixes
-
-! "it"/3nv ("to be such"): Suffixes.csv's own condPrec ("type:a") is a
-! grammatical-feature condition the bulk generator can't model, but
-! it's confirmed directly by gold: both target words' root is tagged
-! "1a" (adjective), matching this row's own condition exactly.
-! Q-context gives 2 candidates, both literal "it" with Suppression --
-! no real ambiguity (both actions identical), resolves to a single
-! "SUPPRit" (for the plain q-kept "qanuq" root spelling). A plain "it"
-! (no marker) is ALSO needed since "qanuq"/1a already has its own
-! q-dropped spelling variant "qanu" wired separately -- attaching to
-! THAT spelling needs no further deletion. Previously investigated and
-! confirmed low-value on its own (round-16-era: only 3 gold words are
-! 3nv-tagged at all) but 2 of those 3 are exactly this suffix's own
-! target words, so worth wiring now that they're the last remaining
-! gap. Neither is decomposable by the real Java analyzer either
-! (confirmed via --pipeline).
-++it+3nv:it VerbContinuations ;
-++it+3nv:SUPPRit VerbContinuations ;
 
 ! li/4vv ("to make that s.t. or s.o. become such") has condPrec
 ! "id:it/3nv" -- Suffixes.csv's own single-id trigger condition,
@@ -1378,19 +1080,6 @@ LEXICON NvSuffixes
 ! the exact same "SUPPRuq" candidate from there -- confirmed via
 ! snapshot_correct.py before removing this duplicate.
 
-++liri+1nv:SUPPRliri VerbContinuations ;
-
-! "giik"/2nv: "ajjigiinngittunik" = {ajji:ajji/1n}{gii:giik/2nv}
-! {nngit:nngit/1vv}{tu:juq/1vn}{nik:nik/tn-acc-p} -- V-context only
-! (V-form=giik/Neutral). t-context is a genuine single candidate
-! (Insertion "i") but unused here (root "ajji" is vowel-final);
-! k/q-contexts use the unbuilt Fusion primitive, skipped.
-++giik+2nv:giik VerbContinuations ;
-
-! "liaq"/2nv ("motion towards: to go to"): clean single V-context
-! candidate per Suffixes.csv (Neutral, bare "liaq"); "aanniaviliaqtunut"
-! attaches after vik/3vn (vowel-final surface).
-++liaq+2nv:liaq VerbContinuations ;
 
 ! "maligaliurviliarsimajut" needs a SECOND spelling, "liar" (own q->r,
 ! a free variant not derived from any general rule -- same "different
@@ -1405,14 +1094,6 @@ LEXICON NvSuffixes
 ! decomposable by the real Java analyzer either (confirmed via
 ! --pipeline).
 ++liaq+2nv:SUPPRliar VerbContinuations ;
-
-! "iq"/1nv: clean single V-context candidate per Suffixes.csv (Neutral,
-! bare "iq"); its own trailing q survives until something downstream
-! needs it gone (si/1vv's own literal spellings and ut/1vn's SUPPR-
-! prefixed "ruti" both already handle that, same established pattern as
-! every other q-final suffix). t/k/q-context (Insertion "ng"/"a",
-! Suppression) not attempted: unattested in this cluster.
-++iq+1nv:iq VerbContinuations ;
 
 ! "liuq"/1nv ("to be building/working on s.t."): gaq/1vn's own SUPPR only
 ! deletes what PRECEDES gaq (malik's own final consonant) -- gaq's OWN
@@ -1432,41 +1113,7 @@ LEXICON NvSuffixes
 ! k-form=liuq/Suppression) alone, without the q-context above, are not
 ! independently gold-attested here: every gold example attaches liuq
 ! directly after a q-final suffix.
-++liuq+1nv:SUPPRliuq VerbContinuations ;
 ++liuq+1nv:SUPPRliur VerbContinuations ;
-
-! "qaq"/1nv ("to have/possess"), needed by "jjut"/1vn's "pijjutiqaqtu*"
-! cluster -- clean single V-context candidate (Neutral), reused unchanged
-! for t/k/q since "jjuti" (what it always attaches to here) is
-! vowel-final. Needs BOTH VnSuffixes (for "juq"/1vn to follow,
-! "pijjutiqaqtuq"/"...tunik") and TvEndings directly ("pijjutiqaqtut"
-! attaches "jut"/tv-ger-3p straight onto qaq, no juq/1vn in between). A
-! second gold example, "akiqangittuq", is NOT reached: it produces
-! "akiqaNNgittuq" (double n) from plain concatenation + SUPPR, not gold's
-! "akiqaNgittuq" (single n) -- something reduces nngit's own doubled "nn"
-! to a single "n" specifically after qaq's deletion, not explained by any
-! mechanism built so far (same unexplained-surface-simplification
-! category as "iglu"->"illu"). Not pursued further; revisit once the
-! nn->n reduction is understood.
-++qaq+1nv:qaq VerbContinuations ;
-
-! "gi"/1nv ("have as; possess"): "isumagillugu" = {isuma:isuma/1n}
-! {gi:gi/1nv}{llugu:lugu/tv-part-1s-3s-prespas}. V-context only
-! (V-form=gi/Neutral); t-context is a genuine single candidate too
-! (Insertion "i") but unused by this word (root "isuma" is vowel-final)
-! and not implemented (would need its own marker, deferred); k/q-contexts
-! use "Fusion", an unbuilt primitive, skipped. Also gained its own
-! q-context literal spelling, "ri" (Suffixes.csv gives this directly as a
-! Fusion candidate -- mechanically identical to SUPPR, deletes the
-! preceding q) -- needed for "apiqqusirijara" (usiq's own bare "qusiq"
-! candidate, own q kept, then gi's "ri" eats it) -- and reaches
-! VnSuffixes as well as TvEndings, so it can be followed by a further
-! vn-suffix like "jaq"/1vn ("ilagijaujuq" needs gi -> jaq/1vn), not just
-! terminate in a verb ending. "ut"/1vn's "quti" and "usiq"/1vn's "qusiq"
-! candidates above both needed a path into NvSuffixes so "gi" can follow
-! them at all -- neither had ever reached a noun-to-verb suffix before.
-++gi+1nv:gi VerbContinuations ;
-++gi+1nv:SUPPRri VerbContinuations ;
 
 ! "u"/1nv: "ministaujuq" = {minista:minista/1n}{u:u/1nv}{juq:juq/1vn} and
 ! "piliriangujuq" = {piliria:piliriaq/1n}{ngu:u/1nv}{juq:juq/1vn}.
@@ -1527,8 +1174,6 @@ LEXICON NnSuffixes
 ++juaq+1nn:rJGUARDjua NounContinuations ;
 ++juaq+1nn:rJGUARDjua # ;
 
-++kkut+1nn:SUPPRkkut NounContinuations ;
-++kkut+1nn:SUPPRkkut # ;
 ++kkut+1nn:SUPPRkkut QParticles ;
 
 ! "innaq"/1nn ("exclusiveness: 'just', 'only'"): Suffixes.csv's own row
@@ -1559,38 +1204,6 @@ LEXICON NnSuffixes
 ++&iq+1nn:llir NounContinuations ;
 ++&iq+1nn:llir # ;
 
-! "paaq"/1nn ("the most of all; big, very"), the suffix &iq's "lliq"
-! family chains into -- clean single V-context candidate per its own CSV
-! row.
-++paaq+1nn:paaq NounContinuations ;
-++paaq+1nn:paaq # ;
-
-! "miuq"/1nn ("resident of a place name"): clean single V-context
-! candidate per Suffixes.csv (Neutral, bare "miuq"). SUPPR reused so a
-! following ending's own SUPPR marker (it/tn-nom-p, nut/tn-dat-p, both
-! already SUPPR-equipped) eats miuq's own trailing q for free -- same
-! established pattern as every other "own q survives until something
-! downstream needs it gone" suffix in this file.
-++miuq+1nn:miuq NounContinuations ;
-
-! "limaaq"/1nn ("inclusiveness: all of" -- a DIFFERENT homograph than
-! "limaaq"/2vv "ceaselessly" in VvSuffixes below): a clean, single-
-! candidate rule (V-form Neutral, t/k/q-form Suppression, same shape as
-! juq/kkut/gaq/lik) once "nut" had both its default NASAL and SUPPR
-! q-context branches (see NounEndings above) -- confirmed via
-! "inulimaanut" = {inu:inuk/1n}{limaa:limaaq/1nn}{nut:nut/tn-dat-p} and
-! "kikkulimaanut"/"kikkulimaat" (the latter also exercising "it"'s
-! existing DECAP mechanism unchanged: limaaq's own trailing q is deleted,
-! leaving "...limaa" -- two vowels -- so DECAP correctly strips "it"'s
-! own leading i, giving "...limaat"). Two other candidate words
-! ("kanatalimaami", needs root "kanata" but the only bulk-generated
-! homograph is tagged 2n not gold's 1n -- a pre-existing, already-
-! documented root-homograph mismatch; "nunavulimaami", root "nunavut"
-! isn't bulk-generated at all -- it only exists in Locations.csv, a
-! source file generate_roots.py doesn't cover) are left unimplemented,
-! blocked by those unrelated gaps, not by limaaq itself.
-++limaaq+1nn:SUPPRlimaaq NounContinuations ;
-
 ! "ralaaq"/1nn ("small"): Suffixes.csv's V-form is a single clean
 ! candidate (Neutral, "ralaaq"), but ALL gold examples -- including the
 ! BARE terminal one ("katimajiralaa", no further suffix at all) -- show
@@ -1606,44 +1219,6 @@ LEXICON NnSuffixes
 ++ralaaq+1nn:ralaa # ;
 ++ralaaq+1nn:ralaa NounContinuations ;
 
-! "lik"/1nn ("possession: 'one with'"): "nanulik" = {nanu:nanuq/1n}
-! {lik:lik/1nn} -- noun-to-noun. Same shape as juq/kkut/gaq: one
-! deterministic candidate per context (V-form/action Neutral, t/k/q-form
-! Suppression, "lik" itself unchanged) -- genuine rule, reuses SUPPR
-! unchanged. Also continues into NounEndings ("nunalittinni" =
-! nuna+li(lik/1nn)+ttinni(ptingni/tn-loc-s-1d)), not just the terminal
-! path (matching "nanulik" standalone).
-++lik+1nn:SUPPRlik # ;
-++lik+1nn:SUPPRlik NounContinuations ;
-
-! "aluk"/1nn ("largeness/impressiveness"): Suffixes.csv gives TWO
-! V-context candidates ("aluk"/"aaluk", each with a secondary "i(ra)"
-! insertion action) -- but no gold-attested word needs the "aaluk"/
-! "i(ra)" branch at all, so only the plain "aluk" Neutral candidate is
-! implemented. Needs the SUPPR marker even though "aluk" itself is
-! Neutral in V-context: "akuni" (i-final) is genuine V-context, but
-! "uqsu*"'s actual root is "uqsuq" (q-FINAL -- the gold surface span
-! "uqsu" is already q-deleted, easy to misread as vowel-final from the
-! surface alone) -- aluk's own k/q-form action1 IS "s" (Suppression), the
-! same SUPPR marker used everywhere else in this lexicon, harmless as a
-! no-op when nothing q/k/t-final actually precedes it (confirmed safe for
-! "akunialuk"). "uqsualuit"/"uqsualuup" need NO further new mechanism:
-! "it"/tn-nom-p and "up"/tn-gen-s already carry their own SUPPR marker
-! (deletes a preceding q/k/t), so aluk's own trailing "k" is deleted by
-! the EXISTING machinery the moment it reaches NounEndings -- confirmed
-! "aluit"/"aluup" fall out for free, same "bulk mechanism pays off beyond
-! the tested set" shape as several other suffixes in this file.
-! "uqsualummut" needed one new general rule: k->m -- "mut"/tn-dat-s's
-! existing plain-Neutral candidate alone would give literal "aluk"+"mut"
-! = "alukmut", not gold's "alummut". This isn't documented anywhere in
-! aluk's own CSV row (that row's V/t/k/q-form columns describe aluk's OWN
-! shape depending on what PRECEDES it, not what follows it -- irrelevant
-! to this specific gap). Empirically it's the same total-regressive-
-! assimilation family as the existing t->m/k->t/p->t/t->n rules -- k
-! assimilating to a following m, verified against this one gold example.
-++aluk+1nn:SUPPRaluk NounContinuations ;
-++aluk+1nn:SUPPRaluk # ;
-
 ! "tamaaq"/1nn: "arraagutamaat" = {arraagu:arraagu/1n}{tamaa:tamaaq/1nn}
 ! {t:it/tn-nom-p} -- own rule is trivial (all four contexts Neutral,
 ! plain concatenation, no marker of its own needed). But this word is
@@ -1657,20 +1232,6 @@ LEXICON NnSuffixes
 ! before touching the real lexicon).
 ++tamaaq+1nn:SUPPRtamaaq NounContinuations ;
 
-! "tuqaq"/1nn: "gavamatuqakkut" = {gavama:gavama/1n}{tuqa:tuqaq/1nn}
-! {kkut:kkut/1nn} -- V-context only (V-form=tuqaq/Neutral). t-context has
-! a genuine single candidate too (Insertion "i") but isn't needed by this
-! word (root "gavama" is vowel-final) and isn't implemented here -- would
-! need its own marker (insert "i" before a t-final stem), deferred.
-! k/q-contexts are ambiguous (2 unconditioned candidates each), skipped
-! as usual. Also gained a NounEndings continuation and its own q-context
-! Suppression candidate (Suffixes.csv's own q-form gives "tuqaq tuqaq"/
-! "n s" -- a second, SUPPR-prefixed candidate) -- both needed for
-! "qaujimajatuqanginnik" (jaq's own trailing q deleted by tuqaq's SUPPR,
-! then tuqaq -> nginnik/tn-acc-p-4s).
-++tuqaq+1nn:tuqaq NounContinuations ;
-++tuqaq+1nn:SUPPRtuqaq NounContinuations ;
-
 ! "kkanniq"/1nn ("additional, more") already has bulk-generated
 ! "kkanniq"/"kanniq" plain and SUPPR-prefixed candidates -- also needs
 ! a doubled-"i" spelling ("kkanniiq"), found via an already-correct
@@ -1682,8 +1243,9 @@ LEXICON NnSuffixes
 ! "ksaq"/1nn: "maligaksait" = {malik:malik/1v}{gaq:gaq/1vn}
 ! {ksaq:ksaq/1nn}{it:it/tn-nom-p} -- same shape as juq/kkut/gaq/lik/
 ! tuinnaq (single candidate per context: V-form Neutral, t/k/q-form
-! Suppression), reuses SUPPR unchanged. Reached here via "gaq"/1vn's
-! NnSuffixes continuation above. Continues into NounEndings so "it" can
+! Suppression), reuses SUPPR unchanged. Reached here via "gaq"/1vn's own
+! NnSuffixes continuation (gaq/1vn is emitted by generate_affixes.py; see
+! its investigation note there). Continues into NounEndings so "it" can
 ! follow: checked this doesn't hit "it"'s deferred Selfdecapitation gap
 ! the way "tamaaq" did -- deleting ksaq's own trailing q leaves
 ! "maligaksa", ending in a consonant+vowel, not two vowels, so decap
@@ -1696,9 +1258,7 @@ LEXICON NnSuffixes
 ! "maligaksanit" needs "nit"/tn-abl-p's own trigger-branch (Suppression)
 ! reached right after "ksaq", since ksaq/1nn is one of the trigger ids
 ! for Lever A (see NounEndings above).
-++ksaq+1nn:SUPPRksaq NounContinuations ;
 ++ksaq+1nn:SUPPRksaq NounEndingsAfterQTriggerSuffix ;
-++ksaq+1nn:SUPPRksaq # ;
 
 ! "ksaq" also has two further literal spellings Suffixes.csv doesn't
 ! list at all: "ssaq" and "tsaq" (own leading "k" surfacing as "s"/"t"
@@ -1725,17 +1285,6 @@ LEXICON NnSuffixes
 ! without the trailing q. Not decomposable by the real Java analyzer
 ! either (confirmed via --pipeline).
 ++ksaq+1nn:SUPPRtsa # ;
-
-! "tuinnaq"/2nn ("only/just/merely"): "kikkutuinnait" =
-! {kikku:kikkut/1p}{tuinna:tuinnaq/2nn}{it:it/tn-nom-p} -- full V/t/k/q,
-! same shape as juq/kkut/gaq/lik/raq (single candidate, Neutral/
-! Suppression), reuses SUPPR. Continues into NounEndings (the
-! "it"/tn-nom-p above) rather than back into NnSuffixes: checked that
-! this doesn't hit "it"'s deferred Selfdecapitation gap (unlike the
-! "limaaq"/1nn case above) -- deleting tuinnaq's own trailing q leaves
-! "tuinna", ending in a single vowel after a consonant, not two vowels,
-! so decap never fires here.
-++tuinnaq+2nn:SUPPRtuinnaq NounContinuations ;
 
 ! Five more words, picked to cover every remaining decomposition-
 ! signature type (c, a, e, p, vv, tv) not otherwise exercised, after
@@ -1765,7 +1314,6 @@ LEXICON NnSuffixes
 !     it's entirely covered by rules already validated on earlier words.
 
 LEXICON Conjunctions
-amma+1c:amma QParticles ;
 
 ! Two more spelling variants found by the same systematic root sweep
 ! as the Nouns block above: "uvalu" variant of "uvvalu"/1c; "uvvaluunni"
@@ -1848,27 +1396,6 @@ uattiaruk+1a:uattiaru NounContinuations ;
 
 maanna+1a:maanna # ;
 
-! "maanna" needs a continuation into NvSuffixes (for "u"/1nv to follow,
-! "maannaujumi") -- adverbs had only ever continued to "#" before
-! (matching "maanna" read standalone).
-maanna+1a:maanna NounContinuations ;
-
-! "qujannamiik" ("thank you!", CommonCompositeWords.csv, hand-added same
-! reasoning as "qaujima"/"iqqanaijaq" in Verbs above) needs a continuation
-! into NvSuffixes (for "u"/1nv to follow, in "qujannamiingujutit").
-qujannamiik+1a:qujannamiik NounContinuations ;
-
-! "taimanna" (already bulk-generated in AdverbsGenerated, terminal-only)
-! needs the SAME NvSuffixes continuation added here for "taimannaummat" =
-! {taimanna:taimanna/1a}{u:u/1nv}{mmat:mat/tv-caus-4s} -- "u"/1nv already
-! reaches TvEndings, just never had an adverb able to reach IT before. A
-! second lexc entry for the same morpheme+tag (one from AdverbsGenerated
-! terminal-only, one hand-authored here with the extra continuation) is
-! fine, same "multiple paths to the same morpheme" pattern as
-! sima/tuq/juma's own multi-continuation TvEndings/VnSuffixes entries in
-! VvSuffixes below.
-taimanna+1a:taimanna NounContinuations ;
-
 ! Demonstrative spelling variants Demonstratives.csv doesn't record at
 ! all (that file has no "variant" column, unlike the root-source CSVs
 ! generate_roots.py reads) -- found the same way as "iglu"/"illu"
@@ -1905,7 +1432,6 @@ ubva+ad-sc:uvva QParticles ;
 tama+rad-ml:tam TadEndings ;
 
 LEXICON Pronouns
-kina+1p:kina NounContinuations ;
 
 ! "ivvit" spelling variant of "igvit"/1p ("you"), found by the same
 ! systematic root sweep as the Nouns block above -- a third spelling
@@ -1989,7 +1515,6 @@ LEXICON VvSuffixes
 ! initial suffix" pattern used throughout this session (juq's "tu",
 ! jaq's "ta", mata's own literal, etc.), confirmed via the real Java
 ! analyzer's own output before wiring.
-++innaq+2vv:innaq VerbContinuations ;
 ++innaq+2vv:inna VerbContinuations ;
 
 ! "i"/1vv: the unconditioned hand-wiring this comment used to describe
@@ -2022,34 +1547,6 @@ LEXICON VvSuffixes
 ! "alianait+1v:alianait AfterIntransGusukRoot ;" before removing this
 ! duplicate, and via snapshot_correct.py after.
 
-! "allak"/1vv ("ease, simpleness of action: 'easily', 'just'"):
-! Suffixes.csv gives 2 literal spellings in EVERY context ("allak"/"ala",
-! same free-variation shape as usiq/ut/miik) -- only V-context wired so
-! far since "uqaalautaa" (root "uqaq", V-context) is the only gold
-! example, confirmed via the real Java analyzer's own output before
-! wiring. The CSV's own action2 ("i(ra)", an insertion this project's
-! generator doesn't model) is left unimplemented, same as juq/1vn's own
-! unexplained action2 codes elsewhere in this file.
-++allak+1vv:allak VerbContinuations ;
-++allak+1vv:ala VerbContinuations ;
-
-! t/k/q-context (Suppression, deletes the preceding stem's final q/k/t):
-! same two literal spellings again, needed since "uqaalautaa"'s root
-! "uqaq" is itself q-final (own q deleted by SUPPR before "ala"
-! attaches).
-++allak+1vv:SUPPRallak VerbContinuations ;
-++allak+1vv:SUPPRala VerbContinuations ;
-
-! "li"/2vv ("to make that s.t. or s.o. ..."): Suffixes.csv gives a clean
-! single-candidate row per context (V "li" Neutral, t/k/q "li"
-! Suppression), but its condPrec ("!cp(id:li/4vv)", a negated
-! mutual-exclusion note against the DIFFERENT li/4vv homograph, not a
-! blocking condition on li/2vv itself) isn't a bare "id:X" trigger the
-! bulk generator understands -- "atuliqujaujuq" needs it (root "atuq"
-! q-context: SUPPR deletes the q).
-++li+2vv:li VerbContinuations ;
-++li+2vv:SUPPRli VerbContinuations ;
-
 ! "ksaq"/2vv ("to find, consider s.t. or s.o. ..."): the plain "ksaq"
 ! and "SUPPRksaq" hand-written duplicates this comment used to describe
 ! are GONE -- root "naamak" (needed for "naammasaqtuit"/
@@ -2070,34 +1567,9 @@ LEXICON VvSuffixes
 ! attach directly; fixed by adding the SUPPR marker. Its VnSuffixes
 ! continuation had a similar back-and-forth: removed once when its only
 ! justifying word ("akiqangittuq"/qaq) turned out blocked by an unrelated
-! gap (see "qaq"/1nv's comment in NvSuffixes above), then restored once
+! gap (see "qaq"/1nv's investigation note in generate_affixes.py), then restored once
 ! "ajjigiinngittunik" legitimately needed it (nngit -> juq/1vn).
-++nngit+1vv:SUPPRnngit VerbContinuations ;
 ++nngit+1vv:SUPPRnngit AfterNngitTriggerSuffix ;
-
-! "luaq"/1vv ("excessive action: too much/quite"): clean single
-! V-context candidate per Suffixes.csv (Neutral, bare "luaq"; the row's
-! second candidate, "lluaq", is unattested here). Reaches VnSuffixes for
-! juq/1vn to follow ("piluaqtumi"/"...mik"/"...mit"). The last of these
-! ("piluaqtumit") found one more gap: mit/tn-abl-s had never been added
-! to NounEndingsAfterQTriggerSuffix, unlike its "mi"/"mik" siblings --
-! fixed there.
-++luaq+1vv:luaq VerbContinuations ;
-
-! "vallia"/1vv ("progression, gradually") -- clean single V-context
-! candidate per Suffixes.csv (Neutral, bare "vallia"); needed for
-! "pivalliatittinirmut" (si/1vv's t-context "ti" family, via tit/1vv).
-! t/k/q-form ("pallia", v->p, own literal spelling) not attempted:
-! unattested in this corpus.
-++vallia+1vv:vallia VerbContinuations ;
-
-! "tuinnaq"/1vv ("merely/only/simply"): clean single V-context candidate
-! per Suffixes.csv (Neutral, bare "tuinnaq"); every gold example attaches
-! after an already-vowel-final vv-suffix (ma/juma/juma-via-ruma). A
-! DIFFERENT homograph from the already-implemented "tuinnaq"/2nn noun
-! suffix in NnSuffixes above -- confirmed genuinely separate tags before
-! wiring, not a duplicate.
-++tuinnaq+1vv:tuinnaq VerbContinuations ;
 
 ! "si"/1vv: revisiting an earlier "ABANDONED" verdict written when mut's
 ! id-conditional q-context was still the blocker. Suffixes.csv's 3
@@ -2130,7 +1602,6 @@ LEXICON VvSuffixes
 ! miik/1vn above. Wired as two plain literals (not a NASAL marker
 ! rewriting something else -- "nar" is naq's OWN alternate spelling, not
 ! a rewrite of what precedes it).
-++naq+1vv:naq VerbContinuations ;
 ++naq+1vv:nar VerbContinuations ;
 
 ! "qujannami" needs a THIRD spelling, "nna" -- matches Suffixes.csv's
@@ -2147,63 +1618,6 @@ LEXICON VvSuffixes
 ! real Java analyzer's own output before wiring.
 ++naq+1vv:na VerbContinuations ;
 
-! "qu"/2vv ("to desire, to wish something to be done"): V-form Neutral,
-! t/k/q-form Suppression -- same clean single-candidate shape as
-! juq/kkut/gaq/lik/limaaq. "piqujaq" = {pi:pi/1v}{qu:qu/2vv}{jaq:jaq/1vn}
-! -- V-context (root "pi" is vowel-final), continues into VnSuffixes
-! since jaq/1vn follows it.
-++qu+2vv:qu VerbContinuations ;
-
-! "a"/1vv ("action done repeatedly/on several objects"): same
-! "bare-terminal keeps q, continuing form drops it" shape as ut/1vn's own
-! ut/uti split above: "atuagaq" (bare terminal) keeps "aq";
-! "atuagait"/"atuagarmik"/"atuagarnik" (continuing into gaq/1vn) use the
-! reduced "a". Root "atuq" is q-final (surfaces "atu"), so both
-! candidates need SUPPR to delete it -- same trap as several other
-! q-final-root suffixes in this file.
-++a+1vv:SUPPRa VerbContinuations ;
-++a+1vv:SUPPRaq # ;
-
-! "juma"/1vv ("desire"): V-form is a genuine 2-candidate free-variation
-! ambiguity ("juma"/"guma", both Neutral -- gold attests BOTH spellings
-! for the identical decomposition, e.g. "qaujijumajunga" vs
-! "qaujigumajunga", so implementing V-context would mean guessing, same
-! policy as "ma"/1vv below); t-context is likewise 2-candidate, also
-! skipped. ONLY the q-context is implemented: single candidate, Fusion
-! (== SUPPR reused, literal text already substituted to "ruma" in the
-! CSV, same shape as "gama"/"gapta"/"gavit"'s own Fusion rows in
-! TvEndings below) -- confirmed via "uqarumajunga"/"uqarumavunga" (root
-! "uqaq", q-final). Also reaches VvSuffixes directly (not just
-! TvEndings): "tusarumatuinnaqtunga" = tusaq+ruma(juma q-context)+
-! tuinnaq(1vv)+tunga.
-++juma+1vv:SUPPRruma VerbContinuations ;
-
-! "lauq"/1vv and "qqau"/1vv ("uqalaurmat"/"uqaqqaummat"): Suffixes.csv
-! gives both a clean single-candidate shape, same as juma's q-context:
-! V-form Neutral, t/k/q-form Suppression (deletes the preceding stem's
-! own final q/k/t) -- only the q-context is implemented here since that's
-! what both gold words need (root "uqaq", q-final). "lauq" has a SECOND
-! row in Suffixes.csv (a different function, "priority of the command")
-! gated by "condOnNext=mode:imp" -- a real disambiguator, not a guess:
-! these target words aren't imperative, so the first row (general
-! perceived past) is the unambiguous match. Both suffixes are themselves
-! q-final, so "mat"/tv-caus-4s's own NASAL marker (see TvEndings below)
-! turns THEIR trailing q into "r" when it directly follows --
-! "uqalaurmat" is "uqa"+SUPPR(deletes uqaq's own q)+"lauq"+NASAL(lauq's q
-! -> r)+"mat".
-++lauq+1vv:SUPPRlauq VerbContinuations ;
-
-! "giaq"/1vv ("begin to", needed by "ut"/1vn's r-prefix family above):
-! Suffixes.csv gives a clean single V-context candidate (Neutral, bare
-! "giaq") -- confirmed via "ilagiarut"/"qaujigiarutit", where giaq's own
-! trailing q is deleted not by anything special here but by "ut"/1vn's
-! OWN SUPPR marker on its r-prefixed candidate -- the same "the FOLLOWING
-! suffix's SUPPR eats MY trailing q" pattern established for gaq/usiq
-! above, not a new mechanism. Also reaches VvSuffixes directly (not just
-! VnSuffixes): "pigiaqtitaq" chains vv-suffix into vv-suffix directly
-! (giaq -> tit).
-++giaq+1vv:giaq VerbContinuations ;
-
 ! "tit"/1vv ("to cause s.o. to do s.t."): Suffixes.csv's V/k/q-form is a
 ! single clean candidate (Neutral, bare "tit"), confirmed correct before
 ! "si"/1vv ("pivalliatittinirmut" keeps the full "tit"). But specifically
@@ -2216,7 +1630,6 @@ LEXICON VvSuffixes
 ! specifically on the path toward VnSuffixes (where jaq lives), same
 ! "different literal spellings for different following contexts" pattern
 ! as ut/usiq/liuq's own multi-candidate treatment above.
-++tit+1vv:tit VerbContinuations ;
 ++tit+1vv:ti VerbContinuations ;
 
 ! Third literal, "tis" (own trailing t -> s), specifically on the path
@@ -2227,32 +1640,6 @@ LEXICON VvSuffixes
 ! t->s rule from a single word, same caution already applied to "ti"'s
 ! own tt->t case.
 ++tit+1vv:tis VerbContinuations ;
-
-! "qqau"/1vv: see "lauq"/1vv's comment above (shared investigation).
-++qqau+1vv:SUPPRqqau VerbContinuations ;
-
-! "tuq"/1vv ("prolonged action: for a long time"): "akiraqtuqtut" =
-! {akiraq:akiraq/1v}{tuq:tuq/1vv}{tut:jut/tv-ger-3p} -- V/k/q-context all
-! Neutral (single candidate, "tuq" itself unchanged, plain
-! concatenation); only t-context is Suppression (single candidate too,
-! but not needed by this word's q-final root, and would need its own
-! marker scoped to t only -- the existing SUPPR marker deletes q/k/t
-! uniformly, which would be WRONG here since this suffix's own k/q-context
-! is Neutral, not Suppression -- deferred rather than reusing SUPPR
-! incorrectly). Never continued into VvSuffixes at first -- only ever
-! validated word-final-ish via TvEndings ("akiraqtuqtut"); fixed once
-! "aviktursimajuni" needed tuq -> sima/1vv. Also gained a VnSuffixes
-! continuation in pursuit of the "uuktutigilugu" family (uuk+tuq(1vv)+
-! ti/uti(ut/1vn)+gi(1nv)+lugu) -- turned out NOT sufficient on its own:
-! gold's span for ut/1vn here is "ti" (via {ti:ut/1vn}), a spelling
-! this project's ut/1vn candidate set doesn't cover (not the r-prefix or
-! q-prefix families implemented above -- possibly the CSV's unimplemented
-! "guti" t-context candidate, itself contingent on tuq/1vv having its own
-! t-context spelling change not yet investigated). Left unattempted
-! rather than guessing a new ut/1vn candidate from a single word; the
-! VnSuffixes continuation itself is harmless and kept since it's
-! independently correct.
-++tuq+1vv:tuq VerbContinuations ;
 
 ! "iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut" need tuq/1vv's own
 ! trailing q dropped before the antipassive marker "i"/1vv attaches --
@@ -2276,51 +1663,6 @@ LEXICON VvSuffixes
 ! now that the mechanism is proven. Not decomposable by the real Java
 ! analyzer either (confirmed via --pipeline).
 ++tuq+1vv:KGUARDtur VerbContinuations ;
-
-! "sima"/1vv: "titiraqsimajut" = {titi:titiq/1v}{raq:raq/1vv}
-! {sima:sima/1vv}{jut:jut/tv-ger-3p}. V+k+q ALL Neutral (single
-! candidate, plain "sima" unchanged in every context -- unlike most
-! suffixes above, its q-context does NOT delete what precedes it,
-! confirmed by rereading the CSV row carefully: q-action1="n", not "s").
-! t-context is 2-way ambiguous ("sima sima"/"s n"), deferred. Never
-! continued into VnSuffixes at first -- only ever validated via TvEndings
-! ("titiraqsimajut"); the same word needs sima -> juq/1vn, fixed once
-! that was noticed.
-++sima+1vv:sima VerbContinuations ;
-
-! "ma"/1vv ("to be in a state of") -- a much bigger cluster once chained:
-! "kati"+"ma" = "to be meeting/assembled" backs an entire "katima*"
-! family of gold words. Its two V-form candidates ("ma"/"uma") were
-! initially treated as unresolvable free variation without checking
-! whether they collide. Confirmed via gold they DON'T: "katimaji" (root
-! "kati", vowel-final) uses bare "ma", but "aaqqiumainnarutinut" (root
-! "aaqqik", ALSO vowel-final once its own k is handled) uses "uma" --
-! same context, different roots, different literal spellings --
-! textbook "wire both in parallel" case, same as ngani/ani and
-! nganut/anut in NounEndings above. t/k/q-form (Suppression, both
-! candidates) not attempted: no gold word in the reachable cluster needs
-! it yet.
-++ma+1vv:ma VerbContinuations ;
-++ma+1vv:uma VerbContinuations ;
-
-! "raq"/1vv ("prolonged/staged action"): same shape as juq/kkut/gaq/lik
-! (Neutral/Suppression), reuses SUPPR. Shares its target example with
-! "sima"/1vv above ("titiraqsimajut").
-++raq+1vv:SUPPRraq VerbContinuations ;
-
-! "limaaq"/2vv ("ceaselessly" -- a DIFFERENT morpheme than
-! "limaaq"/1nn "inclusiveness: all of" in NnSuffixes above, same spelling
-! but a distinct homograph/function): "uqalimaarniq" =
-! {uqa:uqaq/1v}{limaar:limaaq/2vv}{niq:niq/2vn} -- full V/t/k/q, same
-! Neutral/Suppression shape, reuses SUPPR. The surface "limaar" (not
-! "limaaq") comes entirely from "niq"'s own already-implemented
-! Nasalization q-context (q->r), not from anything new here.
-++limaaq+2vv:SUPPRlimaaq VerbContinuations ;
-
-! "nga"/1vv: "turaangajuq" = {turaa:turaaq/1v}{nga:nga/1vv}
-! {juq:juq/1vn} -- same shape as juq/kkut/gaq/raq (single candidate,
-! Neutral/Suppression), reuses SUPPR unchanged.
-++nga+1vv:SUPPRnga VerbContinuations ;
 
 ! Endings_verb.csv has ~72 "tv,imp" (imperative mood) rows (9
 ! intransitive "nsp" person/number combinations, plus 63 transitive "sp"
@@ -2407,21 +1749,6 @@ LEXICON TvEndings
 ! marker stack, just the literal's own trailing vowel differs.
 ++mata+tv-caus-4p:NASALMINSERTmata # ;
 
-! "jara"/tv-ger-1s-3s ("I...it", 1s subject/3s object gerundive):
-! Endings_verb.csv's V-context is a single clean candidate (Neutral,
-! bare "jara"); every gold example in this cluster attaches to a
-! vowel-final stem. t/k/q-form ("tara", also Neutral -- own literal
-! spelling, not the general j->t rule, though it'd give the same result)
-! not attempted: unattested in this corpus.
-++jara+tv-ger-1s-3s:jara # ;
-
-! "tillugit"/tv-part-3p (participle, 3rd person plural object, no
-! specific subject) -- clean single V-context candidate per
-! Endings_verb_participle.csv (Neutral, bare "tillugit"), needed by
-! "katimatuinnaqtillugit" (tuinnaq/1vv -> tillugit directly).
-++tillugit+tv-part-3p:tillugit # ;
-
-++jut+tv-ger-3p:jut # ;
 
 ! "makkuktut" (root "makkuk", k-final) needs the bulk-generated "tut"
 ! (j->t already converted) with its own preceding k preserved, NOT
@@ -2429,26 +1756,6 @@ LEXICON TvEndings
 ! "KGUARDtu" above. Not decomposable by the real Java analyzer either
 ! (confirmed via --pipeline).
 ++jut+tv-ger-3p:KGUARDtut # ;
-
-! "junga"/tv-ger-1s: "quviattunga" = {quviat:quviak/1v}
-! {tunga:junga/tv-ger-1s} -- identical V/t/k/q shape to "jut"/tv-ger-3p
-! above: all single-candidate Neutral, reuses the existing
-! j->t-after-t/k/q rule unchanged, no new mechanism at all.
-++junga+tv-ger-1s:junga # ;
-
-! "lugu"/tv-part-1s-3s-prespas and "lugit"/tv-part-1s-3p-prespas:
-! "isumagillugu" = {isuma:isuma/1n}{gi:gi/1nv}{llugu:lugu/tv-part-1s-3s-
-! prespas} and "katillugit" = {kati:kati/1v}{llugit:lugit/tv-part-1s-3p-
-! prespas}. V-context only (both dialect variants in
-! Endings_verb_participle.csv agree: V-form is the bare morpheme text with
-! action "i(l)" -- Insertion of "l" -- UNCONDITIONALLY, not gated by
-! anything the way VVNG's insertion is). Since this insertion never varies
-! by what precedes in the V-context, it's baked directly into the literal
-! lower-side text ("llugu"/"llugit", canonical "lugu"/"lugit") rather than
-! implemented as a rule -- no marker needed. t/k/q-contexts differ by
-! dialect (North Baffin vs Cumberland Peninsula use different forms) and
-! aren't attempted.
-++lugu+tv-part-1s-3s-prespas:llugu # ;
 
 ! "lugu"/tv-part-1s-3s-fut: same V-context "l"-insertion shape as the
 ! prespas sibling above (baked-in "llugu", unconditional insertion, no
@@ -2462,7 +1769,6 @@ LEXICON TvEndings
 ++lugu+tv-part-1s-3s-fut:llugu # ;
 ++lugu+tv-part-1s-3s-fut:SUPPRllugu # ;
 
-++lugit+tv-part-1s-3p-prespas:llugit # ;
 
 ! "maliktugit" (root "malik", k-final) needs a THIRD spelling, "tugit"
 ! (own leading "l" converted to "t" -- not the general j->t rule, which
@@ -2481,23 +1787,12 @@ LEXICON TvEndings
 ++lugit+tv-part-1s-3p-fut:llugit # ;
 ++lugit+tv-part-1s-3p-fut:SUPPRllugit # ;
 
-! "lunga"/tv-part-1s-prespas (intransitive, no object): Endings_verb_
-! participle.csv's V-form action is the same unmarked "i(l)" insertion
-! as lugu/lugit's own V-context above, baked directly into the literal.
-! Needed for "ministaullunga"/"qaujimallunga" (both vowel-final stems).
-++lunga+tv-part-1s-prespas:llunga # ;
-
-! "luta"/tv-part-1p-prespas (intransitive, no object): same shape as
-! "lunga" directly above. Needed for "gavamaulluta".
-++luta+tv-part-1p-prespas:lluta # ;
-
 ! "lutik"/tv-part-3p-prespas (intransitive, no object): V-context follows
 ! the same "i(l)" shape as its siblings above ("llutik"), but
 ! "katitsutik" (root "katit", t-final) needs a SEPARATE t-context literal
 ! ("sutik") the CSV's own "&utik"-placeholder cell doesn't spell out
 ! directly -- trusted the empirical gold surface over the ambiguous CSV
 ! notation, same precedent as "malillugu"'s own SUPPR variant above.
-++lutik+tv-part-3p-prespas:llutik # ;
 ++lutik+tv-part-3p-prespas:sutik # ;
 
 ! "vugut"/tv-dec-1p: "niriuppugut" = {niriup:niriuk/1v}
@@ -2529,7 +1824,7 @@ LEXICON TvEndings
 ! t->n rule, just k->p instead of t->n, triggered by the newly-rewritten
 ! "p") is NOT safe to write as a blanket "k -> p || _ p": root "makpiq"
 ! has its own internal "kp" cluster, and "makpigaq" (see "gaq"/1vn's
-! comment in VnSuffixes above) already validated that this "k" must NOT
+! investigation note in generate_affixes.py) already validated that this "k" must NOT
 ! change in that word. PMARK scopes both rewrites to
 ! specifically-this-suffix's-own-"p", not any "p" that happens to follow
 ! a "k".
@@ -2549,41 +1844,12 @@ LEXICON TvEndings
 ! only that one candidate is wired (as its own literal, NOT by widening
 ! PMARK's v->p trigger to include q, which would also affect
 ! vunga/vugut's still-deferred ambiguity).
-++vuq+tv-dec-3s:vuq # ;
 ++vuq+tv-dec-3s:vPMARKuq # ;
-++vuq+tv-dec-3s:puq # ;
-
-! Four more tv-endings:
-!   - "jugut"/tv-ger-1p ("angiqtugut"): same shape as jut/junga/jutit
-!     (all single-candidate Neutral, V-form "jugut" literal, q-context
-!     "tugut" falls out of the existing j->t rule for free -- no new
-!     marker).
-!   - "jutit"/tv-ger-2s ("qujannamiingujutit"): same shape again, reached
-!     via "u"/1nv's own TvEndings continuation above.
-!   - "gama"/tv-caus-1s, "gapta"/tv-caus-1p, "gavit"/tv-caus-2s
-!     ("qaujimagama"/"qaujimagatta"/"qaujimagavit"): Endings_verb.csv's
-!     "caus" rows are single-candidate Neutral in the V-context (root
-!     "qaujima" is vowel-final, so only V-context is exercised);
-!     t/k/q-contexts differ per ending (some Assimilation, one
-!     "rama"/Fusion -- an unbuilt mechanism) and aren't attempted here,
-!     matching this project's minimal-scope policy of only wiring the
-!     context an actual gold word needs.
-++jugut+tv-ger-1p:jugut # ;
-++jutit+tv-ger-2s:jutit # ;
-++gama+tv-caus-1s:gama # ;
 
 ! "uqaqqaugamailaak" needs "gama"/tv-caus-1s to ALSO reach QParticles
 ! (ilaak/1e's own enclitic can follow a fully-inflected verb, same
 ! established pattern as "ga"/tn-nom-s-1s etc above on the noun side).
 ++gama+tv-caus-1s:gama QParticles ;
-++gapta+tv-caus-1p:gapta # ;
-++gavit+tv-caus-2s:gavit # ;
-
-! "git"/tv-imp-2s: see "suk"/1vv's comment in VvSuffixes above for the
-! full imperative-mood investigation. k-context, Fusion == SUPPR reused,
-! deletes suk's own trailing k: "tunngasu"+"git" = "tunngasugit".
-++git+tv-imp-2s:git # ;
-++git+tv-imp-2s:SUPPRgit # ;
 
 ! "gipsi"/tv-imp-2p ("tunngasugitsi"): the CSV's own k-form is literally
 ! "gipsi" (Fusion), but the gold surface is "...gitsi", not "...gipsi"

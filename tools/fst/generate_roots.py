@@ -468,3 +468,69 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PER-MORPHEME INVESTIGATION NOTES
+#
+# Migrated from tools/fst/lexicon.lexc, where each of these roots was
+# originally hand-added and verified one at a time, before this generator
+# covered its source CSV in bulk. Kept here -- NOT in roots-generated.lexc,
+# which is overwritten on every run -- as the record of how each was
+# checked and what was considered. Grep by morpheme id.
+#
+# Where a note says a root is "excluded from" / "not covered by" the bulk
+# pass, that was the state when the note was written; the root is now
+# emitted from its CSV like any other. What stays useful is the linguistic
+# reasoning (source CSV, gold decomposition, why a filter was or wasn't a
+# real risk).
+#
+# ── minista/1n, piliriaq/1n, gavama/1n (Nouns); ilinniaq/1v, akiraq/1v ──
+#   "minista" (loanword "minister"), "piliriaq" ("program; item"), "gavama"
+#   ("government"), "ilinniaq" ("to learn"), "akiraq" ("to oppose") come
+#   from LoanWords.csv / UndecomposableCompositeWords.csv /
+#   CommonCompositeWords.csv -- root-source CSVs that generate_roots.py's
+#   bulk pass did not originally cover. Hand-added one at a time when a gold
+#   word needed one; now emitted in bulk from those same files.
+#
+# ── tusaaji/1n ──
+#   "tusaaji" ("interpreter", WordsRelatedToRoots.csv) -- same story as
+#   minista/piliriaq above.
+#
+# ── qaujima/1v, iqqanaijaq/1v ──
+#   "qaujima" ("to know") and "iqqanaijaq" ("to work") are from
+#   CommonCompositeWords.csv but were originally excluded from the bulk
+#   pass: "qaujima" has an empty "nb" column (a required field), and
+#   "iqqanaijaq" has a populated "combination" column (the shadowing-risk
+#   filter). Both filters are right in general, but were overcautious here:
+#   "qaujima"'s recorded decomposition is "qauji" + a not-yet-implemented
+#   "ma"/1vv, "iqqanaijaq"'s is a chain through three more unimplemented
+#   suffixes -- neither reachable any other way in this lexicon, so no real
+#   shadowing, just a lost word.
+#
+# ── apiri/1v, aulat/1v ──
+#   "apiri" ("to ask s.o. a question"): CommonCompositeWords.csv records it
+#   as a spelling variant of "apiq" (its "combination" column just names
+#   "apiq", not a real multi-morpheme decomposition) -- same "filter
+#   overcautious for this one row" shape as qaujima/iqqanaijaq. Needed for
+#   "apirijumajara".
+#
+# ── taimait/1v ──
+#   WordsRelatedToRoots.csv records taimait's "combination" as
+#   "taima/1a+it/3nv", but gold decomposes "taimaimmat" as
+#   {taimaim:taimait/1v}{mat:mat/tv-caus-4s} -- taimait as its own atomic
+#   1v root, not taima+it (and "it"/3nv is an unimplemented ending
+#   category). Hand-added rather than building it/3nv just to reach the
+#   same surface string another way.
+#
+# ── maanna/1a, qujannamiik/1a, taimanna/1a ──
+#   Each needed a continuation into the derivational-suffix hub (for
+#   "u"/1nv to follow: "maannaujumi", "qujannamiingujutit",
+#   "taimannaummat" = {taimanna:taimanna/1a}{u:u/1nv}{mmat:mat/tv-caus-4s}).
+#   Adverbs had only ever continued to "#" (standalone reading) before.
+#   "qujannamiik" ("thank you!") itself came from CommonCompositeWords.csv,
+#   same hand-add reasoning as qaujima above. Multiple lexc entries for one
+#   morpheme+tag (one terminal, one with the extra continuation) is fine --
+#   same "multiple paths to the same morpheme" pattern as sima/tuq/juma in
+#   suffixes-generated.lexc.
+# ═══════════════════════════════════════════════════════════════════════════

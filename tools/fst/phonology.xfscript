@@ -8,14 +8,19 @@
 ! parse; xfst wants "||" there instead -- confirmed by testing), so putting
 ! "/" inside a tag would collide with rules written here.
 !
-! Build steps (three, not one, since the bulk root/demonstrative generators
-! were added):
+! Build steps (three, not one, since the bulk root/affix/demonstrative
+! generators were added):
 !   1. hfst-lexc -o combined-lexicon.hfst lexicon.lexc roots-generated.lexc
+!      suffixes-generated.lexc endings-generated.lexc
 !      demonstratives-generated.lexc (xfst's own `read lexc` command only
 !      accepts a single file -- see lexicon.lexc's own header -- so the
-!      hand-authored lexicon and the two generate_*.py outputs are combined
-!      by the standalone hfst-lexc tool, which *does* accept multiple input
-!      files, before this script ever runs.)
+!      hand-authored lexicon and the generate_*.py outputs
+!      (generate_roots.py, generate_affixes.py -> suffixes-/endings-generated,
+!      generate_demonstratives.py) are combined by the standalone hfst-lexc
+!      tool, which *does* accept multiple input files, before this script
+!      ever runs. hfst-lexc prints a few "Sublexicon is mentioned but not
+!      defined" warnings for the not-yet-wired *GeneratedSpeculative ending
+!      paths -- expected, not fatal.)
 !   2. hfst-xfst -F phonology.xfscript
 !      (loads that combined lexicon, composes it with the rules below, and
 !      saves the combined *generator* transducer -- analysis+tags in, final
@@ -122,9 +127,9 @@ read regex Lexicon
 ! "nut" (see lexicon.lexc's comment on "aanniaqtulirijikkunnut" in
 ! NounEndings); k->t for "quviattunga" (root "quviak"'s own final k
 ! assimilating to junga's already-transformed initial "t", see
-! lexicon.lexc's comment on "junga"/tv-ger-1s in TvEndings); p->t for
-! "qaujimagapta"->"qaujimagatta" (see lexicon.lexc's comment on
-! "gapta"/tv-caus-1p in TvEndings) -- each checked for collisions via
+! generate_affixes.py's investigation note on "junga"/tv-ger-1s); p->t
+! for "qaujimagapta"->"qaujimagatta" (see generate_affixes.py's note on
+! "gapta"/tv-caus-1p) -- each checked for collisions via
 ! full_corpus_check.py before being added as a blanket rule, not just
 ! assumed safe.
   .o. [ t -> n || _ n ]
@@ -149,8 +154,8 @@ read regex Lexicon
 ! initial "v" rewrites to "p" after t/k, then (a separate effect) a
 ! preceding stem's final "k" assimilates to that same "p". Marker-scoped
 ! rather than blanket letter rules specifically because "makpiq" (a
-! lexicon root, see lexicon.lexc's comment on "gaq"/1vn) has its own
-! internal "kp" cluster that must NOT be affected.
+! lexicon root, see generate_affixes.py's investigation note on "gaq"/1vn)
+! has its own internal "kp" cluster that must NOT be affected.
   .o. [ v -> p || [ t | k ] _ PMARK ]
   .o. [ k -> p || _ p PMARK ]
   .o. [ PMARK -> 0 ]
@@ -179,15 +184,17 @@ read regex Lexicon
   .o. [ 0 -> m || [ a | e | i | o | u ] _ MINSERT ]
   .o. [ MINSERT -> 0 ]
 
-! t->m/k->m: two more general (unmarked) total-regressive-assimilation
-! rules, same family as t->n/k->t/p->t above. t->m is needed by "mat"/
-! tv-caus-4s's own t-final stems ("qanuimmat"/"taimaimmat", see that
-! suffix's comment in TvEndings) -- placed LAST among the assimilation
-! rules, after MINSERT/NASAL markers resolve, so it only fires once
-! "mat"'s own literal "m" is truly adjacent to the preceding stem's final
-! letter. k->m is its sibling (same trigger, different source consonant),
-! needed by "aluk"/1nn's "uqsualummut" (see that suffix's comment in
-! NnSuffixes).
+! t->m/k->m: two more members of the same general (unmarked)
+! total-regressive-assimilation family as t->n/k->t/p->t/m->n/k->n --
+! this project's modelling of Benoit's Action.Assimilation (Action.kt:
+! the stem's final consonant becomes the following affix's initial). A
+! consonant assimilating to a following "m" is as systematic as to a
+! following "n" or "t"; these entered when a t-/k-final stem first met an
+! m-initial affix ("qanuimmat"/"taimaimmat" for t->m, "uqsualummut" for
+! k->m), not as patches for those words. Placed LAST among the
+! assimilation rules, after MINSERT/NASAL markers resolve, so they only
+! fire once the affix's own literal "m" is truly adjacent to the
+! preceding stem's final letter.
   .o. [ t -> m || _ m ]
   .o. [ k -> m || _ m ]
 

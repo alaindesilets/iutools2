@@ -274,6 +274,18 @@ def candidates_for_context(row: dict, context: str):
             # action1.
             yield f"{marker1 or ''}{lit}"
             continue
+        if a2 == "s":
+            # Suppression as the SECOND action (CSV action2 == "s"): e.g.
+            # the "Lever A candidate B" on the dat/abl/loc/acc noun
+            # endings (nut/mut/nik/mik/ni/mi/nit) -- action1 Neutral,
+            # action2 Suppression = the plain literal but ALSO delete a
+            # preceding q/k/t. Modelled with the same SUPPR marker as an
+            # action1 Suppression (a no-op after a vowel-final stem). Not
+            # gold-observed: the CSV row's own {context}-action2 column
+            # literally says "s".
+            prefix = "SUPPR" if "SUPPR" not in (marker1 or "") else marker1
+            yield f"{prefix}{lit}"
+            continue
         if a2:
             continue
         yield f"{marker1 or ''}{lit}"
@@ -939,3 +951,560 @@ def gen_endings():
 if __name__ == "__main__":
     gen_suffixes()
     gen_endings()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PER-MORPHEME INVESTIGATION NOTES
+#
+# Migrated from tools/fst/lexicon.lexc, where each of these suffix/ending
+# morphemes was originally hand-added and verified one at a time, before
+# generate_affixes.py covered its Suffixes.csv / Endings_*.csv row in bulk.
+# Kept here -- NOT in suffixes-generated.lexc / endings-generated.lexc,
+# which are overwritten on every run -- as the record of which CSV
+# candidates per context were used, how each was checked (often against the
+# real Java analyzer's own output, or hfst-lookup directly), and which
+# alternatives / dead-ends were considered. Grep by morpheme id.
+#
+# These notes describe both this generator's output AND the phonology rules
+# in phonology.xfscript that the entries depend on (marker symbols such as
+# SUPPR / NASAL / DECAP, rule ordering, why a marker was or wasn't reused).
+# Where a note says something is "deferred" / "not attempted" / "not
+# implemented", that is still the state unless a later note supersedes it.
+#
+
+#
+# ── ngita+tn-gen-p-4s ──
+# "ngita"/tn-gen-p-4s: clean single V-context candidate per
+# Endings_noun.csv (Neutral, bare "ngita"). "gavamakkungita" (kkut/1nn,
+# t-final) needed SUPPR rather than the general t->n rule: t->n would
+# give "kkunngita" (double n, since ngita's own leading "ng" already
+# supplies one) instead of gold's single-n "kkungita" -- SUPPR runs
+# before the general t->n rule in the cascade (phonology.xfscript), so
+# deleting kkut's own t outright avoids the conflict.
+#
+# ── ni+tn-loc-p ──
+# "ni"/tn-loc-p: "amisuni" = {amisu:amisu/1n}{ni:ni/tn-loc-p}. V-only
+# (V-form=ni/Neutral); t/k/q all ambiguous or id-conditional, deferred.
+#
+# ── titut+tn-sim-p ──
+# "titut"/tn-sim-p is a K-CONTEXT (not q) single-candidate Neutral row --
+# same literal "titut" text as V-context, so needs no separate marker,
+# one plain entry covers both. Target word is "inuttitut" (root "inuk",
+# k-final), NOT the more obvious "inuktitut": the general k->t rule below
+# (for "quviattunga") correctly assimilates "inuk"+"titut" -> "inuttitut"
+# -- confirmed by testing the generator direction directly. "inuktitut"
+# (no assimilation) is gold-attested too but almost certainly the
+# lexicalized proper-noun spelling of the language name itself, not a
+# compositional form; left unimplemented rather than fighting an
+# already-correct general rule for one irregular spelling. Its own
+# q-context is the same Lever A trigger-conditional shape, but NOT
+# implemented: the one gold word that would exercise it
+# ("qallunaatitut") has an unrelated, unexplained root-internal
+# alternation (qaplunaaq -> qallunaa, same category as iglu->illu), so
+# there's no clean example to verify against.
+#
+# "mit"/tn-abl-s was investigated with the same V+trigger+default shape
+# as "mut" and initially left unimplemented: every gold word that would
+# exercise its q-context chained through an already-unimplemented
+# dependency (luaq/1vv) or an unrelated root alternation, and no
+# V-context example existed either -- since implemented above once
+# "kingulliqpaamit"/"sivulliqpaamit" (paaq/1nn) provided a clean example.
+# "tut"/tn-sim-s remains unattested anywhere in the 985-word gold
+# standard, not worth implementing blind.
+#
+# ── tigut+tn-via-p ──
+# Three more V-context (or V+k/q) noun endings:
+#   - "tigut"/tn-via-p ("via" case): "tusaajitigut" =
+#     {tusaaji:tusaaji/1n}{tigut:tigut/tn-via-p}. V+k (both Neutral,
+#     plain, no marker); t-context needs its own Insertion("i") marker
+#     (not built, unused by this word since "tusaaji" is vowel-final);
+#     q-context is id-conditional, deferred as usual.
+#   - "nginnit"/tn-abl-p-4s: "asinginnit" =
+#     {asi:asi/1n}{nginnit:nginnit/tn-abl-p-4s}. V+k+q (k/q both
+#     Suppression, reuses SUPPR); t-context ambiguous, deferred.
+#   - "nginni"/tn-loc-p-4s: "asinginni" =
+#     {asi:asi/1n}{nginni:nginni/tn-loc-p-4s}. Same shape as "nginnit"
+#     above (V+k+q via SUPPR, t deferred).
+#
+# ── ngat+tn-nom-s-4p ──
+# "ngat"/tn-nom-s-4p: "ilangat" = {ila:ila/1n}{ngat:ngat/tn-nom-s-4p} --
+# V+k+q (k/q both Suppression, reuses SUPPR); t-context ambiguous (2
+# candidates), deferred.
+#
+# ── miik+1vn ──
+# "miik"/1vn (exclamation "Oh, how...!"): Suffixes.csv lists three
+# literal spellings (miik/mii/mi) crossed with Nasalization vs
+# Suppression actions in q-context -- but gold shows neither action
+# cleanly: "nakuqmi"/"nakuqmii" keep the preceding root's q UNCHANGED
+# (matching neither Suppression-deletes-it nor Nasalization-converts-it),
+# while "nakurmii"/"nakurmiik" (same root "nakuq") DO show Nasalization
+# (q->r). Same "wire plain and NASAL-marked variants in parallel, let
+# gold's own spelling pick the path" strategy as usiq/1vn's SUPPR/VOICE
+# split below -- all 3 spellings wired both plain and NASAL-prefixed (6
+# entries total). "qujannami"/"qujannamik" (a 4th spelling, "mik", plus
+# "naq"/1vv's own "nna" spelling and a "quja" root) not attempted: more
+# unexplained variation than 2 words can justify guessing a rule from.
+#
+# ── jjut+1vn ──
+# "jjut"/1vn ("reason/cause/motive for doing s.t."): same "one who/reason
+# for X" shape as "ji"/1vn just above, wired identically (bare "jjut"
+# terminal, continuing "jjuti", same 4 continuations). "katimajjutiksaq"
+# also needed a bare (non-SUPPR) terminal candidate for ksaq/1nn below --
+# own trailing q kept, since gold wants "ksaq" not "ksa" when it's the
+# FINAL morpheme. q-context ("rut"/"ruti", Fusion) not attempted: no gold
+# word in this cluster needs it.
+#
+# ── gaq+1vn ──
+# "gaq"/1vn: "makpigaq" = {makpi:makpiq/1v}{gaq:gaq/1vn} -- verb-to-noun
+# derivational suffix ("forms a noun with an inherently passive
+# meaning"). Same shape as juq/1vn and kkut/1nn: Suffixes.csv's row has
+# one deterministic candidate per context (V-form/action Neutral,
+# t/k/q-form Suppression, all literally "gaq" itself unchanged) --
+# genuine rule, reuses the existing SUPPR marker exactly like
+# "liri"/"qai"/"kkut" (delete the preceding stem's final q/k/t,
+# "makpiq"->"makpi", then append "gaq"). Also continues into NnSuffixes
+# ("maligaksait" needs "ksaq"/1nn to attach directly after "gaq"), into
+# NounEndings directly ("maligarmut"/"maligarmi"/"maligarmik"/
+# "maligarnit" all attach a tn-ending directly onto "gaq" with no
+# intervening "ksaq", reaching the generic non-trigger Lever A branch
+# there -- confirmed by the attested surface "gar", Nasalization, not
+# "ga", Suppression, since "gaq"/1vn is not one of Lever A's trigger
+# ids), and into NvSuffixes (so a noun-to-verb suffix like "liuq" can
+# follow: "maligaliuqti" = mali(malik/1v)+ga(gaq/1vn)+liuq(liuq/1nv)+
+# ti(ji/1vn)).
+#
+# ── ut+1vn ──
+# Suffixes.csv's own V-form column lists "ut uti utik utaq" TWICE --
+# once (Neutral) as this family's plain, unmarked candidates, once more
+# (further down the same cell) with action "i(jj)" for the already-
+# wired "jjut/jjuti/jjutik/jjutaq" family above. Only the "g"-inserted
+# sibling ("gut/guti/gutik/gutaq") and the "jj"-geminated one got wired
+# when this suffix was first built -- the genuinely bare, unmarked
+# forms were missed entirely. "katimautitsa" needs "uti" bare (no "g"),
+# confirmed via gold; not decomposable by the real Java analyzer either
+# (confirmed via --pipeline).
+#
+# ── jaq+1vn ──
+# "jaq"/1vn: Suffixes.csv actually has TWO "jaq/1vn"-tagged rows (nb=1
+# "passive", nb=3 "similar to"), distinguished only by an id-conditional
+# condPrec (nb=1: NOT preceded by u/1nv; nb=3: preceded by u/1nv) -- but
+# unlike the "mut"/"nik" id-conditional cases (deferred because the
+# SURFACE FORM itself differs by condition), here both rows produce the
+# IDENTICAL surface rule (V-form "jaq"/Neutral, t/k/q-form "taq"/Neutral
+# -- the existing j->t-after-t/k/q rule handles the consonant contexts
+# already, no new marker needed), so the id-conditional distinction is
+# purely semantic and doesn't affect which lexc entry to write. "jaq"
+# also gained its own t/k/q-context literal spelling, "taq" -- Suffixes.csv
+# gives this directly as its own candidate (not derived via the general
+# j->t rule), needed for "pigiaqtitaq" family ("tit"/1vv ends in t, jaq
+# attaches right after) -- and a NnSuffixes continuation
+# ("qaujimajatuqanginnik" needs jaq -> tuqaq/1nn directly). "ilagijaujuq"
+# = {ila:ila/1n}{gi:gi/1nv}{jaq:jaq/1vn}{u:u/1nv}{juq:juq/1vn} needs the
+# bare terminal path too ("piqujaq"), not just mid-chain.
+#
+# ── it+3nv ──
+# "it"/3nv ("to be such"): Suffixes.csv's own condPrec ("type:a") is a
+# grammatical-feature condition the bulk generator can't model, but
+# it's confirmed directly by gold: both target words' root is tagged
+# "1a" (adjective), matching this row's own condition exactly.
+# Q-context gives 2 candidates, both literal "it" with Suppression --
+# no real ambiguity (both actions identical), resolves to a single
+# "SUPPRit" (for the plain q-kept "qanuq" root spelling). A plain "it"
+# (no marker) is ALSO needed since "qanuq"/1a already has its own
+# q-dropped spelling variant "qanu" wired separately -- attaching to
+# THAT spelling needs no further deletion. Previously investigated and
+# confirmed low-value on its own (round-16-era: only 3 gold words are
+# 3nv-tagged at all) but 2 of those 3 are exactly this suffix's own
+# target words, so worth wiring now that they're the last remaining
+# gap. Neither is decomposable by the real Java analyzer either
+# (confirmed via --pipeline).
+#
+# ── giik+2nv ──
+# "giik"/2nv: "ajjigiinngittunik" = {ajji:ajji/1n}{gii:giik/2nv}
+# {nngit:nngit/1vv}{tu:juq/1vn}{nik:nik/tn-acc-p} -- V-context only
+# (V-form=giik/Neutral). t-context is a genuine single candidate
+# (Insertion "i") but unused here (root "ajji" is vowel-final);
+# k/q-contexts use the unbuilt Fusion primitive, skipped.
+#
+# ── liaq+2nv ──
+# "liaq"/2nv ("motion towards: to go to"): clean single V-context
+# candidate per Suffixes.csv (Neutral, bare "liaq"); "aanniaviliaqtunut"
+# attaches after vik/3vn (vowel-final surface).
+#
+# ── iq+1nv ──
+# "iq"/1nv: clean single V-context candidate per Suffixes.csv (Neutral,
+# bare "iq"); its own trailing q survives until something downstream
+# needs it gone (si/1vv's own literal spellings and ut/1vn's SUPPR-
+# prefixed "ruti" both already handle that, same established pattern as
+# every other q-final suffix). t/k/q-context (Insertion "ng"/"a",
+# Suppression) not attempted: unattested in this cluster.
+#
+# ── qaq+1nv ──
+# "qaq"/1nv ("to have/possess"), needed by "jjut"/1vn's "pijjutiqaqtu*"
+# cluster -- clean single V-context candidate (Neutral), reused unchanged
+# for t/k/q since "jjuti" (what it always attaches to here) is
+# vowel-final. Needs BOTH VnSuffixes (for "juq"/1vn to follow,
+# "pijjutiqaqtuq"/"...tunik") and TvEndings directly ("pijjutiqaqtut"
+# attaches "jut"/tv-ger-3p straight onto qaq, no juq/1vn in between). A
+# second gold example, "akiqangittuq", is NOT reached: it produces
+# "akiqaNNgittuq" (double n) from plain concatenation + SUPPR, not gold's
+# "akiqaNgittuq" (single n) -- something reduces nngit's own doubled "nn"
+# to a single "n" specifically after qaq's deletion, not explained by any
+# mechanism built so far (same unexplained-surface-simplification
+# category as "iglu"->"illu"). Not pursued further; revisit once the
+# nn->n reduction is understood.
+#
+# ── gi+1nv ──
+# "gi"/1nv ("have as; possess"): "isumagillugu" = {isuma:isuma/1n}
+# {gi:gi/1nv}{llugu:lugu/tv-part-1s-3s-prespas}. V-context only
+# (V-form=gi/Neutral); t-context is a genuine single candidate too
+# (Insertion "i") but unused by this word (root "isuma" is vowel-final)
+# and not implemented (would need its own marker, deferred); k/q-contexts
+# use "Fusion", an unbuilt primitive, skipped. Also gained its own
+# q-context literal spelling, "ri" (Suffixes.csv gives this directly as a
+# Fusion candidate -- mechanically identical to SUPPR, deletes the
+# preceding q) -- needed for "apiqqusirijara" (usiq's own bare "qusiq"
+# candidate, own q kept, then gi's "ri" eats it) -- and reaches
+# VnSuffixes as well as TvEndings, so it can be followed by a further
+# vn-suffix like "jaq"/1vn ("ilagijaujuq" needs gi -> jaq/1vn), not just
+# terminate in a verb ending. "ut"/1vn's "quti" and "usiq"/1vn's "qusiq"
+# candidates above both needed a path into NvSuffixes so "gi" can follow
+# them at all -- neither had ever reached a noun-to-verb suffix before.
+#
+# ── paaq+1nn ──
+# "paaq"/1nn ("the most of all; big, very"), the suffix &iq's "lliq"
+# family chains into -- clean single V-context candidate per its own CSV
+# row.
+#
+# ── miuq+1nn ──
+# "miuq"/1nn ("resident of a place name"): clean single V-context
+# candidate per Suffixes.csv (Neutral, bare "miuq"). SUPPR reused so a
+# following ending's own SUPPR marker (it/tn-nom-p, nut/tn-dat-p, both
+# already SUPPR-equipped) eats miuq's own trailing q for free -- same
+# established pattern as every other "own q survives until something
+# downstream needs it gone" suffix in this file.
+#
+# ── limaaq+1nn ──
+# "limaaq"/1nn ("inclusiveness: all of" -- a DIFFERENT homograph than
+# "limaaq"/2vv "ceaselessly" in VvSuffixes below): a clean, single-
+# candidate rule (V-form Neutral, t/k/q-form Suppression, same shape as
+# juq/kkut/gaq/lik) once "nut" had both its default NASAL and SUPPR
+# q-context branches (see NounEndings above) -- confirmed via
+# "inulimaanut" = {inu:inuk/1n}{limaa:limaaq/1nn}{nut:nut/tn-dat-p} and
+# "kikkulimaanut"/"kikkulimaat" (the latter also exercising "it"'s
+# existing DECAP mechanism unchanged: limaaq's own trailing q is deleted,
+# leaving "...limaa" -- two vowels -- so DECAP correctly strips "it"'s
+# own leading i, giving "...limaat"). Two other candidate words
+# ("kanatalimaami", needs root "kanata" but the only bulk-generated
+# homograph is tagged 2n not gold's 1n -- a pre-existing, already-
+# documented root-homograph mismatch; "nunavulimaami", root "nunavut"
+# isn't bulk-generated at all -- it only exists in Locations.csv, a
+# source file generate_roots.py doesn't cover) are left unimplemented,
+# blocked by those unrelated gaps, not by limaaq itself.
+#
+# ── lik+1nn ──
+# "lik"/1nn ("possession: 'one with'"): "nanulik" = {nanu:nanuq/1n}
+# {lik:lik/1nn} -- noun-to-noun. Same shape as juq/kkut/gaq: one
+# deterministic candidate per context (V-form/action Neutral, t/k/q-form
+# Suppression, "lik" itself unchanged) -- genuine rule, reuses SUPPR
+# unchanged. Also continues into NounEndings ("nunalittinni" =
+# nuna+li(lik/1nn)+ttinni(ptingni/tn-loc-s-1d)), not just the terminal
+# path (matching "nanulik" standalone).
+#
+# ── aluk+1nn ──
+# "aluk"/1nn ("largeness/impressiveness"): Suffixes.csv gives TWO
+# V-context candidates ("aluk"/"aaluk", each with a secondary "i(ra)"
+# insertion action) -- but no gold-attested word needs the "aaluk"/
+# "i(ra)" branch at all, so only the plain "aluk" Neutral candidate is
+# implemented. Needs the SUPPR marker even though "aluk" itself is
+# Neutral in V-context: "akuni" (i-final) is genuine V-context, but
+# "uqsu*"'s actual root is "uqsuq" (q-FINAL -- the gold surface span
+# "uqsu" is already q-deleted, easy to misread as vowel-final from the
+# surface alone) -- aluk's own k/q-form action1 IS "s" (Suppression), the
+# same SUPPR marker used everywhere else in this lexicon, harmless as a
+# no-op when nothing q/k/t-final actually precedes it (confirmed safe for
+# "akunialuk"). "uqsualuit"/"uqsualuup" need NO further new mechanism:
+# "it"/tn-nom-p and "up"/tn-gen-s already carry their own SUPPR marker
+# (deletes a preceding q/k/t), so aluk's own trailing "k" is deleted by
+# the EXISTING machinery the moment it reaches NounEndings -- confirmed
+# "aluit"/"aluup" fall out for free, same "bulk mechanism pays off beyond
+# the tested set" shape as several other suffixes in this file.
+# "uqsualummut" is what first exercised the k->m rule in
+# phonology.xfscript: "mut"/tn-dat-s's plain-Neutral candidate alone
+# would give literal "aluk"+"mut" = "alukmut", not gold's "alummut".
+# k->m is NOT an aluk-specific patch -- it is a member of the general
+# total-regressive-assimilation family (t->n / k->t / p->t / t->m / k->m
+# / m->n / k->n), which is this project's modelling of Benoit's
+# Action.Assimilation (Action.kt: the stem's final consonant becomes the
+# following affix's initial consonant). aluk's own CSV row doesn't
+# mention it because that row describes aluk's shape by what PRECEDES it,
+# not what follows -- the assimilation is a property of the boundary, not
+# of aluk. "uqsualummut" is just the gold word where a k-final stem first
+# met an m-initial affix.
+#
+# ── tuqaq+1nn ──
+# "tuqaq"/1nn: "gavamatuqakkut" = {gavama:gavama/1n}{tuqa:tuqaq/1nn}
+# {kkut:kkut/1nn} -- V-context only (V-form=tuqaq/Neutral). t-context has
+# a genuine single candidate too (Insertion "i") but isn't needed by this
+# word (root "gavama" is vowel-final) and isn't implemented here -- would
+# need its own marker (insert "i" before a t-final stem), deferred.
+# k/q-contexts are ambiguous (2 unconditioned candidates each), skipped
+# as usual. Also gained a NounEndings continuation and its own q-context
+# Suppression candidate (Suffixes.csv's own q-form gives "tuqaq tuqaq"/
+# "n s" -- a second, SUPPR-prefixed candidate) -- both needed for
+# "qaujimajatuqanginnik" (jaq's own trailing q deleted by tuqaq's SUPPR,
+# then tuqaq -> nginnik/tn-acc-p-4s).
+#
+# ── tuinnaq+2nn ──
+# "tuinnaq"/2nn ("only/just/merely"): "kikkutuinnait" =
+# {kikku:kikkut/1p}{tuinna:tuinnaq/2nn}{it:it/tn-nom-p} -- full V/t/k/q,
+# same shape as juq/kkut/gaq/lik/raq (single candidate, Neutral/
+# Suppression), reuses SUPPR. Continues into NounEndings (the
+# "it"/tn-nom-p above) rather than back into NnSuffixes: checked that
+# this doesn't hit "it"'s deferred Selfdecapitation gap (unlike the
+# "limaaq"/1nn case above) -- deleting tuinnaq's own trailing q leaves
+# "tuinna", ending in a single vowel after a consonant, not two vowels,
+# so decap never fires here.
+#
+# ── allak+1vv ──
+# "allak"/1vv ("ease, simpleness of action: 'easily', 'just'"):
+# Suffixes.csv gives 2 literal spellings in EVERY context ("allak"/"ala",
+# same free-variation shape as usiq/ut/miik) -- only V-context wired so
+# far since "uqaalautaa" (root "uqaq", V-context) is the only gold
+# example, confirmed via the real Java analyzer's own output before
+# wiring. The CSV's own action2 ("i(ra)", an insertion this project's
+# generator doesn't model) is left unimplemented, same as juq/1vn's own
+# unexplained action2 codes elsewhere in this file.
+#
+# ── allak+1vv ──
+# t/k/q-context (Suppression, deletes the preceding stem's final q/k/t):
+# same two literal spellings again, needed since "uqaalautaa"'s root
+# "uqaq" is itself q-final (own q deleted by SUPPR before "ala"
+# attaches).
+#
+# ── li+2vv ──
+# "li"/2vv ("to make that s.t. or s.o. ..."): Suffixes.csv gives a clean
+# single-candidate row per context (V "li" Neutral, t/k/q "li"
+# Suppression), but its condPrec ("!cp(id:li/4vv)", a negated
+# mutual-exclusion note against the DIFFERENT li/4vv homograph, not a
+# blocking condition on li/2vv itself) isn't a bare "id:X" trigger the
+# bulk generator understands -- "atuliqujaujuq" needs it (root "atuq"
+# q-context: SUPPR deletes the q).
+#
+# ── luaq+1vv ──
+# "luaq"/1vv ("excessive action: too much/quite"): clean single
+# V-context candidate per Suffixes.csv (Neutral, bare "luaq"; the row's
+# second candidate, "lluaq", is unattested here). Reaches VnSuffixes for
+# juq/1vn to follow ("piluaqtumi"/"...mik"/"...mit"). The last of these
+# ("piluaqtumit") found one more gap: mit/tn-abl-s had never been added
+# to NounEndingsAfterQTriggerSuffix, unlike its "mi"/"mik" siblings --
+# fixed there.
+#
+# ── vallia+1vv ──
+# "vallia"/1vv ("progression, gradually") -- clean single V-context
+# candidate per Suffixes.csv (Neutral, bare "vallia"); needed for
+# "pivalliatittinirmut" (si/1vv's t-context "ti" family, via tit/1vv).
+# t/k/q-form ("pallia", v->p, own literal spelling) not attempted:
+# unattested in this corpus.
+#
+# ── tuinnaq+1vv ──
+# "tuinnaq"/1vv ("merely/only/simply"): clean single V-context candidate
+# per Suffixes.csv (Neutral, bare "tuinnaq"); every gold example attaches
+# after an already-vowel-final vv-suffix (ma/juma/juma-via-ruma). A
+# DIFFERENT homograph from the already-implemented "tuinnaq"/2nn noun
+# suffix in NnSuffixes above -- confirmed genuinely separate tags before
+# wiring, not a duplicate.
+#
+# ── qu+2vv ──
+# "qu"/2vv ("to desire, to wish something to be done"): V-form Neutral,
+# t/k/q-form Suppression -- same clean single-candidate shape as
+# juq/kkut/gaq/lik/limaaq. "piqujaq" = {pi:pi/1v}{qu:qu/2vv}{jaq:jaq/1vn}
+# -- V-context (root "pi" is vowel-final), continues into VnSuffixes
+# since jaq/1vn follows it.
+#
+# ── a+1vv ──
+# "a"/1vv ("action done repeatedly/on several objects"): same
+# "bare-terminal keeps q, continuing form drops it" shape as ut/1vn's own
+# ut/uti split above: "atuagaq" (bare terminal) keeps "aq";
+# "atuagait"/"atuagarmik"/"atuagarnik" (continuing into gaq/1vn) use the
+# reduced "a". Root "atuq" is q-final (surfaces "atu"), so both
+# candidates need SUPPR to delete it -- same trap as several other
+# q-final-root suffixes in this file.
+#
+# ── juma+1vv ──
+# "juma"/1vv ("desire"): V-form is a genuine 2-candidate free-variation
+# ambiguity ("juma"/"guma", both Neutral -- gold attests BOTH spellings
+# for the identical decomposition, e.g. "qaujijumajunga" vs
+# "qaujigumajunga", so implementing V-context would mean guessing, same
+# policy as "ma"/1vv below); t-context is likewise 2-candidate, also
+# skipped. ONLY the q-context is implemented: single candidate, Fusion
+# (== SUPPR reused, literal text already substituted to "ruma" in the
+# CSV, same shape as "gama"/"gapta"/"gavit"'s own Fusion rows in
+# TvEndings below) -- confirmed via "uqarumajunga"/"uqarumavunga" (root
+# "uqaq", q-final). Also reaches VvSuffixes directly (not just
+# TvEndings): "tusarumatuinnaqtunga" = tusaq+ruma(juma q-context)+
+# tuinnaq(1vv)+tunga.
+#
+# ── lauq+1vv ──
+# "lauq"/1vv and "qqau"/1vv ("uqalaurmat"/"uqaqqaummat"): Suffixes.csv
+# gives both a clean single-candidate shape, same as juma's q-context:
+# V-form Neutral, t/k/q-form Suppression (deletes the preceding stem's
+# own final q/k/t) -- only the q-context is implemented here since that's
+# what both gold words need (root "uqaq", q-final). "lauq" has a SECOND
+# row in Suffixes.csv (a different function, "priority of the command")
+# gated by "condOnNext=mode:imp" -- a real disambiguator, not a guess:
+# these target words aren't imperative, so the first row (general
+# perceived past) is the unambiguous match. Both suffixes are themselves
+# q-final, so "mat"/tv-caus-4s's own NASAL marker (see TvEndings below)
+# turns THEIR trailing q into "r" when it directly follows --
+# "uqalaurmat" is "uqa"+SUPPR(deletes uqaq's own q)+"lauq"+NASAL(lauq's q
+# -> r)+"mat".
+#
+# ── giaq+1vv ──
+# "giaq"/1vv ("begin to", needed by "ut"/1vn's r-prefix family above):
+# Suffixes.csv gives a clean single V-context candidate (Neutral, bare
+# "giaq") -- confirmed via "ilagiarut"/"qaujigiarutit", where giaq's own
+# trailing q is deleted not by anything special here but by "ut"/1vn's
+# OWN SUPPR marker on its r-prefixed candidate -- the same "the FOLLOWING
+# suffix's SUPPR eats MY trailing q" pattern established for gaq/usiq
+# above, not a new mechanism. Also reaches VvSuffixes directly (not just
+# VnSuffixes): "pigiaqtitaq" chains vv-suffix into vv-suffix directly
+# (giaq -> tit).
+#
+# ── qqau+1vv ──
+# "qqau"/1vv: see "lauq"/1vv's comment above (shared investigation).
+#
+# ── tuq+1vv ──
+# "tuq"/1vv ("prolonged action: for a long time"): "akiraqtuqtut" =
+# {akiraq:akiraq/1v}{tuq:tuq/1vv}{tut:jut/tv-ger-3p} -- V/k/q-context all
+# Neutral (single candidate, "tuq" itself unchanged, plain
+# concatenation); only t-context is Suppression (single candidate too,
+# but not needed by this word's q-final root, and would need its own
+# marker scoped to t only -- the existing SUPPR marker deletes q/k/t
+# uniformly, which would be WRONG here since this suffix's own k/q-context
+# is Neutral, not Suppression -- deferred rather than reusing SUPPR
+# incorrectly). Never continued into VvSuffixes at first -- only ever
+# validated word-final-ish via TvEndings ("akiraqtuqtut"); fixed once
+# "aviktursimajuni" needed tuq -> sima/1vv. Also gained a VnSuffixes
+# continuation in pursuit of the "uuktutigilugu" family (uuk+tuq(1vv)+
+# ti/uti(ut/1vn)+gi(1nv)+lugu) -- turned out NOT sufficient on its own:
+# gold's span for ut/1vn here is "ti" (via {ti:ut/1vn}), a spelling
+# this project's ut/1vn candidate set doesn't cover (not the r-prefix or
+# q-prefix families implemented above -- possibly the CSV's unimplemented
+# "guti" t-context candidate, itself contingent on tuq/1vv having its own
+# t-context spelling change not yet investigated). Left unattempted
+# rather than guessing a new ut/1vn candidate from a single word; the
+# VnSuffixes continuation itself is harmless and kept since it's
+# independently correct.
+#
+# ── sima+1vv ──
+# "sima"/1vv: "titiraqsimajut" = {titi:titiq/1v}{raq:raq/1vv}
+# {sima:sima/1vv}{jut:jut/tv-ger-3p}. V+k+q ALL Neutral (single
+# candidate, plain "sima" unchanged in every context -- unlike most
+# suffixes above, its q-context does NOT delete what precedes it,
+# confirmed by rereading the CSV row carefully: q-action1="n", not "s").
+# t-context is 2-way ambiguous ("sima sima"/"s n"), deferred. Never
+# continued into VnSuffixes at first -- only ever validated via TvEndings
+# ("titiraqsimajut"); the same word needs sima -> juq/1vn, fixed once
+# that was noticed.
+#
+# ── ma+1vv ──
+# "ma"/1vv ("to be in a state of") -- a much bigger cluster once chained:
+# "kati"+"ma" = "to be meeting/assembled" backs an entire "katima*"
+# family of gold words. Its two V-form candidates ("ma"/"uma") were
+# initially treated as unresolvable free variation without checking
+# whether they collide. Confirmed via gold they DON'T: "katimaji" (root
+# "kati", vowel-final) uses bare "ma", but "aaqqiumainnarutinut" (root
+# "aaqqik", ALSO vowel-final once its own k is handled) uses "uma" --
+# same context, different roots, different literal spellings --
+# textbook "wire both in parallel" case, same as ngani/ani and
+# nganut/anut in NounEndings above. t/k/q-form (Suppression, both
+# candidates) not attempted: no gold word in the reachable cluster needs
+# it yet.
+#
+# ── raq+1vv ──
+# "raq"/1vv ("prolonged/staged action"): same shape as juq/kkut/gaq/lik
+# (Neutral/Suppression), reuses SUPPR. Shares its target example with
+# "sima"/1vv above ("titiraqsimajut").
+#
+# ── limaaq+2vv ──
+# "limaaq"/2vv ("ceaselessly" -- a DIFFERENT morpheme than
+# "limaaq"/1nn "inclusiveness: all of" in NnSuffixes above, same spelling
+# but a distinct homograph/function): "uqalimaarniq" =
+# {uqa:uqaq/1v}{limaar:limaaq/2vv}{niq:niq/2vn} -- full V/t/k/q, same
+# Neutral/Suppression shape, reuses SUPPR. The surface "limaar" (not
+# "limaaq") comes entirely from "niq"'s own already-implemented
+# Nasalization q-context (q->r), not from anything new here.
+#
+# ── nga+1vv ──
+# "nga"/1vv: "turaangajuq" = {turaa:turaaq/1v}{nga:nga/1vv}
+# {juq:juq/1vn} -- same shape as juq/kkut/gaq/raq (single candidate,
+# Neutral/Suppression), reuses SUPPR unchanged.
+#
+# ── jara+tv-ger-1s-3s ──
+# "jara"/tv-ger-1s-3s ("I...it", 1s subject/3s object gerundive):
+# Endings_verb.csv's V-context is a single clean candidate (Neutral,
+# bare "jara"); every gold example in this cluster attaches to a
+# vowel-final stem. t/k/q-form ("tara", also Neutral -- own literal
+# spelling, not the general j->t rule, though it'd give the same result)
+# not attempted: unattested in this corpus.
+#
+# ── tillugit+tv-part-3p ──
+# "tillugit"/tv-part-3p (participle, 3rd person plural object, no
+# specific subject) -- clean single V-context candidate per
+# Endings_verb_participle.csv (Neutral, bare "tillugit"), needed by
+# "katimatuinnaqtillugit" (tuinnaq/1vv -> tillugit directly).
+#
+# ── junga+tv-ger-1s ──
+# "junga"/tv-ger-1s: "quviattunga" = {quviat:quviak/1v}
+# {tunga:junga/tv-ger-1s} -- identical V/t/k/q shape to "jut"/tv-ger-3p
+# above: all single-candidate Neutral, reuses the existing
+# j->t-after-t/k/q rule unchanged, no new mechanism at all.
+#
+# ── lugu+tv-part-1s-3s-prespas ──
+# "lugu"/tv-part-1s-3s-prespas and "lugit"/tv-part-1s-3p-prespas:
+# "isumagillugu" = {isuma:isuma/1n}{gi:gi/1nv}{llugu:lugu/tv-part-1s-3s-
+# prespas} and "katillugit" = {kati:kati/1v}{llugit:lugit/tv-part-1s-3p-
+# prespas}. V-context only (both dialect variants in
+# Endings_verb_participle.csv agree: V-form is the bare morpheme text with
+# action "i(l)" -- Insertion of "l" -- UNCONDITIONALLY, not gated by
+# anything the way VVNG's insertion is). Since this insertion never varies
+# by what precedes in the V-context, it's baked directly into the literal
+# lower-side text ("llugu"/"llugit", canonical "lugu"/"lugit") rather than
+# implemented as a rule -- no marker needed. t/k/q-contexts differ by
+# dialect (North Baffin vs Cumberland Peninsula use different forms) and
+# aren't attempted.
+#
+# ── lunga+tv-part-1s-prespas ──
+# "lunga"/tv-part-1s-prespas (intransitive, no object): Endings_verb_
+# participle.csv's V-form action is the same unmarked "i(l)" insertion
+# as lugu/lugit's own V-context above, baked directly into the literal.
+# Needed for "ministaullunga"/"qaujimallunga" (both vowel-final stems).
+#
+# ── luta+tv-part-1p-prespas ──
+# "luta"/tv-part-1p-prespas (intransitive, no object): same shape as
+# "lunga" directly above. Needed for "gavamaulluta".
+#
+# ── jugut+tv-ger-1p / jutit+tv-ger-2s / gama+tv-caus-1s ──
+# Four more tv-endings:
+#   - "jugut"/tv-ger-1p ("angiqtugut"): same shape as jut/junga/jutit
+#     (all single-candidate Neutral, V-form "jugut" literal, q-context
+#     "tugut" falls out of the existing j->t rule for free -- no new
+#     marker).
+#   - "jutit"/tv-ger-2s ("qujannamiingujutit"): same shape again, reached
+#     via "u"/1nv's own TvEndings continuation above.
+#   - "gama"/tv-caus-1s, "gapta"/tv-caus-1p, "gavit"/tv-caus-2s
+#     ("qaujimagama"/"qaujimagatta"/"qaujimagavit"): Endings_verb.csv's
+#     "caus" rows are single-candidate Neutral in the V-context (root
+#     "qaujima" is vowel-final, so only V-context is exercised);
+#     t/k/q-contexts differ per ending (some Assimilation, one
+#     "rama"/Fusion -- an unbuilt mechanism) and aren't attempted here,
+#     matching this project's minimal-scope policy of only wiring the
+#     context an actual gold word needs.
+#
+# ── git+tv-imp-2s ──
+# "git"/tv-imp-2s: see "suk"/1vv's comment in VvSuffixes above for the
+# full imperative-mood investigation. k-context, Fusion == SUPPR reused,
+# deletes suk's own trailing k: "tunngasu"+"git" = "tunngasugit".
+# ═
+# ════════════════════════════════════════════════════════════════════════
