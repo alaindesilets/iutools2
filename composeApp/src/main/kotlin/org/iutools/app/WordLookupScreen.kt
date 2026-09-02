@@ -285,15 +285,28 @@ internal data class WordInfoSnapshot(
     val uiLanguage: AppLanguage,
 )
 
+// The concrete Roman/Syllabic script a DisplayScript setting resolves to for
+// a given word (AS_ENTERED follows the script the word was typed in).
+internal fun DisplayScript.resolve(enteredScript: Script): Script = when (this) {
+    DisplayScript.ROMAN -> Script.ROMAN
+    DisplayScript.SYLLABIC -> Script.SYLLABIC
+    DisplayScript.AS_ENTERED -> if (enteredScript == Script.SYLLABIC) Script.SYLLABIC else Script.ROMAN
+}
+
 // internal (not private): also called from ExplanationScreen.kt's
 // WordInfoCard, for the same script-conversion display logic.
-internal fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String {
-    val target = when (script) {
-        DisplayScript.ROMAN -> Script.ROMAN
-        DisplayScript.SYLLABIC -> Script.SYLLABIC
-        DisplayScript.AS_ENTERED -> if (enteredScript == Script.SYLLABIC) Script.SYLLABIC else Script.ROMAN
-    }
-    return TransCoder.ensureScript(target, text)
+internal fun displayForm(text: String, script: DisplayScript, enteredScript: Script): String =
+    TransCoder.ensureScript(script.resolve(enteredScript), text)
+
+// "ᐃᖅᑲᓇᐃᔭᕐᕕᓕᒫᑦ (iqqanaijarvilimaat)" -- the word in the user's chosen
+// display script, then its transcoding into the other script in parentheses.
+// TransCoder.otherScriptThan / ensureScript are ported from Benoit Farley's
+// original iutools script utilities.
+internal fun displayFormBothScripts(text: String, script: DisplayScript, enteredScript: Script): String {
+    val primaryScript = script.resolve(enteredScript)
+    val primary = TransCoder.ensureScript(primaryScript, text)
+    val other = TransCoder.ensureScript(TransCoder.otherScriptThan(primaryScript), text)
+    return "$primary ($other)"
 }
 
 // internal (not private): constructed directly in WordLookupScreenTest.kt to
@@ -938,6 +951,17 @@ internal fun WordLookupScreen(
                 modifier = Modifier.fillMaxWidth().testTag("find_word_button"),
             ) {
                 Text(stringResource(R.string.find_word_button))
+            }
+
+            // Header for the whole result "fiche": the searched word in both
+            // scripts, the user's display-script choice first.
+            if (lastSearchedWord.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = displayFormBothScripts(lastSearchedWord, displayScript, lastSearchedWordScript),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.testTag("word_header"),
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
