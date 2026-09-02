@@ -8,6 +8,7 @@ import net.sf.hfst.UnweightedTransducer
 import net.sf.hfst.WeightedTransducer
 import org.iutools.morph.Decomposition
 import org.iutools.morph.MorphologicalAnalyzer
+import org.iutools.morph.RankedDecomposition
 import org.iutools.script.Syllabics
 import org.iutools.utilities1.Util
 import java.io.DataInputStream
@@ -35,9 +36,11 @@ import java.io.FileInputStream
  * "{atuaq/1v}{gaq/1vn}", not "{atua:atuaq/1v}{gaq:gaq/1vn}".
  *
  * Duplicates are removed (the Java reader can emit the same path more than
- * once), first occurrence kept. No sorting: the reader's traversal order is
- * arbitrary and not meaningful -- ranking/tie-breaking is a separate,
- * downstream concern (as it is for R2L, which sorts after searching).
+ * once), first occurrence kept. What survives is then ordered by the shared
+ * MorphologicalAnalyzer.sortDecompositions -- the very ranking
+ * MorphologicalAnalyzer_R2L uses -- so "which decomposition comes first" is
+ * comparable between the two analyzers. The Java reader's own raw traversal
+ * order is arbitrary and is not relied on.
  *
  * The transducer path can be overridden with the system property
  * `iutools.fst.transducer` or the env var IUTOOLS_FST_TRANSDUCER; by default
@@ -91,7 +94,7 @@ class MorphologicalAnalyzer_FST(
         }
 
         val seen = HashSet<String>()
-        val decomps = ArrayList<Decomposition>()
+        val ranked = ArrayList<RankedDecomposition>()
         for (result in rawResults) {
             // Weighted transducer: "canonical+id++...\t<weight>". Unweighted:
             // just "canonical+id++...".
@@ -100,9 +103,16 @@ class MorphologicalAnalyzer_FST(
             val weight = if (tab < 0) 0.0f else result.substring(tab + 1).trim().toFloatOrNull() ?: 0.0f
             if (weight > weightCutoff) continue
             if (!seen.add(analysis)) continue
-            decomps.add(Decomposition(hfstAnalysisToDecompSpecs(analysis)))
+            val specs = hfstAnalysisToDecompSpecs(analysis)
+            // The HFST tag's first morpheme's canonical text IS the root's
+            // citation form -- this project's lexicon puts canonical + id on
+            // the upper side ("atuaq+1v"), with no surface/variant split like
+            // R2L's -- so its length is the root-canonical-length sort key
+            // directly.
+            val rootCanonicalLength = specs.substringBefore(' ').substringBefore('/').length
+            ranked.add(RankedDecomposition(Decomposition(specs), rootCanonicalLength, weight))
         }
-        return decomps.toTypedArray()
+        return sortDecompositions(ranked, breakTiesByMorphemeFrequency = true)
     }
 
     private fun ensureLoaded(): Engine {

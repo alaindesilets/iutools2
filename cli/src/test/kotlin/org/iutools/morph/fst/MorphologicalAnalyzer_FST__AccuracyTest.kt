@@ -23,11 +23,14 @@ import kotlin.test.assertEquals
  *     == what tools/fst/full_corpus_check.py --fair reports,
  *   - CORRECT_NOT_PRESENT and NO_DECOMPS == the same.
  *
- * The raw SUCCESS count on its own is deliberately NOT asserted: the Java
- * reader walks the automaton in a different order than `hfst-lookup`, so
- * "which analysis comes out first" differs. Neither order is meaningful --
- * ranking is a separate downstream step (as for R2L, which sorts after
- * searching) -- so only the order-independent totals matter here.
+ * The raw SUCCESS count on its own is deliberately NOT asserted here: it
+ * depends on MorphologicalAnalyzer_FST's ranking (the shared
+ * MorphologicalAnalyzer.sortDecompositions, with its morpheme-frequency
+ * tie-break on), which is tuned/measured on the Python side
+ * (tools/fst/topn_stats.py) and has no committed Kotlin snapshot yet -- so
+ * this test pins only the order-independent totals. For the record, with the
+ * current transducer and prior it sits at 686/919 (74.6%) first-place-
+ * correct on the fair Hansard set, matching full_corpus_check.py --fair.
  *
  * Skips itself (rather than failing) when tools/fst/lexicon-analyser.hfstol
  * hasn't been built -- this is a dev-time check, not a CI gate.

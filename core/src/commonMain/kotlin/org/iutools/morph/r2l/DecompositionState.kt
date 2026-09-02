@@ -28,6 +28,13 @@ class DecompositionState(
     @JvmField var morphParts: Array<AffixPartOfComposition>
 ) : Comparable<DecompositionState> {
 
+    // Set by MorphologicalAnalyzer_R2L when this decomposition comes from the
+    // "a final k/p/q/t may have been dropped after a vowel" pass, i.e. it only
+    // holds if the typed word is assumed to be missing its last letter. Lets
+    // the shared ranking rank these below strict readings, as the FST's
+    // LENIENT weight does. Not a search input -- purely a post-search tag.
+    var assumedMissingFinalConsonant: Boolean = false
+
     init {
         var origState = stem.arc!!.startState!!.id
         var nextPos = word.length
@@ -68,6 +75,12 @@ class DecompositionState(
     // - Les racines connues en premier
     // - Les racines les plus longues
     // - Le nombre minimum de morphParts en premier
+    //
+    // No longer called directly: MorphologicalAnalyzer_R2L.doDecompose ranks
+    // through the shared MorphologicalAnalyzer.sortDecompositions now, so that
+    // the FST analyzer orders its output the same way. These same two keys
+    // (root length, then morphPart count) are keys 2-3 of that shared sort --
+    // kept here as their reference definition.
     override fun compareTo(other: DecompositionState): Int {
         var returnValue: Int
         val lengthOfRoot = stem.getRoot().morpheme!!.length

@@ -134,8 +134,8 @@ but the equivalent concern here is the linguistic data (CSV files under
 
 - **The non-negotiable regression gate for any change to `:core`**: run
   `./gradlew :cli:test` and confirm the Hansard accuracy suite still shows
-  the same outcome histogram (as of this writing: 670 first-decomposition-
-  correct / 247 correct-but-not-first / 2 correct-not-present / 0 no-
+  the same outcome histogram (as of this writing: 673 first-decomposition-
+  correct / 244 correct-but-not-first / 2 correct-not-present / 0 no-
   decomps, out of 919 evaluated words). Any change to that histogram is a
   real behavioral change and must be called out explicitly, not silently
   absorbed.

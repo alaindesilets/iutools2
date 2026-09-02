@@ -155,7 +155,6 @@ class MorphAnalCurrentExpectations_Hansard : MorphAnalCurrentExpectationsAbstrac
         expectFailure("maannaujukkut", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("akiraqtuqtut", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("katimajit", OutcomeType.CORRECT_NOT_FIRST);
-        expectFailure("akuni", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("katimajiralaani", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("nunnguani", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("piluaqtumit", OutcomeType.CORRECT_NOT_FIRST);
@@ -165,7 +164,6 @@ class MorphAnalCurrentExpectations_Hansard : MorphAnalCurrentExpectationsAbstrac
         expectFailure("pigiaqtitait", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("uqausirijanga", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("ilitarijauningit", OutcomeType.CORRECT_NOT_FIRST);
-        expectFailure("ii", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("uqalimaarniq", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("iglulirijirjuakkut", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("tukiliuqtausimajuq", OutcomeType.CORRECT_NOT_FIRST);
@@ -280,7 +278,6 @@ class MorphAnalCurrentExpectations_Hansard : MorphAnalCurrentExpectationsAbstrac
         expectFailure("ammalu", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("sulijuq", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("asingi", OutcomeType.CORRECT_NOT_FIRST);
-        expectFailure("illuni", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("taanna", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("nunaliujunut", OutcomeType.CORRECT_NOT_FIRST);
 
@@ -289,9 +286,14 @@ class MorphAnalCurrentExpectations_Hansard : MorphAnalCurrentExpectationsAbstrac
         expectFailure("pijjutigillugit", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("pijjutigillugu", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("pilirivinga", OutcomeType.CORRECT_NOT_FIRST);
-        expectFailure("pillugu", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("uqalimaaqtauqullugu", OutcomeType.CORRECT_NOT_FIRST);
         expectFailure("aanniaviliaqtunut", OutcomeType.CORRECT_NOT_FIRST);
+
+        // Correct analysis is itself a "final consonant dropped" reading
+        // (qujannamii -> qujannamiik/1a), so ranking strict readings ahead of
+        // guessed ones (MorphologicalAnalyzer.sortDecompositions key 1) pushes
+        // it off the top spot -- a deliberate trade for +4 other words fixed.
+        expectFailure("qujannamii", OutcomeType.CORRECT_NOT_FIRST);
 
         //
         // Words that produce some analyses, but none of them is the correct

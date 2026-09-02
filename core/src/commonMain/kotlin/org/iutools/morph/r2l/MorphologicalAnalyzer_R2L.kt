@@ -14,6 +14,7 @@ import org.iutools.morph.Decomposition
 import org.iutools.morph.DecompositionException
 import org.iutools.morph.MorphologicalAnalyzer
 import org.iutools.morph.MorphologicalAnalyzerException
+import org.iutools.morph.RankedDecomposition
 import org.iutools.morph.r2l.Graph.State
 import org.iutools.phonology.Dialect
 import org.iutools.script.Orthography
@@ -79,12 +80,29 @@ class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
             decStatesArray = DecompositionState.removeMultiples(decStatesArray) ?: decStatesArray
 
             // C.
-            // Sort the decompositions according to the following rules:
-            // 1. longest roots first
-            // 2. minimum number of affixes
-            decStatesArray.sort()
-
-            val decomps = DecompositionState.toDecompositionArray(decStatesArray)
+            // Rank the decompositions with the ranking shared by every
+            // analyzer (see MorphologicalAnalyzer.sortDecompositions).
+            //  - weight 1 for the "final consonant may have been dropped"
+            //    readings, 0 for strict ones -- the R2L equivalent of the
+            //    FST's LENIENT weight, so both analyzers rank strict readings
+            //    ahead of guessed ones the same way.
+            //  - root length, then affix count: exactly what
+            //    DecompositionState.compareTo did here before; the stable sort
+            //    still breaks remaining ties by this search's discovery order.
+            //  - the optional morpheme-frequency key is left OFF for R2L (it
+            //    helps the FST, whose raw order is arbitrary, but hurts R2L --
+            //    see that method's doc).
+            // Root canonical length is taken straight from the same
+            // stem.getRoot().morpheme compareTo() used.
+            val decomps = sortDecompositions(
+                decStatesArray.map {
+                    RankedDecomposition(
+                        it.toDecomposition(),
+                        it.stem.getRoot().morpheme!!.length,
+                        weight = if (it.assumedMissingFinalConsonant) 1f else 0f,
+                    )
+                }
+            )
             cache(decomps, word, extendedAnalysis)
 
             return decomps
@@ -181,7 +199,14 @@ class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
     @Throws(TimeoutException::class, MorphologicalAnalyzerException::class, MorphologicalAnalyzerDoneException::class)
     private fun _decomposeForFinalConsonantPossiblyMissing(aWord: String, decomposeCompositeRoot: Boolean): MutableList<DecompositionState> {
         stpw!!.check("_decomposeForFinalConsonantPossiblyMissing -- upon entry, word=$aWord, decomposeCompositeRoot=$decomposeCompositeRoot")
-        return _decompose("$aWord*", false)
+        val decomps = _decompose("$aWord*", false)
+        // These readings are only valid if you assume the typed word lost its
+        // final k/p/q/t -- flag them so the shared ranking can rank them below
+        // strict readings, the way the FST's LENIENT weight does. (A reading
+        // also reachable strictly is kept from the strict pass instead, which
+        // runs first: removeMultiples() drops the later duplicate.)
+        for (dec in decomps) dec.assumedMissingFinalConsonant = true
+        return decomps
     }
 
     /**

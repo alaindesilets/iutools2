@@ -153,4 +153,68 @@ abstract class MorphologicalAnalyzer : AutoCloseable {
         timeoutActive = true
         return this
     }
+
+    /**
+     * The decomposition ranking shared by every concrete analyzer, so
+     * MorphologicalAnalyzer_R2L (Uqailaut) and MorphologicalAnalyzer_FST order
+     * their output the same way. Stable -- decompositions that tie on every
+     * applied key keep their input order -- sorting ascending on:
+     *
+     *   1. weight: strict readings (0) ahead of lenient / guessed-final-
+     *      consonant ones (1). Inert for R2L, which has no weights.
+     *   2. root canonical length, negated: the longest known root wins.
+     *   3. number of non-root morphemes: fewest affixes/endings wins.
+     *      Keys 2 and 3 are exactly DecompositionState.compareTo's own two.
+     *   4. (only when [breakTiesByMorphemeFrequency]) summed morpheme
+     *      frequency, negated: prefers a reading whose morphemes are more
+     *      often the analyzer's own top pick across the Nunavut Hansard (see
+     *      MorphemeFrequencyPrior). NOT part of Benoit Farley's original
+     *      algorithm.
+     *
+     * Each analyzer supplies the one input it alone can measure exactly (the
+     * root's canonical-form length, and its weight); keys 3 and 4 are read
+     * back off the Decomposition here so they cannot drift between analyzers.
+     *
+     * [breakTiesByMorphemeFrequency] is opt-in because it only helps when the
+     * input order carries no signal, which is the FST's case (its optimized-
+     * lookup traversal order is arbitrary). R2L's search discovery order,
+     * which the stable sort otherwise preserves for tied decompositions, is
+     * itself informative -- turning the frequency key on for R2L measurably
+     * WORSENED first-place-correct on the Hansard gold standard (247 -> 257
+     * "correct but not first"), the global-frequency prior over-promoting
+     * common endings over the contextually-correct rarer ones.
+     */
+    protected fun sortDecompositions(
+        ranked: List<RankedDecomposition>,
+        breakTiesByMorphemeFrequency: Boolean = false,
+    ): Array<Decomposition> {
+        var order = compareBy<RankedDecomposition> { it.weight }
+            .thenByDescending { it.rootCanonicalLength }
+            .thenBy { it.decomposition.components().size - 1 }
+        if (breakTiesByMorphemeFrequency) {
+            order = order.thenByDescending {
+                MorphemeFrequencyPrior.score(morphemeIdsOf(it.decomposition))
+            }
+        }
+        val sorted = ranked.sortedWith(order)
+        return Array(sorted.size) { sorted[it].decomposition }
+    }
+
+    // Each component is "surface:id" (R2L) or bare "id" (FST); no morpheme id
+    // itself contains ':'.
+    private fun morphemeIdsOf(decomposition: Decomposition): List<String> =
+        decomposition.components().map { it.substringAfterLast(':', it) }
 }
+
+/**
+ * A decomposition paired with the ranking inputs its producing analyzer
+ * measures itself (see MorphologicalAnalyzer.sortDecompositions): the length
+ * of the root's canonical/citation form, and -- for the FST, whose LENIENT
+ * rule marks guessed-final-consonant readings -- a weight (0 = strict,
+ * 1 = lenient). R2L has no weights and leaves it 0.
+ */
+class RankedDecomposition(
+    val decomposition: Decomposition,
+    val rootCanonicalLength: Int,
+    val weight: Float = 0f,
+)
