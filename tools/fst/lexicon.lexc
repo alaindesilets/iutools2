@@ -147,14 +147,15 @@ unnuksaq+1n:unnusaq NounContinuations ;
 miliat+1n:milian NounContinuations ;
 tausat+1n:tausan NounContinuations ;
 
-! "nunavut" ("Nunavut", 1n) -- a legitimate root generate_roots.py's bulk
-! pass never covers: it lives in Locations.csv, a root-source CSV the
-! bulk generator isn't extended to. Hand-added both the identity spelling
-! ("nunavut", whose own trailing t assimilates to a following "m" for
-! free via the general t->m rule below) and a t-deleted variant
-! ("nunavu", the other gold-attested outcome for the same context --
-! genuine free variation, same shape as usiq/naq/miik elsewhere in this
-! file).
+! "nunavu" -- the t-deleted spelling variant of "nunavut" ("Nunavut", 1n).
+! generate_roots.py DOES now read Locations.csv, so the identity spelling
+! "nunavut" (whose own trailing t assimilates to a following "m" for free
+! via the general t->m rule below) is bulk-generated. Only this t-deleted
+! variant stays by hand: Locations.csv's "variant" column is empty for
+! this row, and the deletion is mid-root (before a following suffix), out
+! of reach of the word-final-only LENIENT rule. Gold-attested and
+! load-bearing (nunavumi/nunavumiunut/nunavumiut/nunavulimaami) -- genuine
+! free variation, same shape as usiq/naq/miik elsewhere in this file.
 nunavut+1n:nunavu NounContinuations ;
 
 ! Fan-out hubs so EVERY noun/verb root (hand-picked or bulk-generated) can
