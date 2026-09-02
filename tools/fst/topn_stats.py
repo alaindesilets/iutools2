@@ -63,14 +63,22 @@ def load_benoit_decomps() -> dict[str, list[list[tuple[str, str]]]]:
     return decomps
 
 
-def dedup_preserve_order(items: list[str]) -> list[str]:
-    seen = set()
-    out = []
-    for item in items:
-        if item not in seen:
-            seen.add(item)
-            out.append(item)
-    return out
+def dedup_preserve_order(pairs: list[tuple[str, float]]) -> list[tuple[str, float]]:
+    """De-duplicate (analysis, weight) pairs by analysis string, keeping each
+    string once at its LOWEST weight (first-seen order preserved).
+
+    phonology.xfscript's LENIENT rule makes the same analysis string come out
+    both at weight 0 (a strict parse) and weight 1 (that parse also reachable
+    by assuming a dropped final consonant). A parse is strict if ANY path
+    yields it strictly, so we keep the min. Keeping "whichever hfst-lookup
+    emitted first" instead would tie the weight sort key to the reader's
+    arbitrary path-enumeration order -- and diverge from Kotlin's
+    MorphologicalAnalyzer_FST, which applies this same min-weight dedup."""
+    min_weight: dict[str, float] = {}
+    for analysis, weight in pairs:
+        if analysis not in min_weight or weight < min_weight[analysis]:
+            min_weight[analysis] = weight
+    return list(min_weight.items())
 
 
 def topn_histogram(word_to_parse_lists, grouped_gold) -> dict[int, int]:

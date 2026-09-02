@@ -20,4 +20,10 @@ application {
 
 tasks.test {
     useJUnitPlatform()
+
+    // Forward the AnalyzerSpeedComparisonTest opt-in flags from the Gradle
+    // invocation to the test JVM (they are not passed on by default).
+    listOf("iutools.benchmark", "iutools.benchmark.words").forEach { key ->
+        System.getProperty(key)?.let { systemProperty(key, it) }
+    }
 }

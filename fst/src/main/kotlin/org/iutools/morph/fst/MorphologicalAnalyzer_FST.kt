@@ -93,8 +93,28 @@ class MorphologicalAnalyzer_FST(
             }
         }
 
-        val seen = HashSet<String>()
-        val ranked = ArrayList<RankedDecomposition>()
+        return rankRawResults(rawResults, weightCutoff)
+    }
+
+    /**
+     * The dedup + ranking half of [doDecompose], split out so a cross-
+     * language sync test (SortSyncTest / tools/fst/sort_decomps.py) can drive
+     * exactly this logic with a frozen bag of raw transducer lines and check
+     * the order matches the Python ranking. [rawResults] are the reader's own
+     * "<analysis>\t<weight>" strings (a bare "<analysis>" means weight 0);
+     * entries above [weightCutoff] are dropped.
+     *
+     * The transducer reaches one analysis string by several paths, and
+     * phonology.xfscript's LENIENT rule means the SAME string often comes out
+     * both at weight 0 (a strict parse) and weight 1 (that parse also
+     * reachable by assuming a dropped final consonant). Keep each string
+     * once, at its LOWEST weight -- a parse is strict if any path yields it
+     * strictly. Keeping "whichever the reader emitted first" instead would
+     * make the weight sort key depend on the reader's arbitrary path-
+     * enumeration order (net.sf.hfst and native hfst-lookup differ).
+     */
+    fun rankRawResults(rawResults: Collection<String>, weightCutoff: Float = 1.0f): Array<Decomposition> {
+        val minWeightByAnalysis = LinkedHashMap<String, Float>()
         for (result in rawResults) {
             // Weighted transducer: "canonical+id++...\t<weight>". Unweighted:
             // just "canonical+id++...".
@@ -102,7 +122,12 @@ class MorphologicalAnalyzer_FST(
             val analysis = if (tab < 0) result else result.substring(0, tab)
             val weight = if (tab < 0) 0.0f else result.substring(tab + 1).trim().toFloatOrNull() ?: 0.0f
             if (weight > weightCutoff) continue
-            if (!seen.add(analysis)) continue
+            val prev = minWeightByAnalysis[analysis]
+            if (prev == null || weight < prev) minWeightByAnalysis[analysis] = weight
+        }
+
+        val ranked = ArrayList<RankedDecomposition>(minWeightByAnalysis.size)
+        for ((analysis, weight) in minWeightByAnalysis) {
             val specs = hfstAnalysisToDecompSpecs(analysis)
             // The HFST tag's first morpheme's canonical text IS the root's
             // citation form -- this project's lexicon puts canonical + id on

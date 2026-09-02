@@ -57,6 +57,16 @@ def benoit_sort_key(analysis: str) -> tuple[int, int]:
     return (-len(root_canonical), num_non_root)
 
 
+def canonical_key(analysis: str) -> str:
+    """The decomposition rendered as "{canonical/id}{canonical/id}..." --
+    identical to Kotlin Decomposition.toString(). Used as the FINAL,
+    always-applied sort tie-break so the ranking is a strict total order:
+    decompositions tied on every other key are ordered lexicographically
+    rather than left in hfst-lookup's arbitrary path-enumeration order (which
+    net.sf.hfst enumerates differently). Not linguistically meaningful."""
+    return "{" + "}{".join(f"{c}/{i}" for c, i in parse_hfst_analysis(analysis)) + "}"
+
+
 def weighted_sort_key(pair: tuple[str, float]) -> tuple[float, int, int]:
     """(analysis, weight) -> (weight, -root_len, morph_count), ascending --
     weight FIRST, ahead of Benoit's own 2 keys: phonology.xfscript's own
@@ -68,7 +78,11 @@ def weighted_sort_key(pair: tuple[str, float]) -> tuple[float, int, int]:
     hypothetical) on the --fair gold standard before this key existed.
     A no-op for any all-weight-0 (strict-only) candidate list -- every
     item ties on the new first key, so ordering among them is exactly
-    Benoit's original 2-key sort, unchanged."""
+    Benoit's original 2-key sort, unchanged.
+
+    No lexicographic final tie-break here (unlike sort_key_with_frequency):
+    this mirrors R2L's own 2-key sort, and R2L keeps its search discovery
+    order for ties on purpose -- see MorphologicalAnalyzer.sortDecompositions."""
     analysis, weight = pair
     root_len, morph_count = benoit_sort_key(analysis)
     return (weight, root_len, morph_count)
@@ -177,7 +191,8 @@ def sort_key_with_frequency(pair: tuple[str, float], freq: Counter = FREQUENCY_T
     weighted_sort_key's comment for why weight now comes first."""
     analysis, weight = pair
     root_len, morph_count = benoit_sort_key(analysis)
-    return (weight, root_len, morph_count, -frequency_score(analysis, freq))
+    return (weight, root_len, morph_count, -frequency_score(analysis, freq),
+            canonical_key(analysis))
 
 
 def sort_with_frequency_tiebreak(

@@ -1,50 +1,34 @@
 package org.iutools.morph.fst
 
-import org.iutools.lib.testing.FrequencyHistogram
-import org.iutools.morph.MorphAnalCurrentExpectationsAbstract.OutcomeType
-import org.iutools.morph.MorphAnalGoldStandard_Hansard
+import org.iutools.morph.MorphAnalCurrentExpectations_FST_Hansard
+import org.iutools.morph.MorphAnalCurrentExpectations_FST_WordsThatFailedBefore
+import org.iutools.morph.MorphAnalCurrentExpectationsAbstract
 import org.iutools.morph.MorphologicalAnalyzer
 import org.iutools.morph.MorphologicalAnalyzer__AccuracyTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
-import kotlin.test.assertEquals
 
 /*
- * Runs the SAME gold-standard accuracy sweep the R2L analyzer's own
- * MorphologicalAnalyzer_R2L__AccuracyTest runs, but against
- * MorphologicalAnalyzer_FST -- the HFST finite-state analyzer, read in-process
- * by the vendored pure-Java optimized-lookup reader (net.sf.hfst).
+ * Runs the SAME gold-standard accuracy sweep MorphologicalAnalyzer_R2L__AccuracyTest
+ * runs, but against MorphologicalAnalyzer_FST -- the HFST finite-state analyzer,
+ * read in-process by the vendored pure-Java optimized-lookup reader (net.sf.hfst).
  *
- * WHAT THIS VALIDATES: that the Java reader returns, for every gold-standard
- * word, the same SET of decompositions the native `hfst-lookup` tool
- * produces for the same transducer -- i.e. that the vendored reader's known
- * upstream bugs (spurious/missing analyses on some automata) do NOT affect
- * ours. That set-level parity is checked as:
- *   - "correct decomposition present somewhere" (SUCCESS + CORRECT_NOT_FIRST)
- *     == what tools/fst/full_corpus_check.py --fair reports,
- *   - CORRECT_NOT_PRESENT and NO_DECOMPS == the same.
- *
- * The raw SUCCESS count on its own is deliberately NOT asserted here: it
- * depends on MorphologicalAnalyzer_FST's ranking (the shared
- * MorphologicalAnalyzer.sortDecompositions, with its morpheme-frequency
- * tie-break on), which is tuned/measured on the Python side
- * (tools/fst/topn_stats.py) and has no committed Kotlin snapshot yet -- so
- * this test pins only the order-independent totals. For the record, with the
- * current transducer and prior it sits at 686/919 (74.6%) first-place-
- * correct on the fair Hansard set, matching full_corpus_check.py --fair.
+ * It goes through the base class exactly the way the R2L run does: outcomes are
+ * checked against a committed current-expectations snapshot
+ * (MorphAnalCurrentExpectations_FST_*, the FST counterpart of the R2L
+ * MorphAnalCurrentExpectations_*), and the per-machine runtime baseline is
+ * enforced. The FST snapshot is a different set of words -- the FST covers the
+ * same words as R2L (917/919 present somewhere) but ranks them with the shared
+ * MorphologicalAnalyzer.sortDecompositions (morpheme-frequency tie-break on),
+ * so a different set lands off the top spot (666/919 first-correct).
  *
  * Skips itself (rather than failing) when tools/fst/lexicon-analyser.hfstol
  * hasn't been built -- this is a dev-time check, not a CI gate.
  *
- * Two adjustments vs the R2L run, via MorphologicalAnalyzer__AccuracyTest
- * extension points:
- *  - normalizeGoldDecompForComparison(): the FST only knows the canonical
- *    morpheme + tag ("atuaq/1v"), not which surface substring it matched, so
- *    the gold "{atua:atuaq/1v}" is compared as "{atuaq/1v}" -- exactly the
- *    (canonical, id)-pair comparison full_corpus_check.py does.
- *  - hasRecordedExpectations = false: there is no committed FST
- *    current-expectations snapshot yet, so the "did it regress" and
- *    runtime-baseline assertions are skipped; this run only reports and pins
- *    the totals below.
+ * One adjustment vs the R2L run, via a MorphologicalAnalyzer__AccuracyTest
+ * extension point: normalizeGoldDecompForComparison() strips the "surface:"
+ * part of each gold component, because the FST only knows the canonical
+ * morpheme + id ("atuaq/1v"), not which surface substring it matched -- so the
+ * gold "{atua:atuaq/1v}" is compared as "{atuaq/1v}".
  */
 class MorphologicalAnalyzer_FST__AccuracyTest : MorphologicalAnalyzer__AccuracyTest() {
 
@@ -57,7 +41,17 @@ class MorphologicalAnalyzer_FST__AccuracyTest : MorphologicalAnalyzer__AccuracyT
         return MorphologicalAnalyzer_FST()
     }
 
-    override val hasRecordedExpectations: Boolean = false
+    // The FST decomposes the whole gold standard in ~1.5 s; on a shared/busy
+    // box that swings by well over 30% run to run (measured 1.2-2.0 s this
+    // session), so the base 30% drift band flakes. 75% still fails a real
+    // 2x+ regression on a ~1.5 s workload.
+    override val runtimeToleranceFraction: Double = 0.75
+
+    override fun makeHansardExpectations(): MorphAnalCurrentExpectationsAbstract =
+        MorphAnalCurrentExpectations_FST_Hansard()
+
+    override fun makeWordsThatFailedBeforeExpectations(): MorphAnalCurrentExpectationsAbstract =
+        MorphAnalCurrentExpectations_FST_WordsThatFailedBefore()
 
     // "{atua:atuaq/1v}{gaq:gaq/1vn}" -> "{atuaq/1v}{gaq/1vn}"
     // (the undecomposable-word gold form "[decomposition:/Hanta(Hanta)/]" has
@@ -65,32 +59,4 @@ class MorphologicalAnalyzer_FST__AccuracyTest : MorphologicalAnalyzer__AccuracyT
     // skipCase()'d anyway.)
     override fun normalizeGoldDecompForComparison(goldDecomp: String): String =
         goldDecomp.replace(Regex("""\{[^:{}]+:"""), "{")
-
-    /**
-     * Order-independent totals from tools/fst/full_corpus_check.py --fair for
-     * the current transducer. Update these together with the transducer
-     * whenever the .lexc lexicon changes; a mismatch means the Java reader
-     * and the native `hfst-lookup` have diverged on our data, which is the
-     * whole point of this test.
-     */
-    override fun assertOutcomeHistogram(gotOutcomeHist: FrequencyHistogram<OutcomeType>) {
-        val correctPresent = gotOutcomeHist.frequency(OutcomeType.SUCCESS) +
-            gotOutcomeHist.frequency(OutcomeType.CORRECT_NOT_FIRST)
-        val notPresent = gotOutcomeHist.frequency(OutcomeType.CORRECT_NOT_PRESENT)
-        val noDecomps = gotOutcomeHist.frequency(OutcomeType.NO_DECOMPS)
-
-        val (expCorrectPresent, expNotPresent, expNoDecomps) =
-            if (goldStandard is MorphAnalGoldStandard_Hansard) {
-                Triple(917L, 2L, 0L) // 919 fair Hansard words
-            } else {
-                Triple(3L, 0L, 0L) // MorphAnalGoldStandard_WordsThatFailedBefore (3 fair words)
-            }
-
-        assertEquals(
-            listOf(expCorrectPresent, expNotPresent, expNoDecomps),
-            listOf(correctPresent, notPresent, noDecomps),
-            "FST (Java reader) coverage differs from the native hfst-lookup path " +
-                "(full_corpus_check.py --fair): [correct-present, correct-not-present, no-decomps].",
-        )
-    }
 }

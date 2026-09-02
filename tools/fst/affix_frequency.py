@@ -57,13 +57,22 @@ from collections import Counter
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent.parent
+HANSARD_GOLD = REPO_ROOT / "cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_Hansard.kt"
 GOLD_FILES = [
-    REPO_ROOT / "cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_Hansard.kt",
+    HANSARD_GOLD,
     REPO_ROOT / "cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_WordsThatFailedBefore.kt",
 ]
 OUTPUT_FILE = Path(__file__).parent / "affix-priority.md"
 
-CASE_RE = re.compile(r'AnalyzerCase\(\s*"([^"]+)"\s*,\s*arrayOf\(\s*"([^"]*)"')
+# Word + the whole arrayOf(...) argument list; extract each "..." parse from
+# it separately below. Multi-parse addCase entries (e.g. atuliqujaujuq) have
+# several accepted decompositions, and the real :cli test counts a result
+# correct if it matches ANY of them -- so all must be captured, not just the
+# first. `[^)]*` stops at arrayOf's own ")"; the "[decomposition:/X(X)/]"
+# proper-name placeholder rows it truncates carry no {surface:c/id} and drop
+# out at MORPHEME_RE anyway.
+CASE_RE = re.compile(r'AnalyzerCase\(\s*"([^"]+)"\s*,\s*arrayOf\(([^)]*)')
+PARSE_STR_RE = re.compile(r'"([^"]*)"')
 MORPHEME_RE = re.compile(r"\{[^:]+:([^/]+)/([^}]+)\}")
 
 # The real :cli accuracy suite (MorphologicalAnalyzer__AccuracyTest.kt's
@@ -114,24 +123,31 @@ def load_words(exclude_flagged: bool = False):
     """Yields (surface_word, [(canonical, id), ...]) for every gold-standard
     entry that has a real {surface:canonical/id} decomposition.
 
-    exclude_flagged: when True, also drops every word flagged_words()
-    reports -- the same misspelled/proper-name/borrowed/decomp-unknown
-    words the real :cli accuracy suite itself doesn't evaluate. Default
-    is False (permissive, includes everything with a decomposition) --
-    this project's own FST work has deliberately used the permissive set
-    throughout, since a wider net finds more gaps to fix; pass True
-    specifically when comparing this prototype's coverage percentage
-    against AGENTS.md's own :cli figures, so the two numbers are over
-    the same population."""
-    skip = flagged_words() if exclude_flagged else set()
-    for path in GOLD_FILES:
+    exclude_flagged: when True, restricts to exactly the population the
+    real :cli Hansard accuracy suite evaluates -- MorphAnalGoldStandard_Hansard
+    only (NOT the separate WordsThatFailedBefore gold, which :cli runs as its
+    own test method), minus the misspelled/proper-name/borrowed/decomp-unknown
+    words flagged_words() reports. Use it whenever comparing this prototype's
+    numbers against the :cli FST/R2L figures, so the two are over an identical
+    population. Default is False (permissive: both gold files, nothing
+    skipped) -- this project's FST work has used the wider net for gap-finding.
+
+    Yields one entry PER accepted parse: a multi-parse addCase produces
+    several (word, morphemes) pairs, which group_by_word() then collects so a
+    caller can accept a result matching any of them."""
+    if exclude_flagged:
+        files, skip = [HANSARD_GOLD], flagged_words()
+    else:
+        files, skip = GOLD_FILES, set()
+    for path in files:
         text = path.read_text(encoding="utf-8")
-        for word, decomp in CASE_RE.findall(text):
+        for word, arrayof_args in CASE_RE.findall(text):
             if word in skip:
                 continue
-            morphemes = MORPHEME_RE.findall(decomp)
-            if morphemes:
-                yield word, morphemes
+            for decomp in PARSE_STR_RE.findall(arrayof_args):
+                morphemes = MORPHEME_RE.findall(decomp)
+                if morphemes:
+                    yield word, morphemes
 
 
 def main():

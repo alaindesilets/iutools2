@@ -170,9 +170,19 @@ abstract class MorphologicalAnalyzer : AutoCloseable {
      *      often the analyzer's own top pick across the Nunavut Hansard (see
      *      MorphemeFrequencyPrior). NOT part of Benoit Farley's original
      *      algorithm.
+     *   5. (only when [breakTiesByMorphemeFrequency], i.e. the FST) the
+     *      decomposition string itself, lexicographically -- a final
+     *      deterministic tie-break so the result is a strict total order and
+     *      never depends on input order (the FST's optimized-lookup
+     *      traversal order is arbitrary, and net.sf.hfst vs native
+     *      hfst-lookup enumerate paths differently). NOT applied for R2L:
+     *      its search discovery order, which the stable sort otherwise keeps
+     *      for tied decompositions, is itself informative -- forcing
+     *      lexicographic order there regressed first-place-correct on the
+     *      Hansard gold standard from 673 to 471.
      *
      * Each analyzer supplies the one input it alone can measure exactly (the
-     * root's canonical-form length, and its weight); keys 3 and 4 are read
+     * root's canonical-form length, and its weight); keys 3-5 are read
      * back off the Decomposition here so they cannot drift between analyzers.
      *
      * [breakTiesByMorphemeFrequency] is opt-in because it only helps when the
@@ -192,9 +202,9 @@ abstract class MorphologicalAnalyzer : AutoCloseable {
             .thenByDescending { it.rootCanonicalLength }
             .thenBy { it.decomposition.components().size - 1 }
         if (breakTiesByMorphemeFrequency) {
-            order = order.thenByDescending {
-                MorphemeFrequencyPrior.score(morphemeIdsOf(it.decomposition))
-            }
+            order = order
+                .thenByDescending { MorphemeFrequencyPrior.score(morphemeIdsOf(it.decomposition)) }
+                .thenBy { it.decomposition.toString() }
         }
         val sorted = ranked.sortedWith(order)
         return Array(sorted.size) { sorted[it].decomposition }
