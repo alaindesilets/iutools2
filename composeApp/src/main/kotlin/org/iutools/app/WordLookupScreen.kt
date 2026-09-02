@@ -616,6 +616,8 @@ internal fun WordLookupScreen(
     // Guess Meaning flow (button/spinner/candidates all stay inline, see
     // GuessMeaningInline.kt).
     onOpenExplanation: (GuessMeaningConversationKey, WordInfoSnapshot) -> Unit = { _, _ -> },
+    // Opens the Morpheme Dictionary screen (see MorphemeDictionaryScreen.kt).
+    onOpenMorphemeDictionary: () -> Unit = {},
     // Shared with MainActivity (not copied) -- ExplanationScreen reads/
     // writes the same maps (e.g. after a debug-only prompt resubmission), so
     // this screen picks up the result without a network call of its own.
@@ -857,6 +859,12 @@ internal fun WordLookupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
+                TextButton(
+                    onClick = onOpenMorphemeDictionary,
+                    modifier = Modifier.testTag("search_morpheme_button"),
+                ) {
+                    Text(stringResource(R.string.search_morpheme_button))
+                }
                 TextButton(onClick = { showSettings = true }, modifier = Modifier.testTag("settings_button")) {
                     Text("⚙ " + stringResource(R.string.settings_button))
                 }
@@ -1246,7 +1254,9 @@ private fun SectionHeading(text: String) {
 }
 
 @Composable
-private fun SettingsDialog(
+// internal (not private): also opened from MorphemeDictionaryScreen's header,
+// which shares the same Settings affordance as this screen.
+internal fun SettingsDialog(
     uiLanguage: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     displayScript: DisplayScript,

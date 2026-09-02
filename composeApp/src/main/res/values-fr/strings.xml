@@ -107,4 +107,11 @@
     <string name="inspect_prompt_resubmit_button">Resoumettre</string>
     <string name="inspect_prompt_copy_button">Copier le prompt</string>
     <string name="inspect_prompt_system_prompt_section">Prompt système</string>
+    <string name="search_morpheme_button">Recherche de morphème</string>
+    <string name="search_word_button">Recherche de mot</string>
+    <string name="morpheme_dict_title">Dictionnaire des morphèmes</string>
+    <string name="morpheme_dict_field_label">Morphème (ou son début)</string>
+    <string name="morpheme_dict_hint">Entrez le début de la forme canonique d\'un morphème.</string>
+    <string name="morpheme_dict_searching">Recherche en cours…</string>
+    <string name="morpheme_dict_no_results">Aucun morphème trouvé commençant par « %1$s ».</string>
 </resources>

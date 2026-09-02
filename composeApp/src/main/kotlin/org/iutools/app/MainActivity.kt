@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 // unreachable (no button led to it) before that backend was disabled.
 // Explanation ("Explications") replaced it as the debug prompt-tuning entry
 // point (see ExplanationScreen.kt's "Inspecter le prompt").
-private enum class Screen { WordLookup, Explanation }
+private enum class Screen { WordLookup, Explanation, MorphemeDictionary }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,8 +77,12 @@ class MainActivity : ComponentActivity() {
                             explanationWordInfo = wordInfo
                             screen = Screen.Explanation
                         },
+                        onOpenMorphemeDictionary = { screen = Screen.MorphemeDictionary },
                         guessMeaningConversations = guessMeaningConversations,
                         guessMeaningModelStats = guessMeaningModelStats,
+                    )
+                    Screen.MorphemeDictionary -> MorphemeDictionaryScreen(
+                        onBack = { screen = Screen.WordLookup },
                     )
                     Screen.Explanation -> {
                         // Both are always set together right before switching here

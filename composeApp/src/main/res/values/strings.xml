@@ -106,4 +106,11 @@
     <string name="inspect_prompt_resubmit_button">Resubmit</string>
     <string name="inspect_prompt_copy_button">Copy prompt</string>
     <string name="inspect_prompt_system_prompt_section">System prompt</string>
+    <string name="search_morpheme_button">Search Morpheme</string>
+    <string name="search_word_button">Search Word</string>
+    <string name="morpheme_dict_title">Morpheme dictionary</string>
+    <string name="morpheme_dict_field_label">Morpheme (or start of it)</string>
+    <string name="morpheme_dict_hint">Type the start of a morpheme\'s canonical form.</string>
+    <string name="morpheme_dict_searching">Searching…</string>
+    <string name="morpheme_dict_no_results">No morpheme found starting with “%1$s”.</string>
 </resources>
