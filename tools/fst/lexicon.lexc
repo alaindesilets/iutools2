@@ -379,13 +379,9 @@ LEXICON Verbs
 ! block above. The hand entries left below are alternations NOT in the
 ! _DIALECT_GROUPS cluster table.
 
-! "aglat" spelling variant of "allak" (1v, canonical "allak" per gold:
-! "{aglat:allak/1v}") -- an unexplained root-internal alternation
-! (l->g, k->t), same free-variant-spelling category as "iglu"->"illu"
-! above, just a different consonant pair. Confirmed via gold
-! ("aglattiu"); not decomposable by the real Java analyzer either
-! (confirmed via --pipeline).
-allak+1v:aglat VerbContinuations ;
+! ("aglat" of "allak"/1v used to be hand-wired here -- gl<->ll is in
+!  _DIALECT_GROUPS, so generate_roots.py's dialect_variants() now emits
+!  it; hand entry redundant, removed 2026-09-02 with 0 gold words lost.)
 
 ! "niqsu"/"nirtu"/"niqtu" spelling variants of the bulk-generated
 ! "niqtuq" root (1v, canonical "niqtuq" per gold: "{niqsu:niqtuq/1v}"/
@@ -404,10 +400,9 @@ niqtuq+1v:niqtu VerbContinuations ;
 !  general k->p-before-p-PMARK rule -- so the hand entry is redundant,
 !  removed with 0 gold words lost.)
 
-! "avit" spelling variant of "avik"/1v (k->t), found via an
-! already-correct gold sibling ("avittuqsimajuni" alongside the
-! failing "aviktursimajuni", identical decomposition).
-avik+1v:avit VerbContinuations ;
+! ("avit" of "avik"/1v (k->t) used to be hand-wired here -- the blanket
+!  k->t rule in phonology.xfscript now produces it; redundant, removed
+!  2026-09-02 with 0 gold words lost.)
 
 ! "aulat" ("to direct/govern s.t."): WordsRelatedToRoots.csv records this
 ! as "aula/1v+t/1vv", a compositional decomposition filtered out by
@@ -878,7 +873,9 @@ immaqaa+1a:immagaa NounContinuations ;
 immaqaa+1a:immaqa NounContinuations ;
 suurlu+1a:surlu NounContinuations ;
 
-maanna+1a:maanna # ;
+! ("maanna"/1a self-mapped to a "#" continuation used to be hand-wired
+!  here -- AdverbsGenerated already reaches "maanna"; redundant, removed
+!  2026-09-02 with 0 gold words lost.)
 
 ! Demonstrative spelling variants Demonstratives.csv doesn't record at
 ! all (that file has no "variant" column, unlike the root-source CSVs
