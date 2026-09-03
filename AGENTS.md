@@ -174,6 +174,35 @@ line, every time, and hand off only what genuinely needs a device:
   hardware/OS-backed Android Keystore `EncryptedSharedPreferences` relies
   on.
 
+### Giving Alain a test APK to try on his phone
+
+When Alain asks for a build to install ("compile the APK and send it",
+"build me an APK", "publie un APK"):
+
+1. `./build-android-apk.sh debug` — this now works in the devcontainer
+   (x86_64 image with a bundled Android SDK); the old "macOS only" guard is
+   gone. Produces `composeApp/build/outputs/apk/debug/iutools-debug.apk`
+   (~22 MB).
+2. Hand that file to Alain with `SendUserFile` (`status: proactive`,
+   `display: attach`). Do NOT `cat`/`base64` it — `SendUserFile` uploads the
+   file to his client without the bytes entering the agent's context, so it
+   costs ~nothing in tokens.
+
+He installs it from the file card in the conversation (from his phone),
+allowing "install unknown apps" once. No GitHub release, no Dropbox, no
+external service -- the APK goes only into his conversation. The APK is
+debug-signed with `composeApp/debug.keystore`, a fixed keystore committed
+to the repo (see the `signingConfigs.debug` block and its comment in
+`composeApp/build.gradle.kts`), so every debug build carries the same
+signature no matter which container or agent produced it -- installs go
+straight over the previous one, no uninstall needed. (One exception: the
+very first install after this keystore was introduced still needed a single
+uninstall, to get off the old per-container `~/.android/debug.keystore`
+signature.) The container's `local.properties` no
+longer carries an API key (the app takes the user's Claude key from
+Settings at runtime -- see `AppSettings.loadApiKey`), so the APK carries no
+secret and would be safe to distribute more widely if ever needed.
+
 **Android Studio's test dropdown, mapped to Gradle** (root project name is
 `iutools2`, hence the `iutools2.*` label prefix): there is
 no single dropdown entry that runs every test in the whole project at

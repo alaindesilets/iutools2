@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
-# Builds the composeApp Android APK. Must be run on the macOS host, not
-# inside the devcontainer: the container's aarch64 Linux can't run Google's
-# x86_64-only aapt2 binary (no working Rosetta/binfmt bridge in there), so
-# ":composeApp:assembleDebug" always fails at the resource-compilation step.
-# See AGENTS.md / project memory "android-build-blocker-devcontainer" for
-# the full story.
+# Builds the composeApp Android APK and prints the path to it.
+#
+# Works both on the macOS host and inside the (now x86_64) devcontainer --
+# the old "macOS only" restriction is gone: that was for the earlier aarch64
+# container, which couldn't run Google's x86_64-only aapt2. The current
+# devcontainer image bundles a working Android SDK (ANDROID_HOME), so
+# ":composeApp:assembleDebug" runs fine in it. The debug APK is signed with
+# composeApp/debug.keystore -- a fixed keystore committed to the repo (see
+# signingConfigs.debug in composeApp/build.gradle.kts) -- so every debug
+# build has the same signature regardless of machine/container, and installs
+# over the previous one without an uninstall.
 set -euo pipefail
-
-if [ -f /.dockerenv ] || [ "$(uname -s)" != "Darwin" ]; then
-    echo "This script builds the Android APK and only works on macOS." >&2
-    echo "You're running it inside a container (or non-macOS host) — the" >&2
-    echo "container can't run aapt2 (x86_64-only, no emulation set up here)." >&2
-    echo "Run this from a Terminal on the Mac instead." >&2
-    exit 1
-fi
 
 BUILD_TYPE="${1:-debug}"
 case "$BUILD_TYPE" in

@@ -1,19 +1,6 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-}
-
-// Guess Meaning spike (llm-guess-meaning-spike branch only): the Anthropic
-// API key lives in local.properties (already gitignored, already used for
-// sdk.dir) rather than in source -- read here and exposed to the app via a
-// generated BuildConfig field, never as a string literal in Kotlin source.
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
 }
 
 android {
@@ -27,12 +14,6 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField(
-            "String",
-            "ANTHROPIC_API_KEY",
-            "\"${localProperties.getProperty("anthropicApiKey", "")}\"",
-        )
-
         // First real use of the androidTest source set (see
         // AppSettingsEncryptionInstrumentedTest.kt) -- needed for anything
         // that depends on real Android framework behavior Robolectric can't
@@ -45,6 +26,25 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    // A debug keystore checked into the repo, so every debug APK carries the
+    // same signature no matter who builds it or in which devcontainer.
+    // Without this, each machine generates its own ~/.android/debug.keystore
+    // and Android refuses to install a debug build over one signed by a
+    // different key ("the package conflicts with an existing package"),
+    // forcing an uninstall first. A debug keystore holds no secret -- its
+    // password is the well-known "android" -- so committing it is safe and is
+    // standard practice for shared projects. The default "debug" signingConfig
+    // already exists and the "debug" build type already uses it; this only
+    // repoints it at the committed file instead of the per-machine one.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildFeatures {
