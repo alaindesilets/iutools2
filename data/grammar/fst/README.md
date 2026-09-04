@@ -277,8 +277,8 @@ this directory.
 | Script | Purpose |
 |---|---|
 | `histogram.py` | 4-category histogram (first-correct / not-first / not-present / no-decomps) over a small curated batch of gold words. |
-| `full_corpus_check.py` | Same histogram over the **whole** gold standard; `--fair` restricts to the words the `:cli` accuracy suite itself evaluates, for a like-for-like percentage. |
-| `topn_stats.py` | "Correct decomposition within top N" (N=1..5) for the FST raw order, a reranked order, and Benoit's analyzer, over the `--fair` population. |
+| `full_corpus_check.py` | Same histogram over the **whole** gold standard, by default restricted to the words the `:cli` accuracy suite itself evaluates for a like-for-like percentage; `--all` widens it back to every gold word (misspelled/proper-name/etc. included) for gap-finding. |
+| `topn_stats.py` | "Correct decomposition within top N" (N=1..5) for the FST raw order, a reranked order, and Benoit's analyzer, over the fair-vs-`:cli` population by default (`--all` widens it). |
 | `hansard_volume_speed.py` | Decomposition-volume and wall-clock comparison, FST vs Benoit, over the 10k most frequent Hansard word forms (see `hansard-cache/`). |
 | `benoit_sort.py` | Replicates the real analyzer's decomposition ranking (`DecompositionState.compareTo()`), for reranking FST output. |
 | `remove_combined.py` | Replicates `DecompositionState.removeCombinedSuffixes()`. |

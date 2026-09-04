@@ -1,6 +1,8 @@
 """
 "Correct decomposition is within the top N" metrics, N=1..5, for three
-conditions over the same --fair gold population:
+conditions over the same gold population (fair vs. the real :cli accuracy
+suite by default -- misspelled/proper-name/borrowed/decomp-unknown words
+excluded, same as full_corpus_check.py; pass --all to include them):
   1. FST, hfst-lookup's own raw (unranked) output order.
   2. FST, re-sorted with benoit_sort.py's Python translation of the real
      analyzer's own DecompositionState.compareTo() ranking.
@@ -14,7 +16,7 @@ benoit_sort.py's own header for why that's a Python translation for now,
 not literally shared code with the JVM side yet).
 
 Usage:
-    python3 topn_stats.py [--fair]
+    python3 topn_stats.py [--all] [--lenient]
     (needs benoit_timing.jsonl, the captured `cli --pipeline` output over
     the gold corpus, already in the session's scratchpad -- see
     BENOIT_TIMING_PATH below; regenerate it if missing/stale by re-running
@@ -97,7 +99,12 @@ def topn_histogram(word_to_parse_lists, grouped_gold) -> dict[int, int]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fair", action="store_true")
+    parser.add_argument(
+        "--all", action="store_true",
+        help="include the misspelled/proper-name/borrowed/decomp-unknown words "
+             "the real :cli accuracy suite itself skips, instead of the default "
+             "fair population",
+    )
     parser.add_argument(
         "--lenient", action="store_true",
         help="include the FST's LENIENT-marker paths (phonology.xfscript's own "
@@ -106,7 +113,7 @@ def main():
     )
     args = parser.parse_args()
 
-    grouped = group_by_word(load_words(exclude_flagged=args.fair))
+    grouped = group_by_word(load_words(exclude_flagged=not args.all))
     total = len(grouped)
 
     fst_raw = {}
@@ -125,7 +132,7 @@ def main():
     hist_fst_sorted_freq = topn_histogram(fst_sorted_freq, grouped)
     hist_benoit = topn_histogram(benoit, grouped)
 
-    mode = " (--fair)" if args.fair else ""
+    mode = " (--all)" if args.all else " (fair vs. :cli)"
     mode += ", FST LENIENT" if args.lenient else ""
     print(f"Top-N accuracy over {total} words{mode}:\n")
     header = (

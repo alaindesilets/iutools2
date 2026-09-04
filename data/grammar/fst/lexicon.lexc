@@ -119,32 +119,41 @@ LEXICON Nouns
 !  now inserts KGUARD into every root's own internal "kt", so the bulk
 !  entry is already "qullukKGUARDtuq". Removed, byte-identical.)
 
-! "qallunaa" spelling variant of "qaplunaaq" (1n, canonical "qaplunaaq"
-! per gold: "{qallunaa:qaplunaaq/1n}") -- an unexplained root-internal
-! alternation, same "iglu"->"illu" category, already flagged as a known
-! gap further down in this file (NounEndings' own "inuk"/"titut"
-! comment) but never actually wired until now. "qallunaat" needs it
-! directly (root + "it"/tn-nom-p); confirmed via the real Java
-! analyzer's own output before wiring.
-qaplunaaq+1n:qallunaa NounContinuations ;
+! ("qallunaa", the hand root-internal spelling variant of "qaplunaaq"/1n
+!  ("p"->"l", final "q" dropped), used to be hand-wired here -- turns out
+!  redundant: "pl"->"ll" is already in _DIALECT_GROUPS (same table as
+!  Benoit's own Dialect.groups), so roots-generated.lexc already emits
+!  "qaplunaaq+1n:qallunaaq" (WITH the q) automatically, and the general
+!  LENIENT final-consonant-drop rule below covers the rest -- confirmed
+!  "qallunaat" still resolves to qaplunaaq+1n++it+tn-nom-p at weight 0
+!  (STRICT, not even LENIENT) with the hand entry removed. Only word this
+!  ever affected besides "qallunaat" is "qallunaatitut", which is flagged
+!  possiblyMisspelledWord() in the gold standard and unaffected either
+!  way. Removed, 0 regressions on the fair (:cli-comparable) population.)
 
-! "arragu" spelling variant of "arraagu"/1n (single vs double "a"),
-! found the same way as "it"/tn-nom-p above (an already-correct gold
-! sibling, "arraagumi", exists for the identical decomposition as the
-! failing "arragumi").
-arraagu+1n:arragu NounContinuations ;
+! ("arragu", the hand spelling variant of "arraagu"/1n (single vs double
+!  "a"), used to be hand-wired here -- the only gold word it served,
+!  "arragumi", is flagged isMisspelled() and excluded from the real :cli
+!  suite's own evaluation. Removed, 0 regressions on the fair population.)
 
 ! "unnusaq" variant of "unnuksaq"/1n ("afternoon", own "k" dropped --
-! gold: "unnusami"). Lone dropped k, not a _DIALECT_GROUPS cluster sub,
-! so still hand-wired.
+! gold: "unnusami"/"unnusakkut", both real/unflagged words). Lone dropped
+! k, not a _DIALECT_GROUPS cluster sub, so still hand-wired.
 unnuksaq+1n:unnusaq NounContinuations ;
 
-! "milian" 4th variant of "miliat"/1n and "tausan" variant of
-! "tausat"/1n -- a word-final t->n, not a _DIALECT_GROUPS cluster sub,
-! so still hand-wired. ("milian" also resolves the old
-! "milianik"/"milianit" false-positive collisions: gold's canonical for
-! bare "milian" is this SAME "miliat" root, not an unrelated homograph.)
-miliat+1n:milian NounContinuations ;
+! "tausan" variant of "tausat"/1n -- a word-final t->n, not a
+! _DIALECT_GROUPS cluster sub, so still hand-wired (gold: "tausan",
+! real/unflagged).
+!
+! ("milian", the same word-final t->n variant of "miliat"/1n, used to be
+!  hand-wired alongside it -- the only gold word it served, bare
+!  "milian", is flagged isBorrowedWord() (one of the iu renderings of
+!  "million") and excluded from the real :cli suite's own evaluation.
+!  Its comment used to also claim it resolved the "milianik"/"milianit"
+!  false-positive collisions -- re-checked: those are STILL
+!  correct-not-present with or without this entry, so that claim no
+!  longer held even before removal. Removed, 0 regressions on the fair
+!  population.)
 tausat+1n:tausan NounContinuations ;
 
 ! "nunavu" -- the t-deleted spelling variant of "nunavut" ("Nunavut", 1n).
@@ -384,16 +393,21 @@ LEXICON Verbs
 !  _DIALECT_GROUPS, so generate_roots.py's dialect_variants() now emits
 !  it; hand entry redundant, removed 2026-09-02 with 0 gold words lost.)
 
-! "niqsu"/"nirtu"/"niqtu" spelling variants of the bulk-generated
-! "niqtuq" root (1v, canonical "niqtuq" per gold: "{niqsu:niqtuq/1v}"/
-! "{nirtu:niqtuq/1v}"/"{niqtu:niqtuq/1v}" -- the last is the SAME letters
-! as the canonical minus its own trailing q, easy to mistake for the
-! bulk-generated identity entry, but it isn't -- the generated entry
-! keeps the q) -- same "generator only emits the identity spelling" gap
-! as taimait/issiva/itsiva/missa/mitsa.
-niqtuq+1v:niqsu VerbContinuations ;
+! "nirtu"/"niqtu" spelling variants of the bulk-generated "niqtuq" root
+! (1v, canonical "niqtuq" per gold: "{nirtu:niqtuq/1v}"/
+! "{niqtu:niqtuq/1v}" -- the latter is the SAME letters as the canonical
+! minus its own trailing q, easy to mistake for the bulk-generated
+! identity entry, but it isn't -- the generated entry keeps the q) --
+! same "generator only emits the identity spelling" gap as
+! taimait/issiva/itsiva/missa/mitsa.
 niqtuq+1v:nirtu VerbContinuations ;
 niqtuq+1v:niqtu VerbContinuations ;
+
+! ("niqsu", a third such spelling variant of "niqtuq"/1v, used to be
+!  hand-wired alongside the two above -- the only gold word it served,
+!  "niqsunaqtuq", is flagged possiblyMisspelledWord() and excluded from
+!  the real :cli suite's own evaluation. Removed, 0 regressions on the
+!  fair population.)
 
 ! ("naammap" of "naamak"/1v used to be hand-wired here for "naammappuq".
 !  RootsSpalding.csv's own variant column already gives "naammak" (the
@@ -864,15 +878,16 @@ LEXICON Adverbs
 ! Adverb spelling variants that are NOT a _DIALECT_GROUPS cluster sub
 ! (those -- atsualuk/aksualuk, ippassaq/ippatsaq/ikpaksaq -- are now
 ! emitted by generate_roots.py's dialect_variants(); "qanu"/"qujannamii"
-! surface from the LENIENT final-consonant rule): "asuillaak" of
-! "asuilaak"/1a (single l -> ll), "immagaa" (q -> g) and "immaqa"
-! (aa -> a) of "immaqaa"/1a, "surlu" of "suurlu"/1a (uu -> u).
+! surface from the LENIENT final-consonant rule).
 ! STILL A GAP: "uattiaru" of "uattiaruk"/1a (own trailing k dropped) --
 ! no hand entry, not generator-reachable.
-asuilaak+1a:asuillaak NounContinuations ;
-immaqaa+1a:immagaa NounContinuations ;
-immaqaa+1a:immaqa NounContinuations ;
-suurlu+1a:surlu NounContinuations ;
+!
+! ("asuillaak" of "asuilaak"/1a (single l -> ll), "immagaa" (q -> g) and
+!  "immaqa" (aa -> a) of "immaqaa"/1a, "surlu" of "suurlu"/1a (uu -> u)
+!  used to be hand-wired here -- each is the ONLY gold word its entry
+!  ever served (bare "asuillaak"/"immagaa"/"immaqa"/"surlu"), and each is
+!  flagged isMisspelled() and excluded from the real :cli suite's own
+!  evaluation. Removed, 0 regressions on the fair population.)
 
 ! ("maanna"/1a self-mapped to a "#" continuation used to be hand-wired
 !  here -- AdverbsGenerated already reaches "maanna"; redundant, removed

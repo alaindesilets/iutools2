@@ -25,7 +25,7 @@ easily miss.
 
 Usage (from data/grammar/fst/, after building lexicon-analyser.hfstol per
 phonology.xfscript's header):
-    python3 full_corpus_check.py [--show-wrong] [--show-missing N] [--fair] [--strict]
+    python3 full_corpus_check.py [--show-wrong] [--show-missing N] [--all] [--strict]
 
 The FST is evaluated LENIENT by default (weight <= 1.0, i.e. including
 phonology.xfscript's own LENIENT final-consonant-drop rule). That matches
@@ -37,14 +37,16 @@ be identical right now, but strict-FST vs. lenient-gold is not a fair
 comparison and hand entries were being added to lexicon.lexc to paper over
 the difference.
 
---fair drops the same misspelled/proper-name/borrowed/decomp-unknown
-words the real :cli accuracy suite itself doesn't evaluate (see
-affix_frequency.load_words's own docstring) -- use it specifically when
-comparing this prototype's percentage against AGENTS.md's own :cli
-figures (670+247=917/919, 99.8%), so the two numbers are over the same
-population. Default stays permissive (includes everything with a
-decomposition): this project's own FST development has deliberately
-used the wider net throughout, since it finds more gaps to fix.
+By default this drops the same misspelled/proper-name/borrowed/
+decomp-unknown words the real :cli accuracy suite itself doesn't evaluate
+(see affix_frequency.load_words's own docstring), so the reported
+percentage is directly comparable to AGENTS.md's own :cli figures
+(670+247=917/919, 99.8%) with no extra flag needed. --all switches to the
+permissive population instead (every gold word with a decomposition,
+flagged ones included) -- use that for gap-finding runs, since it surfaces
+more edge cases and catches FALSE POSITIVEs a fair-only run could miss;
+just don't compare its percentage against the :cli figures, since it's a
+different population.
 """
 import argparse
 from collections import Counter, defaultdict
@@ -68,11 +70,13 @@ def main():
                          help="list every 'correct-not-present' (false positive) word")
     parser.add_argument("--show-missing", type=int, default=0, metavar="N",
                          help="list the first N 'no-decomps' (rejected) words")
-    parser.add_argument("--fair", action="store_true",
-                         help="drop the words the real :cli accuracy suite itself "
-                              "skips (misspelled/proper-name/borrowed/decomp-unknown), "
-                              "for a like-for-like comparison against AGENTS.md's own "
-                              "919-word :cli figures")
+    parser.add_argument("--all", action="store_true",
+                         help="include the words the real :cli accuracy suite itself "
+                              "skips (misspelled/proper-name/borrowed/decomp-unknown) "
+                              "instead of the default fair comparison against "
+                              "AGENTS.md's own 919-word :cli figures -- use for "
+                              "gap-finding runs, not for tracking the comparable "
+                              "percentage")
     parser.add_argument("--strict", action="store_true",
                          help="count only weight-0 FST analyses. The DEFAULT is "
                               "lenient (weight <= 1.0), matching the real :cli "
@@ -83,7 +87,7 @@ def main():
     args = parser.parse_args()
 
     lenient = not args.strict
-    grouped = group_by_word(load_words(exclude_flagged=args.fair))
+    grouped = group_by_word(load_words(exclude_flagged=not args.all))
 
     histogram = Counter()
     wrong_words = []
@@ -104,7 +108,8 @@ def main():
 
     total = len(grouped)
     print(f"Full gold-standard corpus check ({total} distinct words, "
-          f"{'STRICT' if args.strict else 'lenient'} FST):")
+          f"{'STRICT' if args.strict else 'lenient'} FST, "
+          f"{'all words' if args.all else 'fair vs. :cli'}):")
     for category in [
         "first-decomposition-correct",
         "correct-but-not-first",
