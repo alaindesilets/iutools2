@@ -11,9 +11,20 @@ package org.iutools.morph
  * MorphologicalAnalyzer_FST()'s actual outcome for that word, via the same
  * gold normalization MorphologicalAnalyzer_FST__AccuracyTest applies
  * (canonical morpheme + id only, "{atuaq/1v}" not "{atua:atuaq/1v}").
- * First-decomposition-correct: 671/919. Regenerate wholesale when the
+ * First-decomposition-correct: 676/919. Regenerate wholesale when the
  * transducer or the shared ranking changes -- do not edit a single word to
  * make the test pass.
+ *
+ * Updated 2026-09-04 (confirmed with Benoit Farley): generate_affixes.py
+ * no longer wires a bare "#" word-end continuation on nv/vv (noun-to-verb,
+ * verb-to-verb) suffixes -- an uninflected verb stem is never a complete
+ * Inuktitut word on its own, so those candidates were spurious distractors
+ * competing for first place. Removing them changed the ranking for exactly
+ * the 5 words below (igluit, illuit, maannaujumi, makkuttuit,
+ * pinasuarusiulauqtumi -- all "correct decomposition is now first"); the
+ * 917/919 "found somewhere" coverage is unchanged (snapshot_correct.py
+ * before/after diff is empty), confirmed a pure ranking improvement, not a
+ * coverage change.
  */
 class MorphAnalCurrentExpectations_FST_Hansard : MorphAnalCurrentExpectationsAbstract() {
 
@@ -45,7 +56,6 @@ class MorphAnalCurrentExpectations_FST_Hansard : MorphAnalCurrentExpectationsAbs
         expectFailure("aulajjutinut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("aulaninginnut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("aulanirmut", OutcomeType.CORRECT_NOT_FIRST)
-        expectFailure("igluit", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("iglulirijikkut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("iglulirijirjuakkut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("iglulirinirmut", OutcomeType.CORRECT_NOT_FIRST)
@@ -59,7 +69,6 @@ class MorphAnalCurrentExpectations_FST_Hansard : MorphAnalCurrentExpectationsAbs
         expectFailure("ilinniarviup", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("ilitaqsiniq", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("ilitarijauningit", OutcomeType.CORRECT_NOT_FIRST)
-        expectFailure("illuit", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("illulirijikkut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("illulirijirjuakkut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("illulirinirmut", OutcomeType.CORRECT_NOT_FIRST)
@@ -121,9 +130,7 @@ class MorphAnalCurrentExpectations_FST_Hansard : MorphAnalCurrentExpectationsAbs
         expectFailure("katittugit", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("kisumut", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("kisunik", OutcomeType.CORRECT_NOT_FIRST)
-        expectFailure("maannaujumi", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("mai", OutcomeType.CORRECT_NOT_FIRST)
-        expectFailure("makkuttuit", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("maligait", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("maligaksait", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("maligaksanit", OutcomeType.CORRECT_NOT_FIRST)
@@ -205,7 +212,6 @@ class MorphAnalCurrentExpectations_FST_Hansard : MorphAnalCurrentExpectationsAbs
         expectFailure("piluaqtumi", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("piluaqtumik", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("piluaqtumit", OutcomeType.CORRECT_NOT_FIRST)
-        expectFailure("pinasuarusiulauqtumi", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("pingasunik", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("pingasunit", OutcomeType.CORRECT_NOT_FIRST)
         expectFailure("pingasunut", OutcomeType.CORRECT_NOT_FIRST)

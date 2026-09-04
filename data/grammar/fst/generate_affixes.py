@@ -51,10 +51,15 @@ use. A suffix's own continuation (what it leads to NEXT) instead matches
 its OUTPUT (second letter) category (see FUNCTION_CONTINUATION) -- vn/nn
 continue into NounContinuations, nv/vv into VerbContinuations. "q"-function
 (enclitic particle, e.g. li/1q, lu/1q) suffixes are terminal-only ("#"),
-matching the ones already in QParticles. Every suffix also gets a bare "#"
-terminal path in addition to its hub, mirroring the near-universal pattern
-of existing entries. Terminal endings (Endings_noun.csv/Endings_verb.csv/
-Endings_verb_participle.csv) always route to "#" only.
+matching the ones already in QParticles. A suffix whose OUTPUT category is
+a noun (vn/nn) also gets a bare "#" terminal path in addition to its hub --
+a bare noun (zero-marked absolutive) is a complete word on its own. A
+suffix whose OUTPUT category is a VERB (nv/vv) does NOT: an uninflected
+verb stem is never a complete word in Inuktitut (it needs a tv-*
+mood/person ending) -- see the routing code's own comment for the full
+rationale (per Benoit Farley). Terminal endings (Endings_noun.csv/
+Endings_verb.csv/Endings_verb_participle.csv) always route to "#" only --
+those ARE the inflectional marking itself, not a bare stem.
 
 Tag construction (reverse-engineered from lexicon.lexc's already-
 validated tags, confirmed against known examples before writing this):
@@ -701,8 +706,24 @@ def gen_suffixes():
                     # alongside "#" lets a further particle follow, same
                     # treatment as the hand-authored ones in lexicon.lexc.
                     continuations = ["#", "QParticles"]
-                else:
+                elif FUNCTION_CONTINUATION[function] == "NounContinuations":
+                    # vn/nn produce a NOUN: a bare noun (zero-marked
+                    # absolutive) is already a complete word, so "#" is a
+                    # valid continuation alongside the hub.
                     continuations = ["#", FUNCTION_CONTINUATION[function]]
+                else:
+                    # nv/vv produce a VERB: an uninflected verb stem is
+                    # NEVER a complete word on its own -- it always needs a
+                    # tv-* mood/person ending. The previous version of this
+                    # generator wired "#" here unconditionally, "mirroring
+                    # the near-universal pattern of existing entries" --
+                    # but that pattern was never actually verified for
+                    # nv/vv specifically (confirmed with Benoit Farley,
+                    # 2026-09-04: no gold word ends on a bare nv/vv suffix
+                    # -- the words that looked like counterexamples all
+                    # turned out to be vn/nn, which DO belong here). "#"
+                    # dropped for nv/vv; the hub is still reached.
+                    continuations = [FUNCTION_CONTINUATION[function]]
                 # A SUFFIX (not just a root) can also grant an antipassive-
                 # category continuation: e.g. tuq/1vv's own "antipassive"
                 # column lists "i/1vv" (confirmed: gold words
