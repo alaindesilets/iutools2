@@ -22,6 +22,10 @@ dist/
 # JDT/Gradle-extension project-sync artifact: copies .kt "resources" it
 # can't compile into a classic Eclipse-style bin/ output folder.
 cli/bin/
+fst/bin/
+
+# Editor swap files
+*.swp
 
 # macOS
 .DS_Store
