@@ -1,0 +1,1275 @@
+! Cumulative lexicon for doc/dev/plans/fst-analyzer-plan.md's FST prototype. Grows
+! one morpheme/mechanism at a time (e.g. "aki+nga", then "amit+juq", ...)
+! as one lexicon rather than staying split into one file per word, so
+! each new word's roots/affixes/rules are also checked against everything
+! validated so far -- not just tested in isolation.
+!
+! Tag/canonical-text convention: a morpheme's own canonical form and its
+! signature id are joined by a single "+" (Benoit's {surface:canonical/id}
+! "/" role); "++" marks the boundary to the next morpheme (Benoit's "}{"
+! role). Every morpheme -- root or affix -- echoes its own canonical text
+! into the tag stream, even when (as with "nga" here) surface and canonical
+! happen to be identical: keeping one uniform shape for every entry avoids
+! a special-cased "sometimes the text is there, sometimes it isn't" rule
+! that a future output-format conversion script would need to know about.
+! See phonology.xfscript's header for why a bare "/" itself is avoided
+! (xfst replace-rule context operator).
+!
+! lexc convention: upper side = analysis (root/affix + tags), lower side =
+! pre-phonology intermediate form. This compiles as a *generator*; the
+! analyser direction used by hfst-lookup is produced by composing with
+! phonology.xfscript's rules and then inverting -- see that file's header
+! for the exact build commands.
+!
+! GOLD-STANDARD FITTING -- read data/grammar/fst/gold-standard-fitting.md.
+! Because this file grew one gold word at a time, some entries below exist
+! because a specific gold-standard word needed them, NOT because the CSV
+! data says so -- most notably ~40-70 Roman-orthography spelling variants
+! (iglu->illu, kanangnaq->kanannaq, taamna->tanna, ...) that are absent
+! from the CSV "variant" column and stand in for a general
+! cluster-assimilation rule Benoit's analyzer applies from the CSV alone.
+! ~62 of the 920 --fair correct words depend on this hand layer. Each such
+! entry's own comment says how it was added; the .md file inventories them.
+
+Multichar_Symbols +1n +1v +1vn +1nv +1nn +1c +1e +1a +1p +1q +1vv +2vn
+  +tn-nom-s-4s +tn-dat-p +tv-ger-3p +tn-nom-p +tn-dat-s +tn-acc-p
+  +tn-nom-p-4s +tn-loc-s +tn-abl-p +tn-gen-s +tn-loc-p +tn-acc-s
+  +tn-dat-p-4s +tv-ger-1s +tv-dec-1s +tn-via-p +tv-part-1s-3s-prespas
+  +2vv +tn-abl-p-4s +tv-part-1s-3p-prespas +2nn +tn-loc-p-4s +2nv
+  +tv-dec-1p +tn-nom-s-4p +tv-ger-1p +tv-caus-1s +tv-caus-1p +tv-caus-2s
+  +tv-ger-2s +tn-sim-p +tv-imp-2s +tv-caus-4s +tn-via-s-4s +tn-nom-d
+  +tv-part-1s-3s-fut +tv-dec-3s +tv-part-3p +&iq +tn-abl-s
+  ++ SUPPR VVNG NASAL PMARK DECAP VOICE MINSERT TNNOMD JGUARD KGUARD
+
+LEXICON Root
+Nouns ;
+Verbs ;
+Conjunctions ;
+Adverbs ;
+Pronouns ;
+
+! Bulk-generated roots (data/grammar/fst/generate_roots.py, from RootsSpalding.csv/
+! RootsSchneider.csv/Pronouns.csv) live in separately-named lexicons, not
+! merged into the hand-picked ones above: hfst-lexc refuses to compile the
+! same LEXICON name defined across two files ("Sublexicon defined more than
+! once"). Each one converges on the same downstream continuation lexicons
+! as its hand-picked counterpart (e.g. NounsGenerated's entries -> the same
+! NounContinuations as Nouns's), so a generated root reaches every
+! applicable suffix/ending class exactly like a hand-picked one does.
+NounsGenerated ;
+VerbsGenerated ;
+ConjunctionsGenerated ;
+ExclamationsGenerated ;
+AdverbsGenerated ;
+PronounsGenerated ;
+DemonstrativeAdverbsGenerated ;
+DemonstrativePronounsGenerated ;
+DemonstrativeAdverbRootsGenerated ;
+DemonstrativePronounRootsGenerated ;
+
+! The demonstrative pronoun/adverb system (data/grammar/fst/generate_demonstratives.py
+! -- see that script's own docstring for the full investigation) is an
+! entire root+ending category, not an extension of an already-partially-
+! wired mechanism: Demonstratives.csv's 65 rows give either a STANDALONE
+! complete word (own Root entry point, e.g. "tamanna" = "this one",
+! reachable from DemonstrativeAdverbsGenerated/DemonstrativePronounsGenerated)
+! or a ROOT that takes a case ending from Endings_demonstrative.csv (a
+! SEPARATE Root entry point, e.g. "taakku"+"ninga" = "taakkuninga",
+! reachable from DemonstrativeAdverbRootsGenerated/
+! DemonstrativePronounRootsGenerated) -- both forms come from the SAME CSV
+! row, confirmed by reverse-engineering the tag shapes real gold ids use
+! (MorphAnalGoldStandard_Hansard.kt has both "tamannali" =
+! {tamanna:tamanna/pd-ml-s}{li:li/1q} and "taakkuninga" =
+! {taakku:taakku/rpd-sc-p}{ninga:ninga/tpd-acc-p}, same underlying row
+! backing each). No phonology at all: neither source CSV has an action
+! column, so every entry is plain concatenation.
+!
+! Verified via histogram.py + a snapshot_correct.py diff: zero
+! regressions, and the bulk generation's own breadth reached well beyond
+! the handful of words individually tested. Two accepted false positives,
+! both understood, not new bug classes: "taaksumunga" -- its OWN gold
+! entry's canonical ("taangna") is the dictionary/morpheme form, unlike
+! every other demonstrative gold word (which all use the CSV's "root"
+! column as canonical, matching this generator's own choice; also the
+! only gold string in this whole corpus with an odd duplicated-prefix
+! formatting quirk) -- treated as a probable gold-data anomaly, not a
+! reason to special-case the generator against every other word's
+! pattern. "ukunani" -- an unrelated, not-yet-implemented verb root "uku"
+! (+"nani"/tv-part-3s) accidentally spells the same string as the
+! demonstrative root "uku"+"nani"/tpd-loc-p -- the same cross-lexical
+! shadowing risk already documented and accepted throughout this file
+! (e.g. nunalik/uqausiq/kiinaujaq), not specific to demonstratives.
+
+! Noun root + terminal noun ending, straight concatenation, no
+! phonological alternation: "akinga" = {aki:aki/1n}{nga:nga/tn-nom-s-4s}.
+
+LEXICON Nouns
+
+! Root-internal DIALECTAL CLUSTER spelling variants (iglu<->illu gl/ll,
+! nunatsiaq<->nunattiaq ts/tt, miksa<->missa/mitsa ks/ss/ts,
+! kanangnaq<->kanannaq ngn/nn, ublaaq<->ullaaq bl/ll, ...) are now
+! emitted automatically by generate_roots.py's dialect_variants() from
+! the _DIALECT_GROUPS table (a port of Dialect.groups) -- they no longer
+! need hand-wiring here. What still needs a hand entry below is an
+! alternation NOT in that cluster table: a word-final t->n, a vowel
+! length aa<->a, a lone dropped k, or a root-specific gemination.
+
+! ("qulluktuq", the KGUARD-protected variant spelling of "kugluktuk"/1n,
+!  used to be hand-wired here -- generate_roots.py's protect_internal_k()
+!  now inserts KGUARD into every root's own internal "kt", so the bulk
+!  entry is already "qullukKGUARDtuq". Removed, byte-identical.)
+
+! "qallunaa" spelling variant of "qaplunaaq" (1n, canonical "qaplunaaq"
+! per gold: "{qallunaa:qaplunaaq/1n}") -- an unexplained root-internal
+! alternation, same "iglu"->"illu" category, already flagged as a known
+! gap further down in this file (NounEndings' own "inuk"/"titut"
+! comment) but never actually wired until now. "qallunaat" needs it
+! directly (root + "it"/tn-nom-p); confirmed via the real Java
+! analyzer's own output before wiring.
+qaplunaaq+1n:qallunaa NounContinuations ;
+
+! "arragu" spelling variant of "arraagu"/1n (single vs double "a"),
+! found the same way as "it"/tn-nom-p above (an already-correct gold
+! sibling, "arraagumi", exists for the identical decomposition as the
+! failing "arragumi").
+arraagu+1n:arragu NounContinuations ;
+
+! "unnusaq" variant of "unnuksaq"/1n ("afternoon", own "k" dropped --
+! gold: "unnusami"). Lone dropped k, not a _DIALECT_GROUPS cluster sub,
+! so still hand-wired.
+unnuksaq+1n:unnusaq NounContinuations ;
+
+! "milian" 4th variant of "miliat"/1n and "tausan" variant of
+! "tausat"/1n -- a word-final t->n, not a _DIALECT_GROUPS cluster sub,
+! so still hand-wired. ("milian" also resolves the old
+! "milianik"/"milianit" false-positive collisions: gold's canonical for
+! bare "milian" is this SAME "miliat" root, not an unrelated homograph.)
+miliat+1n:milian NounContinuations ;
+tausat+1n:tausan NounContinuations ;
+
+! "nunavu" -- the t-deleted spelling variant of "nunavut" ("Nunavut", 1n).
+! generate_roots.py DOES now read Locations.csv, so the identity spelling
+! "nunavut" (whose own trailing t assimilates to a following "m" for free
+! via the general t->m rule below) is bulk-generated. Only this t-deleted
+! variant stays by hand: Locations.csv's "variant" column is empty for
+! this row, and the deletion is mid-root (before a following suffix), out
+! of reach of the word-final-only LENIENT rule. Gold-attested and
+! load-bearing (nunavumi/nunavumiunut/nunavumiut/nunavulimaami) -- genuine
+! free variation, same shape as usiq/naq/miik elsewhere in this file.
+nunavut+1n:nunavu NounContinuations ;
+
+! Fan-out hubs so EVERY noun/verb root (hand-picked or bulk-generated) can
+! reach every applicable suffix/ending class generically, not just the
+! one lexicon the specific word that introduced it happened to need --
+! e.g. every noun root should be able to take a noun-to-noun or
+! noun-to-verb derivational suffix, not just one specific ending. Purely
+! additive (new reachable paths, not new transformations), so it doesn't
+! change what already-validated words do -- reverified by rerunning
+! data/grammar/fst/histogram.py after this change.
+
+LEXICON NounContinuations
+NounEndings ;
+NnSuffixes ;
+NvSuffixes ;
+NnSuffixesGenerated ;
+NvSuffixesGenerated ;
+TnEndingsGenerated ;
+! *Speculative variants (see suffixes-generated.lexc's own header for
+! what that means): wired into the SAME hub as their non-speculative
+! siblings so they're actually reachable, not a weaker/separate path.
+NnSuffixesGeneratedSpeculative ;
+NvSuffixesGeneratedSpeculative ;
+TnEndingsGeneratedSpeculative ;
+# ;
+
+LEXICON VerbContinuations
+VnSuffixes ;
+VvSuffixes ;
+TvEndings ;
+VnSuffixesGenerated ;
+VvSuffixesGenerated ;
+TvEndingsGenerated ;
+VnSuffixesGeneratedSpeculative ;
+VvSuffixesGeneratedSpeculative ;
+TvEndingsGeneratedSpeculative ;
+
+LEXICON NounEndings
+
+! "ngangnit"/tn-abl-s-4d (dual ablative, "his/her/their two X's"):
+! "katimajingannit" is gold's only tn-abl-s-4d example, and its own
+! surface span is "ngannit" -- identical to the already-implemented
+! "ngannit"/tn-abl-s-4p (PLURAL) spelling, not the canonical "ngangnit"
+! Endings_noun.csv's own V-form gives (no reduced candidate documented
+! there at all). A real dual/plural spelling homograph, not a bug --
+! same "wire the attested literal, let the input string pick" treatment
+! as every other spelling variant this session, just this once the
+! variant happens to coincide with a DIFFERENT tag's own spelling.
+++ngangnit+tn-abl-s-4d:ngannit # ;
+
+! "nganit"/tn-abl-s-4s's own SECOND q-context candidate: Endings_noun.csv
+! gives q-form "nganit anit" (2 space-separated candidates), both
+! action1 Suppression -- the bulk generator only ever wires the FIRST
+! ("SUPPRnganit", already in endings-generated.lexc), since the second
+! candidate's own action2 ("s") isn't a code generate_affixes.py
+! understands yet (unlike "decap", the only action2 value currently
+! handled). "aippaanit" needs this second candidate specifically:
+! "aippaq"+SUPPR(deletes the q)+"anit" = "aippaanit", confirmed directly
+! via hfst-lookup before wiring -- "anit" is already the CSV's own
+! literal (not derived by a new rule), so just needs the same SUPPR
+! marker action1 already calls for.
+
+! "k"/tn-nom-d (dual nominative): "ministaa"/"iksivautaa"/"ajjaqsijii"/
+! etc. Endings_noun.csv's V-context action pair is VowelLengthening+
+! Cancellation -- a genuinely NEW mechanism, not a marker-scoped rewrite
+! of the PRECEDING stem (like NASAL/VOICE) but a COPY of whatever vowel
+! immediately precedes, with the ending's own canonical "k" contributing
+! NOTHING else to the surface at all ("minista"+"a"(doubled)="ministaa",
+! not "minista"+"a"+"k"). New TNNOMD marker: duplicates a/i/u (whichever
+! immediately precedes it), phonology.xfscript. t/k/q-context (Insertion
+! "i" / Suppression+VowelLengthening) not attempted: every gold word in
+! this cluster is vowel-final by the time "k" attaches.
+++k+tn-nom-d:TNNOMD # ;
+
+! "ptingni"/tn-loc-s-1d (dual locative): Endings_noun.csv flags this
+! row's V-context as Neutral (no change), but that's misleading -- CSV
+! V/t/k/q columns only ever describe what happens based on the PRECEDING
+! stem, and every gold example (all vowel-final roots: arraagu/kinguni/
+! nuna/sivuni) shows the SAME internal reduction regardless: "ptingni" ->
+! "ttinni" (p assimilates to its own following t, same general p->t rule
+! as "gapta" below; "ng"->"n" simplifies too). Unconditional on preceding
+! context, so implemented as a plain literal surface text, same
+! "canonical citation form differs from the always-used surface form"
+! shape as "ralaaq" in NnSuffixes below -- no marker, no guessed trigger
+! condition. Also needed a SUPPR-prefixed variant for when the
+! immediately preceding morpheme has its own trailing consonant to shed
+! (needed for "nunalittinni" via lik/1nn).
+++ptingni+tn-loc-s-1d:ttinni # ;
+++ptingni+tn-loc-s-1d:SUPPRttinni # ;
+
+! The same "ptingni"->"ttinni" reduction (p->t, ng->n) applies to this
+! ending's plural-1p siblings too (tn-loc-p-1p/tn-acc-p-1p/tn-dat-p-1p,
+! needed by "uva"/1rpr, a bulk-generated Pronouns.csv "rpr"-type root --
+! see generate_roots.py's own comment on load_pronouns_csv) --
+! Endings_noun.csv's own literal text for those rows is the unprocessed
+! "ptingni"/"ptingnik"/"ptingnut" (bulk-generated as-is in
+! endings-generated.lexc, harmless but never matches any real gold
+! surface), so the corrected spelling is hand-added here rather than
+! guessing at a general rule from a single root family.
+++ptingni+tn-loc-p-1p:ttinni # ;
+++ptingnik+tn-acc-p-1p:ttinnik # ;
+++ptingnut+tn-dat-p-1p:ttinnut # ;
+
+
+! "it"/tn-nom-p: {arna:arnaq/1n}{it:it/tn-nom-p} = "arnait" and
+! {iglu:iglu/1n}{it:it/tn-nom-p} = "igluit". Endings_noun.csv's "it" row
+! has TWO actions per context (action1, action2): action1 is the familiar
+! Suppression/Neutral; action2 is Selfdecapitation (Action.kt: strips the
+! affix's OWN first letter, "it"->"t"), firing only when the stem left
+! behind by action1 would end in two vowels, to avoid a 3-vowel run --
+! forced into the open by "arraagutamaat" (see "tamaaq"/1nn's comment in
+! NnSuffixes below). New DECAP marker: SUPPR still fires first (deletes
+! a preceding q/k/t if present), then a rule deletes "it"'s own leading
+! "i" specifically when the segment immediately before the marker is two
+! vowels, then the marker itself is dropped -- verified in isolation (a
+! toy "...aaqSUPPRDECAPit" string through analogous rules) before
+! touching this entry. Correct for the V-context ("iglu", no deletion,
+! and "iglu" itself never ends in two vowels so decap stays inert) and
+! the q-context ("arnaq"/"arraagutamaaq") alike. NOT yet correct for a
+! t-final root: this ending's own t-context action is Neutral, not
+! Suppression, but the existing SUPPR rule generalizes deletion across
+! q/k/t uniformly -- so a t-final root reaching this entry would still
+! wrongly lose its final t. Deferred rather than guessed at: fix when a
+! gold-standard word actually needs the t-context.
+! Also has an UNCONDITIONAL "t"-only spelling, own leading "i" dropped
+! regardless of how many vowels precede -- not the same thing as DECAP
+! (which only strips it when exactly two vowels precede): gold attests
+! "katimajiit" (the DECAP-inert full spelling, one vowel precedes,
+! matching the documented behavior above) and "katimajit" (the
+! reduced spelling) as separate entries for the IDENTICAL
+! decomposition, so this is genuine free variation on top of the
+! documented DECAP mechanism, not a replacement for it. Found by
+! testing whether "combination mismatch" gold words sharing an
+! "it"/tn-nom-p tail might be free-variant spellings rather than a
+! deeper phonology gap -- confirmed for several at once
+! ("piliriaksat"/"piqujaksat"/"uqausiksat", all ksaq/1nn+it chains;
+! "pigiaqtitat", a jaq/1vn+it chain), not just "katimajit".
+! "SUPPRt": the ending's own LEADING "i" dropped AND a preceding
+! suffix's final consonant deleted -- "katimajit", and the ksaq/1nn+it /
+! jaq/1vn+it chains "piliriaksat"/"piqujaksat"/"uqausiksat"/
+! "pigiaqtitat"/"maligaliuqtit". LENIENT (word-final consonant deletion)
+! does NOT reach this ("i" is not word-final and not a consonant), and
+! the FST has no unconditional "drop the ending's leading vowel"
+! mechanism (DECAP only fires after exactly two vowels) -- so this stays
+! a hand entry. The "i"-only free variant (own trailing "t" dropped,
+! "titiraqtii" for "...ji+it") is now covered by LENIENT and was
+! removed.
+++it+tn-nom-p:SUPPRt # ;
+
+! "ngit"/tn-nom-p-4s: "akingit" = {aki:aki/1n}{ngit:ngit/tn-nom-p-4s}
+! (V-context, plain) and "atingit" = {ati:atiq/1n}{ngit:ngit/tn-nom-p-4s}
+! (q-context, root's final q deleted). V-form=ngit/Neutral,
+! k/q-form=ngit/Suppression -- all single candidate, genuine rule, reuses
+! SUPPR unchanged. t-context has two candidates (Insertion "i" vs
+! Suppression, no algorithmic disambiguator) -- deferred, same policy as
+! every such case.
+
+! The "ngi"-only free variant (own trailing "t" dropped, "asingi" for
+! "asi+ngit") is now covered by LENIENT and was removed.
+
+! "nut"/tn-dat-p: same shared NounEndings hub deliberately serves "it"
+! (reached from bare noun roots via NounContinuations) and "nut" (reached
+! from NnSuffixes-derived stems like "kkut"): "it" and "nut" should
+! always be the same reachable set, since ANY noun-like stem can take ANY
+! tn-ending -- e.g. "tuinnaq"/1nn (NnSuffixes) needs to reach "it" too.
+! Gained the same default-branch NASAL/SUPPR pair as the other Lever A
+! endings (see generate_affixes.py's "Lever A" investigation note):
+! "surusirnut" (root "surusiq", Nasalization: q->r) versus
+! "nutaanut"/"ukiunut" (roots "nutaaq"/"ukiuq", Suppression: q simply
+! deleted) -- same root-dependent split, both real. nut's own TRIGGER
+! branch (Suppression when preceded specifically by juq/1vn/ksaq/1nn/
+! jaq/3vn) is wired in NounEndingsAfterQTriggerSuffix below, confirmed
+! via "ajjigiinngittunut".
+
+! The "nu"-only free variant of "nut" (own trailing "t" dropped,
+! "inunnut"/"inunnu") is now covered by LENIENT and was removed. The
+! doubled "n" in "inuk"+"nut" -> "inunnut" still comes from the general
+! k->n assimilation rule in phonology.xfscript firing on the preceding
+! root's own final k (SUPPR would delete that k before assimilation
+! could double it).
+
+! "up"/tn-gen-s k/q-context (Suppression, deletes a preceding q/k/t):
+! now generated as "SUPPRDECAPup" (DECAP is inert after a single-vowel
+! stem, so it equals the old hand "SUPPRup" for every gold word -- 0
+! change on removal).
+
+! "SUPPRp": "up"'s own LEADING "u" dropped, merging with a preceding
+! vowel ("iksivautaup"/"iksivautap"; also "nunatsiap"/"nunattiap").
+! Not reachable via LENIENT (leading vowel, not word-final consonant)
+! and no unconditional leading-vowel-drop mechanism -- stays a hand
+! entry, same shape as "it"/tn-nom-p's "SUPPRt" above. The "u"-only
+! free variant (own trailing "p" dropped, "ministaup"/"ministau") is
+! now covered by LENIENT and was removed.
+++up+tn-gen-s:SUPPRp # ;
+
+! The "tigu"-only free variant of "tigut" (own trailing "t" dropped,
+! "tusaajitigut"/"tusaajitigu") is now covered by LENIENT and was
+! removed, along with its AfterViaCaseEnding continuation.
+
+
+! ngagut/ngani/nganut/nganik + nga /tn-*-s-4s: Endings_noun.csv gives
+! each of these a SECOND V-context candidate ("agut"/"ani"/"anut"/
+! "anik"/"a", each missing its own leading "ng") tagged action1=Neutral
+! action2=Suppression. generate_affixes.py now emits the plain reduced
+! literal for that action pair (see its candidates_for_context comment on
+! the "nga a" family) -- so these no longer need a hand entry. The choice
+! between full and reduced is genuinely root-specific, not CSV-derivable
+! (e.g. "sivuni" attests both "sivuniani" and "sivuningani"): both stay
+! wired as parallel candidates. The SUPPR-prefixed q-final variants
+! ("qitiq" -> "qitingani") come from the same row's k/q columns and were
+! already generated.
+
+! "amittuq" = {amit:amit/1v}{tuq:juq/1vn} -- verb root + derivational
+! (verb-to-noun) suffix whose canonical form "juq" surfaces as "tuq"
+! after a t/k/q-final stem (rule in phonology.xfscript).
+
+LEXICON Verbs
+
+! Root-internal dialectal cluster spelling variants (iglaq<->illaq,
+! iksiva<->issiva/itsiva, makpiq<->mappiq, ...) are emitted by
+! generate_roots.py's dialect_variants() -- see the note in the Nouns
+! block above. The hand entries left below are alternations NOT in the
+! _DIALECT_GROUPS cluster table.
+
+! ("aglat" of "allak"/1v used to be hand-wired here -- gl<->ll is in
+!  _DIALECT_GROUPS, so generate_roots.py's dialect_variants() now emits
+!  it; hand entry redundant, removed 2026-09-02 with 0 gold words lost.)
+
+! "niqsu"/"nirtu"/"niqtu" spelling variants of the bulk-generated
+! "niqtuq" root (1v, canonical "niqtuq" per gold: "{niqsu:niqtuq/1v}"/
+! "{nirtu:niqtuq/1v}"/"{niqtu:niqtuq/1v}" -- the last is the SAME letters
+! as the canonical minus its own trailing q, easy to mistake for the
+! bulk-generated identity entry, but it isn't -- the generated entry
+! keeps the q) -- same "generator only emits the identity spelling" gap
+! as taimait/issiva/itsiva/missa/mitsa.
+niqtuq+1v:niqsu VerbContinuations ;
+niqtuq+1v:nirtu VerbContinuations ;
+niqtuq+1v:niqtu VerbContinuations ;
+
+! ("naammap" of "naamak"/1v used to be hand-wired here for "naammappuq".
+!  RootsSpalding.csv's own variant column already gives "naammak" (the
+!  m-gemination), and "naamak"+"vuq"/tv-dec-3s -> "naammappuq" via the
+!  general k->p-before-p-PMARK rule -- so the hand entry is redundant,
+!  removed with 0 gold words lost.)
+
+! ("avit" of "avik"/1v (k->t) used to be hand-wired here -- the blanket
+!  k->t rule in phonology.xfscript now produces it; redundant, removed
+!  2026-09-02 with 0 gold words lost.)
+
+! "aulat" ("to direct/govern s.t."): WordsRelatedToRoots.csv records this
+! as "aula/1v+t/1vv", a compositional decomposition filtered out by
+! generate_roots.py's shadowing-risk filter -- same "gold treats it as
+! opaque, filter overcautious for this one row" shape as
+! taimait/qaujima/apiri above. Needed for "aulattijiit"/
+! "aulattinirmut" (si/1vv's t-context "ti" family).
+
+! "aanniaqtulirijikkunnut" =
+! {aanniaq:aanniaq/1v}{tu:juq/1vn}{liri:liri/1nv}{ji:ji/1vn}{kkun:kkut/1nn}
+! {nut:nut/tn-dat-p} -- verb root, then vn -> nv -> vn -> nn -> tn, six
+! morphemes. VnSuffixes/NvSuffixes are written as genuinely reusable
+! continuation classes (not one-off per-word lexicons) so this word cycles
+! back through the *same* VnSuffixes lexicon for both "juq" and "ji" --
+! that's the actual mechanism this word exists to prove (per the plan:
+! "Proves the continuation-class graph handles realistic derivational
+! depth, not just a single suffix"), not just six more literal entries.
+!
+! Two distinct phonological phenomena here (see phonology.xfscript for the
+! rules themselves), confirmed against the source Kotlin analyzer before
+! writing either:
+!   - "juq"+"liri": "juq"'s own j->t rule fires first (root "aanniaq" is
+!     q-final), THEN the derived "tuq"'s final "q" is deleted specifically
+!     because "liri" is one of the suffixes whose own q-context CSV row
+!     (Suffixes.csv) carries a Suppression action on what precedes it -- a
+!     property of this specific suffix, not a universal "q before l" sound
+!     change. Modeled with an invisible SUPPR marker (below) rather than a
+!     blanket context rule, so it doesn't accidentally delete every future
+!     q-before-l sequence this lexicon might grow to include. (Named
+!     SUPPR, not QDEL: the exact same Action.Suppression mechanism was
+!     also found deleting a *different* final consonant -- "ilaak"'s k
+!     before "qai" -- so this marker was generalized to "delete whatever
+!     consonant precedes me", not q-specific.)
+!   - "kkut"+"nut": "kkut"'s final "t" assimilates to "n" because "nut"
+!     begins with "n" -- confirmed as a genuinely general, systematic
+!     mechanism (Action.Assimilation, the same action code recurring in
+!     hundreds of CSV rows across Suffixes.csv/Endings_noun.csv/
+!     Endings_verb.csv), so this one *is* a direct, marker-free context
+!     rule -- t immediately before n. Scoped narrowly to that one segment
+!     pair for now (not the fully general "assimilates to whatever
+!     consonant follows" rule the CSV data implies) since t-before-n is the
+!     only instance any validated word exercises so far.
+!   - The word's doubled "nn" (...kkunnut) is *not* a third phenomenon: it
+!     falls out for free from the assimilation above plus plain
+!     concatenation with "nut"'s already-lexical initial "n" -- no separate
+!     rule or lexc entry needed for it.
+
+LEXICON VnSuffixes
+
+! "maannauju" = {maanna:maanna/1a}{u:u/1nv}{ju:juq/1vn} -- gold attests
+! juq/1vn's own trailing q dropped at the bare terminal (no ending
+! follows), a free spelling variant of the plain "juq" terminal above.
+
+! "ju" (above) had only ever been tested at the bare terminal, the same
+! "only tested one way" gap this project keeps re-finding -- missing its
+! own continuation meant "qaujimajuinnaugatta" (needs "ju" to reach
+! innaq/1nn in NnSuffixes) couldn't be found at all, confirmed via the
+! real Java analyzer's own output before wiring.
+++juq+1vn:juq AfterJuqTriggerSuffix ;
+
+! "naammasaqtuit"/"naammasaqtut" need juq/1vn's own "tuq" spelling with
+! ITS trailing q ALSO dropped, unlike the j->t conversion the general
+! phonology.xfscript rule already produces automatically -- a SEPARATE,
+! unconditional literal (not the same mechanism as "ju" above, which is
+! V-context-only), confirmed via the real Java analyzer's own output
+! (--pipeline) before wiring. ("qanuittuni"/"qanuittunik" superficially
+! look like they'd need this too, but gold's chain for those actually
+! needs the still-unimplemented "it"/3nv ending before juq -- this
+! literal doesn't reach them, don't assume it does.)
+++juq+1vn:tu # ;
+++juq+1vn:tu NounContinuations ;
+
+! "makkuktunut" (root "makkuk", k-final) needs "tu" with its own k
+! preserved, NOT assimilated to "makkuttunut" -- same KGUARD trick as
+! titut/tn-sim-p's own "inuktitut" candidate above (a parallel guarded
+! path alongside the plain one, general rule still fires normally for
+! whatever roots actually need it). Not decomposable by the real Java
+! analyzer either (confirmed via --pipeline).
+++juq+1vn:KGUARDtu # ;
+++juq+1vn:KGUARDtu NounContinuations ;
+
+! "ilinniartulirijiit" needs juq/1vn's "tu" candidate reaching a q-final
+! root ("ilinniaq") with the root's own trailing q converted to r --
+! same VOICE marker vik/3vn's own q-context candidate already uses
+! (Endings_noun.csv's own comment on that entry documents "ilinniaq"'s
+! q->r conversion directly), just not previously wired for juq/1vn's
+! reduced spelling specifically.
+++juq+1vn:VOICEtu NounContinuations ;
+
+! "juq" also reaches a THIRD continuation, straight into a noun ending:
+! "ajjigiinngittunik" needs it (juq -> nik/tn-acc-p) -- juq (verb-to-noun)
+! had otherwise only ever continued to "#" or into another nv-suffix,
+! never directly to a noun ending. Routed to a dedicated
+! "NounEndingsAfterQTriggerSuffix" lexicon below (rather than the shared
+! "NounEndings", where "nik" ALSO independently lives, for the general
+! case): several endings' own CSV rows delete a preceding q specifically
+! when the id of what precedes them is juq/1vn (or ksaq/1nn, jaq/3vn/1vn
+! -- a genuinely id-conditional context, "Lever A", see
+! generate_affixes.py's investigation note). Scoping it to a dedicated
+! lexicon means this q-deletion stays
+! specific to "reached right after one of these specific trigger
+! suffixes" -- it doesn't leak into the general NounEndings case, whose
+! own q-context uses a DIFFERENT mechanism (Nasalization by default).
+++juq+1vn:juq NounEndingsAfterQTriggerSuffix ;
+
+
+! "uqartii" needs the preceding root's own trailing q converted to r
+! (VOICE) before "ji" attaches -- root "uqaq" (very common) has no
+! reduced spelling of its own, so the conversion has to happen on ji's
+! side, same VOICE-prefixed-candidate shape as juq/1vn's own "VOICEtu"
+! elsewhere in this file. The literal is "ti" (own j ALREADY converted
+! to t), not "ji" -- VOICE resolves early in phonology.xfscript's rule
+! cascade, well BEFORE the general j->t rule at the very top, so
+! "VOICEji" would never actually see "r" adjacent to "j" in time for
+! that rule to fire (confirmed via a failed hfst-lookup attempt with
+! "VOICEji" first: produced "uqarjii", j unconverted). Baking the t
+! directly into the literal sidesteps the ordering issue entirely, same
+! as juq/1vn's own "VOICEtu" already does. Not decomposable by the real
+! Java analyzer either (confirmed via --pipeline).
+++ji+1vn:VOICEti NounContinuations ;
+
+
+! "ut"/1vn ("object/instrument/tool for doing s.t."): Suffixes.csv's
+! V-form alone lists 12 space-separated candidates. Tracing every gold
+! word's FULL decomposition chain instead shows it's the same "CSV under/
+! over-lists, gold reveals the real literal-spelling set" shape as usiq
+! above, just with MORE candidates because "ut" genuinely has three
+! parallel sub-families, not one:
+!   - V-context, own trailing q handled by SUPPR (root already q-final,
+!     e.g. "ikajuq"): SUPPRut (bare terminal, "ikajuutit"), SUPPRuti
+!     (continuing), SUPPRutik (alt bare terminal), SUPPRutaq (alt bare
+!     terminal, own q survives unless a FOLLOWING SUPPR-marked ending eats
+!     it -- "iksivautaq" bare vs "iksivautaup" via up/tn-gen-s's own SUPPR,
+!     same "downstream SUPPR reduces utaq->uta for free" trick as usiq).
+!   - q-prefix family (preceding root's own q is KEPT, doubled "qq" --
+!     "apiq" family): qut/quti/qutik, no SUPPR at all, mirrors usiq's
+!     qusiq/qusi/qusir treatment exactly.
+!   - r-prefix family (preceding root's own trailing q IS deleted, by
+!     ut's OWN SUPPR -- "giaq"/1vv and "liuq"/1nv's output): SUPPRrut
+!     (bare terminal, "ilagiarut"), SUPPRruti (continuing,
+!     "ilagiaruti"/"qaujigiarutit" -- "qaujigiarutit" needs bare SUPPRrut
+!     + it, not SUPPRruti; both "rut"+it and "ruti"+it are gold-attested
+!     free variants, same "apiqqutit"/"apiqqutiit" doubling seen in the
+!     q-prefix family too).
+!   - V-context gemination family: the CSV's own V-form actually lists
+!     "jjut jjuti jjutik jjutaq" a SECOND time via action1 "i(jj)"
+!     (Insertion of doubled "j") -- this IS the "mysterious jj-prefixed
+!     spelling" this comment used to describe as "not in the CSV's own
+!     candidate list at all" (round 22-era investigation missed it,
+!     mistaking it for the separate, genuinely distinct "jjut"/1vn
+!     suffix, Suffixes.csv nb=1 "reason/cause/motive", instead). Baked
+!     directly into the literal text (same "unconditional insertion"
+!     treatment as lugu/lugit's own "i(l)" case), not a marker: confirmed
+!     against the REAL Java analyzer's own output (`{jjuti:ut/1vn}` for
+!     "aulajjutinut") before wiring, not guessed. The plain (ungeminated)
+!     "gut/guti/gutik/gutaq" V-context family (same row, action1 "n") is
+!     wired alongside it for the same reason -- different strings, no
+!     collision, gold may need either.
+! NOT attempted (each a separate, smaller gap, not blocked by "ut"
+! itself): "tn-nom-s-1s"/"ga" and "tn-nom-d"/"a-k" (whole unimplemented
+! endings, block "apiqqutiga"/"iksivautaa" families); "ssaq"/"tsaq"
+! spelling variants of ksaq/1nn (blocks "apiqqutissait"/
+! "apiqqutitsait"); a bare "p"-only candidate for up/tn-gen-s (blocks
+! "iksivautap"); "matu"+"iq"/1nv's own chain (blocks "matuirutimut",
+! unverified whether iq/1nv even reaches here yet); "atiliurutausimajut"
+! (already blocked upstream by liuq/1nv's unimplemented third spelling,
+! see liuq's own comment below); "katimautiminingit"/"katimautinik"/
+! "katimautitsa" and "naasautaa"/"naasautiit"/"naasautik"/"naasautilik"
+! and "parnaut"/"parnautiit"/"parnautinik" and "uqaalautaa" and
+! "uuktutigilugu" family -- all involve roots or preceding suffixes
+! ("naasaq"/1v, "parnaq"/1v, "allak"/1vv, "uuk"+"tuq"/1vv chains) not
+! individually re-verified; likely mostly reachable already given "ut"'s
+! mechanism is now in place, worth re-checking with
+! next_affix_priority.py/full_corpus_check.py rather than assumed
+! working.
+++ut+1vn:SUPPRuta # ;
+++ut+1vn:SUPPRuta NounContinuations ;
+
+! "saqqitaujuq" family (root "saqqik", k-final): "taq" above still spells
+! its own trailing q, but the general (unmarked) k->t assimilation rule
+! ALSO fires on the newly-created root-k/suffix-t boundary once "taq"
+! attaches, over-applying into a spurious geminate ("saqqittaq" instead
+! of gold's "saqqitaq") -- confirmed via direct hfst-lookup before
+! wiring. What's actually needed is SUPPR (delete the root's own final
+! k first) plus jaq's own q ALSO dropped ("ta"), the same shape as this
+! round's juq/1vn "tu" fix -- avoids the k/t boundary ever forming, so
+! the blanket rule has nothing to over-fire on.
+++jaq+1vn:SUPPRta NounContinuations ;
+++jaq+1vn:SUPPRta # ;
+
+! "vik"/3vn ("place where the action of the verb happens"): q-context:
+! "ilinniarvik" = {ilinniar:ilinniaq/1v}{vik:vik/3vn}, root's own
+! trailing q rewritten to r (Voicing, same "marker-scoped rewrite" shape
+! as NASAL but its own table -- new VOICE marker, phonology.xfscript).
+! Only the q-context (single candidate, Voicing) and the terminal/
+! NounEndings paths are wired: V-context is a genuine 2-candidate
+! ambiguity (Suffixes.csv V-form "vik vik", action "i(p) n", no
+! disambiguator) and k-context has TWO gold-attested surface variants for
+! the same underlying word ("ikupigvilirijikkut" vs "ikupivvilirijikkut")
+! which look like genuine dialectal alternates, not modeled here -- both
+! left deferred rather than guessed at. Also gained an NvSuffixes
+! continuation, needed for "aanniaviliaqtunut" (...+vi(vik/3vn)+
+! liaq(2nv)+tu(juq/1vn)+nut) -- NOT reused via the existing VOICE-marked
+! candidate: "aanniaq"(q-final) needs its own q DELETED here (SUPPR), not
+! converted to r like "ilinniarvik" needed -- root-specific free
+! variation, same as elsewhere in this file. "SUPPRvi" also bakes in
+! vik's own trailing k already dropped (needed directly before liaq, a
+! plain literal with no SUPPR of its own).
+++vik+3vn:SUPPRvi NounContinuations ;
+
+! "vv"-doubled spellings of "vik" (own "v" geminated instead of the
+! preceding consonant being voiced/deleted). The plain "vvik"/"vvi"
+! variants are now redundant (removed, 0 gold words lost -- covered by
+! the generator). The SUPPR-prefixed k-deleting variants stay:
+! "ikupivvilirijikkut"/"ikupivvilirijikkunnut" need the preceding root's
+! own k gone before the geminated "vv" (a cross-boundary q/k deletion,
+! see the Friday note in the memory log).
+++vik+3vn:SUPPRvvik NounContinuations ;
+++vik+3vn:SUPPRvvi NounContinuations ;
+
+LEXICON NounEndingsAfterQTriggerSuffix
+
+! "nut"/tn-dat-p ("ajjigiinngittunut", same trigger list) and
+! "tigut"/tn-via-p ("avittuqsimajutigut", same juq trigger). tigut's OWN
+! CSV row files this conditional under its k-form column, not q --
+! almost certainly a data-entry quirk (juq/1vn always surfaces q-final in
+! every one of ITS OWN contexts, so a following morpheme can never see it
+! as literally k-final), not a real k-context; implemented by what the
+! mechanism clearly IS (juq-triggered Suppression), not by the column
+! label, and confirmed correct against the one gold word that exercises
+! it.
+++tigut+tn-via-p:SUPPRtigut # ;
+
+LEXICON NvSuffixes
+
+! li/4vv ("to make that s.t. or s.o. become such") has condPrec
+! "id:it/3nv" -- Suffixes.csv's own single-id trigger condition,
+! wired the same way as the mut/nngit/u/juq triggers above and below
+! (generate_affixes.py's TRIGGER_LEXICON): li/4vv is now reachable
+! ONLY via AfterItTriggerSuffix, not from the general VerbContinuations
+! hub it used to reach through the *Speculative lexicon (which is
+! reachable from every verb stem, not just after it/3nv specifically).
+! (The plain "++it+3nv:it AfterItTriggerSuffix" route is now generated
+!  -- redundant hand line removed, 0 gold words lost.)
+++it+3nv:SUPPRit AfterItTriggerSuffix ;
+
+! "uq"/1nv ("to go through", the "via"-case-only sibling suffix):
+! uq/1nv's own unconditioned hand-wiring that used to sit here
+! ("tusaajitiguuqtuq"/"tusaajitiguurunniiqtuq") is GONE -- "tigu"
+! (tigut/tn-via-p's own short spelling, above in NounEndings) now
+! routes into AfterViaCaseEnding directly, and generate_affixes.py's
+! own bulk-generated CASE_LEXICON entry for uq/1nv already produces
+! the exact same "SUPPRuq" candidate from there -- confirmed via
+! snapshot_correct.py before removing this duplicate.
+
+
+! "maligaliurviliarsimajut" needs a SECOND spelling, "liar" (own q->r,
+! a free variant not derived from any general rule -- same "different
+! literal spellings" category as naq/1vv's own "nar"), reached with
+! SUPPR since root "maligaliurvik" (k-final) has its own trailing k
+! dropped first. The root itself is no longer excluded -- it's been
+! reachable since the CommonCompositeWords.csv skip_if_combination
+! filter was removed earlier this session (re-tested and found to
+! LOWER the false-positive count, not raise it), so the original
+! "adding the root risks amplifying a collision" concern no longer
+! applies; only this suffix-side piece was still missing. Not
+! decomposable by the real Java analyzer either (confirmed via
+! --pipeline).
+++liaq+2nv:SUPPRliar VerbContinuations ;
+
+! "u"/1nv: "ministaujuq" = {minista:minista/1n}{u:u/1nv}{juq:juq/1vn} and
+! "piliriangujuq" = {piliria:piliriaq/1n}{ngu:u/1nv}{juq:juq/1vn}.
+! Suffixes.csv's "u" row has action1+action2 in every context, same shape
+! as tn-nom-p's "it" -- confirmed (by tracing MorphAnalyzerValidation.kt)
+! this is a genuine algorithmic condition, not lexically arbitrary
+! ambiguity: "ng" is epenthesized before "u" whenever the stem left
+! behind (after any q/k-deletion) ends in two vowels in a row (avoiding a
+! 3-vowel run), and stays absent otherwise. V-context has no deletion
+! (minista -> ministau); k/q-context deletes first, same as "liri"/"qai"
+! (piliriaq -> piliria, SUPPR), *then* the same VV-gated insertion check
+! applies to what's left (piliria ends "ia" -> VV -> ng inserted ->
+! piliriangu). New VVNG marker (phonology.xfscript) implements the
+! insertion the same way SUPPR implements deletion: invisible flag +
+! context rule + cleanup, not the vv/consonant text itself, so the
+! trigger is exactly "two vowels precede", not tied to which two vowels.
+! t-context is DELIBERATELY NOT implemented: it has two structurally
+! different candidates (delete-t+insert-ng vs keep-t+insert-i) with no
+! algorithmic condition anywhere in the code selecting between them --
+! genuinely lexically arbitrary -- AND unattested in the gold-standard
+! sample. Also reaches TvEndings directly (not just another verb-to-noun
+! derivational suffix): "qujannamiingujutit" =
+! {qujannamiik:qujannamiik/1a}{u:u/1nv}{jutit:jutit/tv-ger-2s} needs "u"
+! to reach a verb ENDING, since "u" is itself noun-to-verb and the stem
+! it produces should be able to take any verb ending, the same "every
+! X-producing morpheme should reach the full X-continuation set" gap the
+! NounContinuations/VerbContinuations hub was built to close.
+++u+1nv:SUPPRVVNGu VerbContinuations ;
+++u+1nv:SUPPRVVNGu AfterUTriggerSuffix ;
+
+LEXICON NnSuffixes
+
+! "juaq"/1nn ("large; big"): completely unwired until now (the existing
+! JGUARD/"-rjuaq" machinery only ever protected this SAME spelling as a
+! ROOT-internal augmentative in place names, e.g. "tikirarjuaq", never
+! wired it as its own SUFFIX). Suffixes.csv's V-form action is "i(r)"
+! (Insertion of "r"), not modeled by the bulk generator (zero prior
+! gold evidence) -- but "iglulirijirjuakkut"/"illulirijirjuakkut" (root
+! variants iglu/illu) both confirm the exact surface needed: "r"
+! inserted AND juaq's own trailing q dropped (a following "kkut"/1nn
+! attaches directly), giving the literal "rjua" -- confirmed via the
+! real Java analyzer's own output before wiring. Needs the SAME JGUARD
+! protection generate_roots.py's protect_internal_j() already gives
+! root spellings with this identical "r" + "j" adjacency (the general
+! j->t rule has no morpheme-boundary awareness, so it would otherwise
+! corrupt this literal's OWN internal "rj" into "rt" -- caught via a
+! direct hfst-lookup check before trusting the plain "rjua" spelling).
+++juaq+1nn:rJGUARDjua NounContinuations ;
+++juaq+1nn:rJGUARDjua # ;
+
+++kkut+1nn:SUPPRkkut QParticles ;
+
+! "&iq"/1nn ("superlativeness, the most of all"): the "&" in the CSV's
+! own morpheme spelling is a placeholder/notation artifact (same "&" seen
+! in generate_roots.py's filtered-out root rows, e.g. "ak&a"), not a
+! literal candidate: every gold example uses the row's SECOND candidate,
+! "lliq", instead. Two further literal spellings needed beyond that:
+! "lliq" (q kept, before "paaq"/1nn) and "llir" (own q->r, before
+! "mi"/"mik"/tn-loc-s/tn-acc-s) -- same "wire both, let the input string
+! pick" free-variation pattern as usiq/miik/naq elsewhere in this file
+! (neither "paaq" nor "mi"/"mik" carry a marker of their own that would
+! make this predictable from what follows). Canonical MUST stay literally
+! "&iq" to match the gold standard's own id string -- confirmed lexc/xfst
+! tolerate "&" in a tag without special meaning.
+++&iq+1nn:lliq NounContinuations ;
+++&iq+1nn:lliq # ;
+++&iq+1nn:llir NounContinuations ;
+++&iq+1nn:llir # ;
+
+! "tamaaq"/1nn: "arraagutamaat" = {arraagu:arraagu/1n}{tamaa:tamaaq/1nn}
+! {t:it/tn-nom-p} -- own rule is trivial (all four contexts Neutral,
+! plain concatenation, no marker of its own needed). But this word is
+! what finally forced implementing "it"/tn-nom-p's long-deferred
+! Selfdecapitation (decap): once tamaaq's own trailing q is deleted (by
+! "it"'s SUPPR), the stem left behind is "arraagutamaa", ending in two
+! vowels -- exactly the condition that triggers decap (it -> t). The
+! DECAP marker lives on "it"'s own entry in NounEndings above, not here
+! (verified in isolation first: a toy "arraagutamaaqSUPPRDECAPit" string
+! composed through analogous rules produced "arraagutamaat" exactly
+! before touching the real lexicon).
+++tamaaq+1nn:SUPPRtamaaq NounContinuations ;
+
+! "kkanniq"/1nn ("additional, more") already has bulk-generated
+! "kkanniq"/"kanniq" plain and SUPPR-prefixed candidates -- also needs
+! a doubled-"i" spelling ("kkanniiq"), found via an already-correct
+! gold sibling ("sulikkanniq" alongside the failing "sulikkanniiq",
+! identical decomposition).
+++kkanniq+1nn:kkanniiq # ;
+++kkanniq+1nn:kkanniiq NounContinuations ;
+
+! "ksaq"/1nn: "maligaksait" = {malik:malik/1v}{gaq:gaq/1vn}
+! {ksaq:ksaq/1nn}{it:it/tn-nom-p} -- same shape as juq/kkut/gaq/lik/
+! tuinnaq (single candidate per context: V-form Neutral, t/k/q-form
+! Suppression), reuses SUPPR unchanged. Reached here via "gaq"/1vn's own
+! NnSuffixes continuation (gaq/1vn is emitted by generate_affixes.py; see
+! its investigation note there). Continues into NounEndings so "it" can
+! follow: checked this doesn't hit "it"'s deferred Selfdecapitation gap
+! the way "tamaaq" did -- deleting ksaq's own trailing q leaves
+! "maligaksa", ending in a consonant+vowel, not two vowels, so decap
+! stays inert here. Also gained a bare terminal candidate (own trailing q
+! kept) -- "katimajjutiksaq" needs "ksaq" itself, not "ksa", when it's
+! the final morpheme of the word (no further SUPPR-marked ending follows
+! to eat the q); reuses the same SUPPR prefix (deletes jjuti's own
+! trailing consonant if any), harmless no-op here since "jjuti" ends in a
+! vowel.
+! (The "++ksaq+1nn:SUPPRksaq NounEndingsAfterQTriggerSuffix" continuation
+!  that used to sit here -- for "maligaksanit" -- is redundant now: the
+!  SUPPRssaq/SUPPRtsaq siblings below carry the same route, and removal
+!  lost 0 gold words.)
+
+! "ksaq" also has two further literal spellings Suffixes.csv doesn't
+! list at all: "ssaq" and "tsaq" (own leading "k" surfacing as "s"/"t"
+! specifically when directly following a q-final suffix like "gaq"/1vn
+! or "ut"/1vn's own q-prefix family -- gold attests BOTH spellings for
+! the SAME underlying chain, e.g. "maligassaq"/"maligatsaq" from the
+! identical malik+gaq+ksaq combination, and "apiqqutissait"/
+! "apiqqutitsait" from ut/1vn's own "qut" family -- genuine free
+! variation, same "CSV under-lists the real variation, wire both in
+! parallel" treatment as usiq/ut/naq/miik elsewhere in this file. Same
+! SUPPR prefix and same three continuations as the existing "ksaq"
+! spelling above.
+++ksaq+1nn:SUPPRssaq NounContinuations ;
+++ksaq+1nn:SUPPRssaq NounEndingsAfterQTriggerSuffix ;
+++ksaq+1nn:SUPPRssaq # ;
+++ksaq+1nn:SUPPRtsaq NounContinuations ;
+++ksaq+1nn:SUPPRtsaq NounEndingsAfterQTriggerSuffix ;
+++ksaq+1nn:SUPPRtsaq # ;
+
+! "katimautitsa" needs a further reduction of "tsaq" -- own trailing q
+! ALSO dropped, word-final ("tsa"). SUPPR is a harmless no-op here
+! (attaches after "uti", vowel-final, nothing for SUPPR to delete), so
+! this reaches "katimautitsa" the same way "utitsaq" would, just
+! without the trailing q. Not decomposable by the real Java analyzer
+! either (confirmed via --pipeline).
+++ksaq+1nn:SUPPRtsa # ;
+
+! Five more words, picked to cover every remaining decomposition-
+! signature type (c, a, e, p, vv, tv) not otherwise exercised, after
+! checking each new morpheme's phonology against the source CSVs the same
+! way as every other entry in this file. All five checked out as genuine
+! deterministic rules -- none needed a lexical-alternative fallback like
+! the rejected "mata/mmata" case (an ambiguous, uncommitted candidate
+! pair mentioned elsewhere in this project's own investigation notes).
+!
+!   - "ammattauq" = {amma:amma/1c}{ttauq:ttauq/1q} -- conjunction root +
+!     enclitic particle, straight concatenation (amma is vowel-final, so
+!     ttauq's V-form applies unchanged). No new rule.
+!   - "ilaaqai" = {ilaa:ilaak/1e}{qai:qai/1q} -- exclamation root +
+!     enclitic particle. qai's k-context row carries the same
+!     Action.Suppression as liri's q-context row above: deletes the root's
+!     final k. Reuses the (now-generalized) SUPPR marker/rule rather than
+!     adding a k-specific one.
+!   - "maanna" = {maanna:maanna/1a} -- adverb, single morpheme, no
+!     phonology at all.
+!   - "kina" = {kina:kina/1p} -- pronoun (from Pronouns.csv, a separate
+!     file from RootsSpalding.csv), single morpheme, no phonology.
+!   - "anginngittut" = {angi:angi/1v}{nngit:nngit/1vv}{tut:jut/tv-ger-3p} --
+!     verb root + verb-to-verb negation suffix + verb ending. angi+nngit is
+!     plain concatenation (angi is vowel-final, nngit's V-form applies
+!     unchanged); nngit+jut->tut reuses the existing j->t-after-t/k/q
+!     rule (nngit is t-final) -- no new rule needed for this word at all,
+!     it's entirely covered by rules already validated on earlier words.
+
+LEXICON Conjunctions
+
+! Two more spelling variants found by the same systematic root sweep
+! as the Nouns block above: "uvalu" variant of "uvvalu"/1c; "uvvaluunni"
+! variant of "uvvaluunniit"/1c (truncated, own trailing "it" dropped).
+uvvalu+1c:uvalu QParticles ;
+uvvaluunniit+1c:uvvaluunni QParticles ;
+
+! LEXICON Exclamations (the single hand entry "ilaak"/1e) removed: it is
+! byte-identical to an ExclamationsGenerated entry, and Root reaches
+! ExclamationsGenerated directly.
+
+LEXICON QParticles
+QParticlesGenerated ;
+QParticlesGeneratedSpeculative ;
+# ;
+! The hand entries that used to sit here (ttauq/qai/lu/li/1q, plain and
+! with a stacking QParticles continuation, plus lu's VOICE "son"
+! t/k/q-context form) were all byte-identical to QParticlesGenerated
+! entries -- this lexicon already fans out to QParticlesGenerated above,
+! so they were pure duplication. Their investigation notes moved to
+! generate_affixes.py's PER-MORPHEME INVESTIGATION NOTES.
+
+LEXICON Adverbs
+
+! Adverb spelling variants that are NOT a _DIALECT_GROUPS cluster sub
+! (those -- atsualuk/aksualuk, ippassaq/ippatsaq/ikpaksaq -- are now
+! emitted by generate_roots.py's dialect_variants(); "qanu"/"qujannamii"
+! surface from the LENIENT final-consonant rule): "asuillaak" of
+! "asuilaak"/1a (single l -> ll), "immagaa" (q -> g) and "immaqa"
+! (aa -> a) of "immaqaa"/1a, "surlu" of "suurlu"/1a (uu -> u).
+! STILL A GAP: "uattiaru" of "uattiaruk"/1a (own trailing k dropped) --
+! no hand entry, not generator-reachable.
+asuilaak+1a:asuillaak NounContinuations ;
+immaqaa+1a:immagaa NounContinuations ;
+immaqaa+1a:immaqa NounContinuations ;
+suurlu+1a:surlu NounContinuations ;
+
+! ("maanna"/1a self-mapped to a "#" continuation used to be hand-wired
+!  here -- AdverbsGenerated already reaches "maanna"; redundant, removed
+!  2026-09-02 with 0 gold words lost.)
+
+! Demonstrative spelling variants Demonstratives.csv doesn't record at
+! all (that file has no "variant" column, unlike the root-source CSVs
+! generate_roots.py reads) -- found the same way as "iglu"/"illu"
+! above, by listing every gold word using these roots: "tagva"/ad-sc
+! ("right here beside me", standalone) and "tagv"/rad-sc (its own
+! root-taking-an-ending form, e.g. "tagv"+"ani"/tad-loc = "tagvani")
+! are both attested with a "tavv"-spelled variant too ("tavva"
+! standalone; "tavani"/"tavvani" alongside canonical "tagvani" for the
+! SAME root+ending pair) -- free spelling variation, not a conditioned
+! alternation (same trap "iglu"/"illu" above was originally
+! mis-suspected of).
+tagv+rad-sc:tav TadEndings ;
+
+! "tam" spelling variant of "tama"/rad-ml, needed for "tamani" =
+! tama+ani/tad-loc: plain concatenation "tama"+"ani" would give
+! "tamaani" (double a), but gold's own attested surface drops one --
+! found via a systematic sweep of every gold demonstrative word
+! against every currently-wired root+ending spelling combination
+! (rather than hunting sub-clusters one at a time), same evidence-based
+! variant treatment as everywhere else in this file, just for a single
+! word this time (not enough other evidence to tell whether this is a
+! general vowel-hiatus rule or root-specific).
+tama+rad-ml:tam TadEndings ;
+
+LEXICON Pronouns
+
+! Demonstrative-root spelling variants NOT reachable from a
+! _DIALECT_GROUPS cluster sub: "tanna" of "taamna"/pd-sc-s (m -> nn),
+! "taikua" of "taikkua"/pd-sc-p (kk -> k), "takkua" of "taakkua"/pd-sc-p
+! (aa -> a). Each individual line looks redundant (its "#" and
+! "QParticles" twin cover for each other), but removing a whole pair
+! loses the bare standalone word -- so both twins stay. STILL A GAP:
+! "taissu"/"taitsu" of "taiksu"/rpd-sc-s, "taqqakku" of "taqqapku"/
+! rpd-mlsc-p.
+taamna+pd-sc-s:tanna # ;
+taamna+pd-sc-s:tanna QParticles ;
+taikkua+pd-sc-p:taikua # ;
+taikkua+pd-sc-p:taikua QParticles ;
+taakkua+pd-sc-p:takkua # ;
+taakkua+pd-sc-p:takkua QParticles ;
+
+! "manna"/pd-ml-s (bulk-generated in demonstratives-generated.lexc,
+! never hand-edited) only ever continued to "#"/QParticles -- gold
+! attests it ALSO taking "u"/1nv ("mannaujuq" = manna+u+juq), the same
+! "every X-producing morpheme should reach its full continuation set"
+! gap already found and fixed for several other roots this session.
+! Hand-added here as a parallel path rather than touching the
+! generator (scoped to this one word, not re-checked against every
+! other demonstrative root), confirmed via the real Java analyzer's
+! own output before wiring.
+manna+pd-ml-s:manna NvSuffixes ;
+
+LEXICON VvSuffixes
+
+! "gi"/4vv ("added to 'gi' verbs to use them transitively"): the
+! unconditioned hand-wiring this comment used to describe (2 gold
+! words, "kamagijalik"/"ilitarijauningit") is GONE -- both words' own
+! roots ("kama"/"ilitaq") are among the 54 roots whose CSV transSuffix
+! column lists "gi/4vv", so the bulk generator's own AfterTransGi4vvRoot
+! trigger (generate_affixes.py's TRANSINFIX_LEXICON) already covers
+! them precisely, without granting gi/4vv to every other verb stem too
+! -- confirmed via snapshot_correct.py before removing this duplicate.
+
+! "i"/1vv: the unconditioned hand-wiring this comment used to describe
+! ("iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut", needing i/1vv
+! immediately after tuq/1vv) is GONE -- generate_affixes.py now grants
+! SUFFIXES (not just roots) an antipassive-category continuation from
+! their own CSV "antipassive" column, and tuq/1vv's own column lists
+! "i/1vv" -- so it already routes into AfterApIRoot on its own,
+! without granting i/1vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing this duplicate.
+
+! "si"/3vv: the unconditioned hand-wiring this comment used to describe
+! ("ilitaqsiniq") is GONE -- root "ilitaq" is among the roots whose CSV
+! intransSuffix column lists "si/3vv", so generate_affixes.py's own
+! AfterIntransSi3vvRoot trigger already covers it precisely, without
+! granting si/3vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing this duplicate.
+
+! gusuk/1vv's own unconditioned hand-wiring that used to sit here
+! ("alianaigusukpunga") is GONE -- root "alianait" was the mystery
+! left open in an earlier round (not found in RootsSpalding.csv under
+! that spelling) -- it actually lives in CommonCompositeWords.csv
+! (row: type=v, intransSuffix="gusuk/1vv", transSuffix="gi/4vv"),
+! which generate_roots.py's main() already loads through the SAME
+! shared load_roots_csv() as every other root source file, so once
+! the intransSuffix/transSuffix columns were threaded through (an
+! earlier round, for the RootsSpalding.csv cases), this root started
+! being covered automatically too -- confirmed via
+! roots-generated.lexc already listing
+! "alianait+1v:alianait AfterIntransGusukRoot ;" before removing this
+! duplicate, and via snapshot_correct.py after.
+
+! "ksaq"/2vv ("to find, consider s.t. or s.o. ..."): the plain "ksaq"
+! and "SUPPRksaq" hand-written duplicates this comment used to describe
+! are GONE -- root "naamak" (needed for "naammasaqtuit"/
+! "naammasaqtut") has nature="a" in the CSV, so generate_affixes.py's
+! own AfterNatureARoot trigger already covers both, without granting
+! ksaq/2vv to every other verb stem too -- confirmed via
+! snapshot_correct.py before removing them. "SUPPRsaq" (below) is
+! NOT a duplicate -- it's a genuinely separate candidate (SUPPR plus
+! the suffix's own leading "k" also dropped) the bulk generator
+! doesn't produce, so it stays hand-wired, still broadly reachable
+! (a smaller, safer leftover than the two removed above).
+++ksaq+2vv:SUPPRsaq VerbContinuations ;
+
+! "nngit"/1vv's own CSV row (Suffixes.csv) has Suppression, not Neutral,
+! in the t/k/q contexts -- "nngit" was only ever tested after
+! vowel-final "angi" ("anginngittut"), where SUPPR is a no-op either way,
+! so the gap stayed invisible until a q-final stem ("qaq") needed to
+! attach directly; fixed by adding the SUPPR marker. Its VnSuffixes
+! continuation had a similar back-and-forth: removed once when its only
+! justifying word ("akiqangittuq"/qaq) turned out blocked by an unrelated
+! gap (see "qaq"/1nv's investigation note in generate_affixes.py), then restored once
+! "ajjigiinngittunik" legitimately needed it (nngit -> juq/1vn).
+++nngit+1vv:SUPPRnngit AfterNngitTriggerSuffix ;
+
+! "si"/1vv: revisiting an earlier "ABANDONED" verdict written when mut's
+! id-conditional q-context was still the blocker. Suffixes.csv's 3
+! candidate rows (nb 1/2/3) all show plain "si" in every context, but
+! gold's "aulattijiit"/"pivalliatittinirmut" (t-final preceding morpheme)
+! show si surfacing as "ti" -- an s->t change no CSV row documents (a
+! direction of assimilation opposite this project's existing t->n/k->t/
+! p->t family: here the SUFFIX's own initial consonant matches the
+! PRECEDING one, not the reverse). Not guessed as a general rule -- wired
+! as its own literal spelling, same "different strings, no collision"
+! trick as every other multi-candidate suffix in this file.
+! si/1vv's own PLAIN "si" hand-wiring (that used to sit here, motivated
+! by "tigusinirmut", root "tigu") is GONE -- "tigu" (and "arjaq", for
+! "ajjaqsijii"/"ajjaqsiji") are both among the roots whose CSV
+! antipassive column lists "si/1vv", so generate_roots.py's own
+! AfterApSiRoot trigger already covers them -- confirmed via
+! snapshot_correct.py before removing it. "ti" (below) is NOT a
+! duplicate -- it's si/1vv's own separate t-final literal spelling
+! (needed by "aulattijiit"/"aulattinirmut"/"pivalliatittinirmut", none
+! of which the bulk generator produces), so it stays hand-wired, still
+! broadly reachable.
+++si+1vv:ti VerbContinuations ;
+
+! "naq"/1vv ("to cause/make"): Suffixes.csv's V-form gives 4 candidates
+! (naq/naq/nak/nak, two with an Insertion action) but gold's actual
+! "niqsunaqtuq"/"niqtunaqtuq"/"nirtunartuq" cluster shows just TWO real
+! literal spellings needed: bare "naq" and its own q->r conversion "nar"
+! -- both attested for the SAME root ("niqtuq" family) across different
+! Hansard transcriptions, same free-variation shape as usiq/1vn and
+! miik/1vn above. Wired as two plain literals (not a NASAL marker
+! rewriting something else -- "nar" is naq's OWN alternate spelling, not
+! a rewrite of what precedes it).
+++naq+1vv:nar VerbContinuations ;
+
+! "qujannami" needs a THIRD spelling, "nna" -- matches Suffixes.csv's
+! own V-form row directly: 4 space-separated candidates ("naq naq nak
+! nak"), the 2nd/4th pairing "i(n)" (Insertion of "n") with their own
+! trailing q/k dropped, confirmed via the real Java analyzer's own
+! output before wiring. "tukisinaliqtissimajuq" needs a related but
+! DIFFERENT "na" spelling (n NOT doubled, own q also gone) -- still not
+! attempted, a separate word to verify on its own.
+++naq+1vv:nna VerbContinuations ;
+
+! "tukisinaliqtissimajuq" needs the related but DIFFERENT "na" spelling
+! (n NOT doubled, own q also gone) flagged above, confirmed via the
+! real Java analyzer's own output before wiring.
+
+! "tit"/1vv ("to cause s.o. to do s.t."): Suffixes.csv's V/k/q-form is a
+! single clean candidate (Neutral, bare "tit"), confirmed correct before
+! "si"/1vv ("pivalliatittinirmut" keeps the full "tit"). But specifically
+! before "jaq"/1vn ("pigiaqtitaq" family), gold shows the reduced span
+! "ti" -- "tit"+"taq" (jaq's own t/k/q-context literal) would double the
+! "t" ("tittaq"), but gold wants "titaq". Not guessing a general "tt->t"
+! degemination rule from this alone (Inuktitut geminate consonants are
+! often phonemically real, so a blanket rule risks breaking legitimate
+! ones elsewhere) -- instead "ti" is wired as its own literal candidate
+! specifically on the path toward VnSuffixes (where jaq lives), same
+! "different literal spellings for different following contexts" pattern
+! as ut/usiq/liuq's own multi-candidate treatment above.
+++tit+1vv:ti VerbContinuations ;
+
+! Third literal, "tis" (own trailing t -> s), specifically on the path
+! toward "sima"/1vv: "tukisinaliqtissimajuq" needs "tit"+"sima" to
+! surface as "tissima" (own t assimilates toward the following s-initial
+! suffix), same "different literal spellings for different following
+! contexts" pattern as "ti" above -- not generalized into a blanket
+! t->s rule from a single word, same caution already applied to "ti"'s
+! own tt->t case.
+++tit+1vv:tis VerbContinuations ;
+
+! "iqqaqtuivilirijikkut"/"iqqaqtuivilirijikkunnut" need tuq/1vv's own
+! trailing q dropped before the antipassive marker "i"/1vv attaches --
+! Suffixes.csv's own "antipassive" column on tuq/1vv's row literally
+! names "i/1vv" as its antipassive-marking partner suffix (and i/1vv's
+! own condPrec, "antipassive:i/1vv", references it right back), a
+! genuine confirmed row-level linkage, not a guess -- confirmed via the
+! real Java analyzer's own output before wiring both entries.
+++tuq+1vv:tu VerbContinuations ;
+
+! "uuktuutigilugu" (root "uuk", k-final) needs "tu" with its own k
+! preserved, NOT assimilated to "uuttu" -- same KGUARD trick as
+! juq/1vn's own "KGUARDtu" elsewhere in this file. Not decomposable by
+! the real Java analyzer either (confirmed via --pipeline).
+
+! "aviktursimajuni" (root "avik", k-final) needs the own-q->r "tur"
+! spelling (free variant, not in any CSV context column, same shape as
+! naq/1vv's own "nar") WITH KGUARD too -- this is the same word that
+! looked blocked earlier this session before KGUARD existed; revisiting
+! now that the mechanism is proven. Not decomposable by the real Java
+! analyzer either (confirmed via --pipeline).
+++tuq+1vv:KGUARDtur VerbContinuations ;
+
+! Endings_verb.csv has ~72 "tv,imp" (imperative mood) rows (9
+! intransitive "nsp" person/number combinations, plus 63 transitive "sp"
+! subject+object combinations) -- initially looked like a large, mostly
+! Voicing/Fusion-shaped family worth its own pass, same lever as "lu"/1q.
+! But a full sweep of the 985-word gold standard found only TWO words
+! anywhere using ANY imperative ending: "tunngasugit" (git/tv-imp-2s) and
+! "tunngasugitsi" (gipsi/tv-imp-2p) -- Hansard parliamentary transcripts
+! essentially never contain direct commands, so this family's CSV row
+! count wildly overstates its real marginal value in THIS corpus
+! (contrast the dat/abl/loc/acc noun endings, each independently backed
+! by many gold words). Implemented only what's cleanly gold-attested: "suk"/1vv (root
+! "tunnga", V-context Neutral, its t/k-context Suppression is unrelated
+! to and unaffected by the PMARK-scope issue that blocks
+! "quviasukpunga" -- that collision is specifically about suk's own k
+! assimilating incorrectly before a PMARK-derived p, which never arises
+! here) and "git"/tv-imp-2s (k-context, Fusion == SUPPR reused, deletes
+! suk's own trailing k, see TvEndings below): "tunngasu"+"git" =
+! "tunngasugit". "gipsi"/tv-imp-2p is NOT implemented: its CSV k-form is
+! literally "gipsi" (Fusion, single candidate), but the gold surface for
+! "tunngasugitsi" is "...gitsi", not "...gipsi" -- a p->t-before-s
+! alternation this row doesn't explain and no other CSV evidence
+! confirms, so implementing it would mean guessing a new rule from one
+! word, against this project's standing policy. The other 7 clean
+! intransitive rows (langa/1s, li/3s, luk/1d, lik/3d, lit/3p -- all
+! single-candidate V and t/k/q-Voicing, mechanically identical to
+! "lu"/1q) and the entire 63-row transitive/object-agreement family are
+! NOT implemented either: zero gold attestation for any of them in this
+! corpus, and building them without a single real word to verify against
+! would break from this project's standing "verify against a real gold
+! example" discipline -- flagged as a scope/value question rather than
+! silently either skipping the whole mood or guessing the rest.
+! suk/1vv: the unconditioned hand-wiring these two lines used to
+! describe ("quviasukpunga", root "quviak") is GONE -- "quviak" is
+! among the roots whose CSV intransSuffix column lists "suk/1vv" (along
+! with "gusuk/1vv"), so generate_affixes.py's own AfterIntransSukRoot
+! trigger already covers both the V-context and the k-context
+! Suppression candidate this word needs, without granting suk/1vv to
+! every other verb stem too -- confirmed via snapshot_correct.py before
+! removing this duplicate.
+
+LEXICON TvEndings
+
+! "mat"/tv-caus-4s: Endings_verb.csv's "mat" row gives its V-context TWO
+! space-separated action candidates, "i(ng)" and "i(m)" (Insertion of
+! "ng" vs "m") -- but unlike a normal unresolvable ambiguity, checking
+! every gold-attested vowel-final example ("summat" = su+mat,
+! "uqaqqaummat" = ...qqau+mat, "uqaqsimammat" = ...sima+mat,
+! "taimannaummat" = ...u+mat) shows ALL of them need "i(m)" and NONE need
+! "i(ng)" -- so only "i(m)" is implemented; "i(ng)" is left unguessed (no
+! gold word needs it in this corpus). The insertion never varies by what
+! specific vowel precedes (same "su" ends in one vowel, "qqau"/
+! "taimannau" end in two, both still take plain "m"), so it's
+! unconditional-on-vowel-class -- a NEW marker (MINSERT, phonology.
+! xfscript) rather than reusing VVNG, since VVNG's own condition is
+! specifically "two preceding vowels", which "summat" (one vowel)
+! contradicts.
+!
+! k/q-final stems ("uqalaurmat" = ...laur+mat, lauq's OWN trailing q)
+! need the EXISTING NASAL marker (k->ng, q->r) -- confirmed by the CSV's
+! own k-form/q-form actions for this row both being "nas". Stacked as
+! NASALMINSERTmat (NASAL resolves first, deleting itself either way;
+! only THEN does MINSERT check what's now immediately before it, so a
+! q-that-became-r correctly reads as a consonant and blocks the
+! m-insertion -- same "must run after upstream marker resolution"
+! ordering discipline as VVNG's own comment above).
+!
+! t-final stems ("qanuimmat" = qanuit/1v's own t -> m, "taimaimmat"
+! same) need a THIRD mechanism: a general unmarked "t -> m" rule
+! (phonology.xfscript, same family as the existing t->n/k->t/p->t
+! total-regressive-assimilation rules), placed at the very end so it
+! only fires once both markers above have already resolved and literal
+! "mat"'s own "m" is truly adjacent. "imaimmat" (root "ima", tagged 1a)
+! is NOT attempted: the Kotlin gold standard's own comment on this word
+! says the original iutools analyzer couldn't decompose it either ("ima"
+! isn't a known root) -- not a genuine V-context target.
+++mat+tv-caus-4s:NASALMINSERTmat # ;
+
+! "mata"/tv-caus-4p: Endings_verb.csv's row is the plural sibling of
+! "mat"/tv-caus-4s directly above -- same V-form action pair ("i(ng)"/
+! "i(m)", same "i(m)" confirmed via gold: "amisuummata"/"qaujimammata"
+! both need plain "m"), same t-form "a" (Assimilation, the general t->m
+! rule above), same k-form/q-form "nas" (NASAL). Reuses the identical
+! marker stack, just the literal's own trailing vowel differs.
+++mata+tv-caus-4p:NASALMINSERTmata # ;
+
+
+! "makkuktut" (root "makkuk", k-final) needs the bulk-generated "tut"
+! (j->t already converted) with its own preceding k preserved, NOT
+! assimilated to "makkuttut" -- same KGUARD trick as juq/1vn's
+! "KGUARDtu" above. Not decomposable by the real Java analyzer either
+! (confirmed via --pipeline).
+
+! "lugu"/tv-part-1s-3s-fut: the plain "llugu" V-context spelling is now
+! generated (candidates_for_context bakes in the CSV's "i(l)" action --
+! redundant hand entry removed, 0 gold words lost). The SUPPR-prefixed
+! variant stays: "malillugu" (root "malik", k-final) needs the preceding
+! k simply deleted, "mali"+"llugu", not VOICE-converted despite the
+! CSV's k-form "son" -- empirical gold string trusted over the CSV code.
+++lugu+tv-part-1s-3s-fut:SUPPRllugu # ;
+
+
+! "maliktugit" (root "malik", k-final) needs a THIRD spelling, "tugit"
+! (own leading "l" converted to "t" -- not the general j->t rule, which
+! only affects j; a separate, unexplained "l"->"t" alternation of this
+! suffix's own literal, same free-variant-spelling category as
+! lutik/tv-part-3p-prespas's own "sutik" (l->s) sibling), PLUS KGUARD
+! protection since the resulting k/t boundary would otherwise assimilate
+! into "malittugit". Not decomposable by the real Java analyzer either
+! (confirmed via --pipeline).
+
+! "lugit"/tv-part-1s-3p-fut: plain "llugit" now generated (as "llugu"
+! above). SUPPR variant kept for consonant-final stems ("malillugit").
+++lugit+tv-part-1s-3p-fut:SUPPRllugit # ;
+
+! "lutik"/tv-part-3p-prespas (intransitive, no object): V-context follows
+! the same "i(l)" shape as its siblings above ("llutik"), but
+! "katitsutik" (root "katit", t-final) needs a SEPARATE t-context literal
+! ("sutik") the CSV's own "&utik"-placeholder cell doesn't spell out
+! directly -- trusted the empirical gold surface over the ambiguous CSV
+! notation, same precedent as "malillugu"'s own SUPPR variant above.
+++lutik+tv-part-3p-prespas:sutik # ;
+
+! "vugut"/tv-dec-1p: "niriuppugut" = {niriup:niriuk/1v}
+! {pugut:vugut/tv-dec-1p} -- V-context Neutral (plain "vugut"); t/k-context
+! both rewrite the suffix's own initial "v" to "p" (same PMARK mechanism
+! as "vunga"/tv-dec-1s below, reused unchanged: v->p scoped by PMARK,
+! plus the stem's own final consonant assimilates to match,
+! "niriuk"->"niriup"). q-context is a genuinely different ambiguous
+! 2-candidate case ("pugut qugut"), skipped -- NOTE: the more "obvious"
+! example word "angiqpugut" (root "angiq", q-final) actually needs this
+! blocked q-context, not the clean k-context the CSV row's k-form gives
+! -- caught by checking which context the root's own final letter
+! actually selects, not just eyeballing the surface.
+++vugut+tv-dec-1p:vPMARKugut # ;
+
+! "vunga"/tv-dec-1s: "nikuvippunga" = {nikuvip:nikuvik/1v}
+! {punga:vunga/tv-dec-1s} -- V-context Neutral (plain "vunga"); t/k-context
+! both rewrite the suffix's own initial "v" to "p" (Assimilation, single
+! candidate "punga" in both) -- same *shape* as the j->t rule (a direct
+! letter-triggered rewrite) but v->p instead of j->t, triggered by [t|k]
+! not [t|k|q] (q-context is a genuinely different, ambiguous 2-candidate
+! case: "punga qunga", skipped).
+!
+! UNLIKE j->t, this one needs a marker (PMARK, phonology.xfscript): a
+! blank "v -> p || [t|k] _" would be the ONLY v-initial morpheme in this
+! lexicon, so it would work by accident -- but the SECOND effect visible
+! in the target word (the stem's own final consonant also assimilates,
+! "nikuvik"->"nikuvip", not "nikuvikpunga" -- same shape as the general
+! t->n rule, just k->p instead of t->n, triggered by the newly-rewritten
+! "p") is NOT safe to write as a blanket "k -> p || _ p": root "makpiq"
+! has its own internal "kp" cluster, and "makpigaq" (see "gaq"/1vn's
+! investigation note in generate_affixes.py) already validated that this "k" must NOT
+! change in that word. PMARK scopes both rewrites to
+! specifically-this-suffix's-own-"p", not any "p" that happens to follow
+! a "k".
+!
+! q-context deferred as noted; t-context's stem-side assimilation (if
+! any) is unconfirmed by any gold example in this lexicon and not
+! guessed at.
+++vunga+tv-dec-1s:vPMARKunga # ;
+
+! "vuq"/tv-dec-3s (declarative, 3rd person singular): same shape as
+! vunga/vugut above: V-context Neutral (plain "vuq"), t/k-context reuses
+! the EXISTING PMARK mechanism unchanged ("naammappuq" = "naamak"+
+! PMARK(v->p, k->p)+"uq"). q-context needed one more literal candidate,
+! "puq": Endings_verb.csv gives TWO q-context options (puq/Neutral,
+! quq/Voicing) -- same ambiguity shape that left vunga/vugut's own
+! q-context deferred -- but "nuqqaqpuq" attests "puq" specifically, so
+! only that one candidate is wired (as its own literal, NOT by widening
+! PMARK's v->p trigger to include q, which would also affect
+! vunga/vugut's still-deferred ambiguity).
+++vuq+tv-dec-3s:vPMARKuq # ;
+
+! "uqaqqaugamailaak" needs "gama"/tv-caus-1s to ALSO reach QParticles
+! (ilaak/1e's own enclitic can follow a fully-inflected verb, same
+! established pattern as "ga"/tn-nom-s-1s etc above on the noun side).
+
+! "gipsi"/tv-imp-2p ("tunngasugitsi"): the CSV's own k-form is literally
+! "gipsi" (Fusion), but the gold surface is "...gitsi", not "...gipsi"
+! -- an unexplained p->t-before-s alternation this row doesn't document
+! and no other CSV evidence confirms (see "suk"/1vv's own comment in
+! VvSuffixes for the fuller investigation history). Trusted the
+! empirical gold surface directly as its own literal, same "wire what's
+! evidenced, don't generalize a rule from one word" precedent used
+! throughout this session -- not decomposable by the real Java analyzer
+! either (confirmed via --pipeline).
+++gipsi+tv-imp-2p:SUPPRgitsi # ;

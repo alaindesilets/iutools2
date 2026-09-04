@@ -24,14 +24,14 @@ import kotlin.system.measureNanoTime
  *       -Diutools.benchmark=true [-Diutools.benchmark.words=2000]
  *
  * Population: the N most frequent Nunavut-Hansard word forms
- * (tools/fst/hansard-cache/top10k_words.txt, syllabics), N =
+ * (data/grammar/fst/hansard-cache/top10k_words.txt, syllabics), N =
  * iutools.benchmark.words (default 1000). The SAME syllabics strings are
  * fed to both analyzers; each transcodes to Roman internally, so the
  * transcoding cost is counted on both sides.
  *
  * For the volume/coverage side of the same comparison (decomposition
  * counts, zero-decomp words) over the full 10k population, see
- * tools/fst/hansard_volume_speed.py -- that one drives the native
+ * data/grammar/fst/hansard_volume_speed.py -- that one drives the native
  * `hfst-lookup` binary, not this Kotlin class.
  */
 class AnalyzerSpeedComparisonTest {
@@ -59,7 +59,7 @@ class AnalyzerSpeedComparisonTest {
         )
         assumeTrue(
             MorphologicalAnalyzer_FST.isAvailable(),
-            "Skipping: tools/fst/lexicon-analyser.hfstol not built.",
+            "Skipping: data/grammar/fst/lexicon-analyser.hfstol not built.",
         )
 
         val wordCount = System.getProperty("iutools.benchmark.words")?.toInt() ?: 1000
@@ -160,7 +160,7 @@ class AnalyzerSpeedComparisonTest {
     }
 
     private fun loadHansardWords(count: Int): List<String> {
-        val file = findRepoFile("tools/fst/hansard-cache/top10k_words.txt")
+        val file = findRepoFile("data/grammar/fst/hansard-cache/top10k_words.txt")
         return file.readLines()
             .asSequence()
             .map { it.trim() }

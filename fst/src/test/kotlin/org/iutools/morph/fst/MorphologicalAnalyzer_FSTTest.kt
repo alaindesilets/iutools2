@@ -10,12 +10,12 @@ import kotlin.test.assertTrue
  * full gold-standard coverage / parity-with-hfst-lookup sweep lives in
  * :cli's MorphologicalAnalyzer_FST__AccuracyTest.
  *
- * Skips when tools/fst/lexicon-analyser.hfstol hasn't been built.
+ * Skips when data/grammar/fst/lexicon-analyser.hfstol hasn't been built.
  */
 class MorphologicalAnalyzer_FSTTest {
 
     private fun analyzer(): MorphologicalAnalyzer_FST {
-        assumeTrue(MorphologicalAnalyzer_FST.isAvailable(), "tools/fst/lexicon-analyser.hfstol not built")
+        assumeTrue(MorphologicalAnalyzer_FST.isAvailable(), "data/grammar/fst/lexicon-analyser.hfstol not built")
         return MorphologicalAnalyzer_FST()
     }
 

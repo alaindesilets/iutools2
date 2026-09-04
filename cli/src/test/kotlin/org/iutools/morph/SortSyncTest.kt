@@ -8,16 +8,16 @@ import kotlin.test.assertEquals
 import kotlin.test.fail
 
 /*
- * Guards that tools/fst/sort_decomps.py (Python) and
+ * Guards that data/grammar/fst/sort_decomps.py (Python) and
  * MorphologicalAnalyzer_FST.rankRawResults (Kotlin) apply the IDENTICAL
  * dedup + decomposition ranking. Both are fed the same frozen bag of raw
- * transducer outputs -- tools/fst/sort-sync-decomps.txt, ~21k
+ * transducer outputs -- data/grammar/fst/sort-sync-decomps.txt, ~21k
  * "<analysis>\t<weight>" lines from `hfst-lookup` over the fair Hansard gold
  * words, mixed together across words, with duplicates and weight variants
  * left in on purpose so the min-weight dedup is exercised -- and must
  * produce byte-identical ordered "{canonical/id}{...}" lists.
  *
- * The two rankings are hand-kept in sync (tools/fst/benoit_sort.py is a
+ * The two rankings are hand-kept in sync (data/grammar/fst/benoit_sort.py is a
  * Python translation of MorphologicalAnalyzer.sortDecompositions); this test
  * is the tripwire for drift. A flat mixed bag also verifies the ranking is a
  * strict total order that's a pure function of decomposition content -- a
@@ -32,8 +32,8 @@ class SortSyncTest {
 
     @Test
     fun python_and_kotlin_rank_identically() {
-        val frozen = repoFile("tools/fst/sort-sync-decomps.txt")
-        val wrapper = repoFile("tools/fst/sort_decomps.py")
+        val frozen = repoFile("data/grammar/fst/sort-sync-decomps.txt")
+        val wrapper = repoFile("data/grammar/fst/sort_decomps.py")
         assumeTrue(frozen.isFile && wrapper.isFile, "sort-sync fixtures not found")
         val python = which("python3") ?: which("python")
         assumeTrue(python != null, "python3 not on PATH")

@@ -11,7 +11,7 @@ import java.util.Scanner
  * --interactive/--pipeline argument surface (see Main.kt's own header
  * comment on why that surface deliberately mirrors the original iutools
  * CLI); this is a separate entry point used only to prepare input for the
- * tools/fst/ prototype's own Hansard-corpus experiments.
+ * data/grammar/fst/ prototype's own Hansard-corpus experiments.
  */
 fun main() {
     val input = Scanner(System.`in`)

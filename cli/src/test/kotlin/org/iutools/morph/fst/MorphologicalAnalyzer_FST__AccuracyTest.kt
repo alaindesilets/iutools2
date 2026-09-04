@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
  * MorphologicalAnalyzer.sortDecompositions (morpheme-frequency tie-break on),
  * so a different set lands off the top spot (666/919 first-correct).
  *
- * Skips itself (rather than failing) when tools/fst/lexicon-analyser.hfstol
+ * Skips itself (rather than failing) when data/grammar/fst/lexicon-analyser.hfstol
  * hasn't been built -- this is a dev-time check, not a CI gate.
  *
  * One adjustment vs the R2L run, via a MorphologicalAnalyzer__AccuracyTest
@@ -35,8 +35,8 @@ class MorphologicalAnalyzer_FST__AccuracyTest : MorphologicalAnalyzer__AccuracyT
     override fun makeAnalyzer(): MorphologicalAnalyzer {
         assumeTrue(
             MorphologicalAnalyzer_FST.isAvailable(),
-            "Skipping: tools/fst/lexicon-analyser.hfstol not built " +
-                "(see tools/fst/phonology.xfscript's header).",
+            "Skipping: data/grammar/fst/lexicon-analyser.hfstol not built " +
+                "(see data/grammar/fst/phonology.xfscript's header).",
         )
         return MorphologicalAnalyzer_FST()
     }
