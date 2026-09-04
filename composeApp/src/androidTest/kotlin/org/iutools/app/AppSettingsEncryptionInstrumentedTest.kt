@@ -30,6 +30,26 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AppSettingsEncryptionInstrumentedTest {
 
+    /*
+     * Every AppSettings setter persists with SharedPreferences.edit().apply()
+     * (EncryptedSharedPreferences too, under the hood) -- an async disk write,
+     * normally drained from QueuedWork at Activity lifecycle points, of which
+     * an instrumented test has none. These tests read the raw prefs file
+     * straight after a save, so they must force that write to disk first.
+     *
+     * An empty commit() on the *same* SharedPreferences instance does it:
+     * commit() is synchronous, and SharedPreferencesImpl serializes disk
+     * writes, so the pending apply() has landed by the time commit() returns.
+     * The file name mirrors AppSettings.PREFS_NAME / SECURE_PREFS_NAME (both
+     * private there), same as the hard-coded shared_prefs paths below.
+     */
+    private fun flushPrefsToDisk(context: Context, prefsFileName: String) {
+        assertTrue(
+            "commit() on $prefsFileName should report success",
+            context.getSharedPreferences(prefsFileName, Context.MODE_PRIVATE).edit().commit(),
+        )
+    }
+
     @Test
     fun apiKey_isNotStoredAsPlaintextOnDisk() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -39,6 +59,7 @@ class AppSettingsEncryptionInstrumentedTest {
         val testKey = "sk-ant-test-instrumented-${System.currentTimeMillis()}"
 
         AppSettings.saveApiKey(context, testKey)
+        flushPrefsToDisk(context, "app_settings_secure")
 
         // context.filesDir is <data-dir>/files -- its parent is the app's
         // data directory, same place getSharedPreferences() always writes
@@ -73,6 +94,7 @@ class AppSettingsEncryptionInstrumentedTest {
         // be secret) really is readable in the same raw-file way.
         val context = ApplicationProvider.getApplicationContext<Context>()
         AppSettings.saveLanguage(context, AppLanguage.FRENCH)
+        flushPrefsToDisk(context, "app_settings")
 
         val plainFile = File(context.filesDir.parentFile, "shared_prefs/app_settings.xml")
         assertTrue("expected ${plainFile.path} to exist after saveLanguage()", plainFile.exists())
