@@ -16,7 +16,9 @@
     "options": ["--platform=linux/amd64"]
   },
   "features": {
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {
+      "version": "latest"
+    }
   },
   "runArgs": [
     "--cap-add=NET_ADMIN",
@@ -29,14 +31,16 @@
     // collision — Docker refuses two containers sharing one name.
     "--name", "${localWorkspaceFolderBasename}-claude-sandbox"
   ],
+  "postCreateCommand": "npm install --prefix /home/vscode/.claude/local @anthropic-ai/claude-code@latest",
+  "remoteEnv": {
+    "PATH": "/home/vscode/.claude/local/node_modules/.bin:${containerEnv:PATH}"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
         "fwcd.kotlin",
         "vscjava.vscode-gradle",
-        "redhat.java",
-        "vscjava.vscode-java-test",
         "eamodio.gitlens"
       ],
       "settings": {
