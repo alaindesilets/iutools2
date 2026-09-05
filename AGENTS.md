@@ -158,6 +158,24 @@ but the equivalent concern here is the linguistic data (CSV files under
 - Large, exploratory, or likely-to-be-reverted work (e.g. a platform port
   that isn't finished) belongs on its own branch, not on `main` — `main`
   should stay in a state that actually builds and runs.
+- **Running a second agent in parallel (git worktrees)**: default to no
+  persistent branch. Create the second worktree detached, not on a named
+  branch — `git worktree add --detach <path> main` — so it never competes
+  for a branch name and never needs its own long-lived identity. Integrate
+  finished work from the primary worktree with `git merge <sha>` (or
+  `git cherry-pick`), or push straight from the detached worktree with
+  `git push origin HEAD:main`. Once integrated, reset that worktree to the
+  new tip of `main` (`git checkout --detach main`) rather than letting it
+  drift.
+  - **Exception**: genuinely experimental work whose outcome is still
+    uncertain (e.g. the FST prototype in its early days) does warrant a
+    real named branch — that's what named branches are for. When creating
+    one, state explicitly what resolves it (merged once X is proven,
+    dropped if Y doesn't pan out), and act on that condition as soon as
+    it's met — delete the branch (local and remote) the moment its content
+    is merged or abandoned. Several orphaned branches whose purpose nobody
+    remembered were found and deleted in September 2026 — an untracked
+    branch is a maintenance cost, not a free option.
 
 ## Testing
 
