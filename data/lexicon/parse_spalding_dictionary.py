@@ -1,15 +1,9 @@
 """
-One-off script for Phase 3 of the Guess Meaning spike (see
-doc/spike-llm-local-iutools-mobile.md): parses the Spalding dictionary's
-static HTML page into a flat word -> meaning JSON, embedded in the app as
-composeApp/src/main/res/raw/spalding.json. Not part of the app build itself
--- run manually, output reviewed, then copied in by hand. Re-run this (and
-re-review the diff) if the source page is ever updated.
+One-off script for parsing the Spalding dictionary into a JSON file.
 
-Source: https://www.inuktitutcomputing.ca/Spalding/index.php?lang=en
-(a single long static page -- no per-word search -- confirmed by Alain and
-by inspecting the fetched page directly; see Phase 3 of the plan doc for
-why that makes it the simplest dictionary to start with).
+The dictionary is parsed from a single static HTML page:
+
+    https://www.inuktitutcomputing.ca/Spalding/index.php?lang=en
 
 Usage: fetch the page (this project's sandbox can't reach the open
 internet, so this step needs to happen somewhere that can, e.g.

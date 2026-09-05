@@ -7,8 +7,9 @@ import org.json.JSONArray
  * See doc/spike-llm-local-iutools-mobile.md for the overall Guess Meaning
  * design: the Spalding dictionary (inuktitutcomputing.ca) is a single
  * static HTML page, not a per-word search -- so rather than fetching it over
- * the network on every lookup, it's parsed once (tools/parse_spalding_dictionary.py,
- * not part of the app itself) into res/raw/spalding.json (8373 headwords),
+ * the network on every lookup, it's parsed once (data/lexicon/parse_spalding_dictionary.py,
+ * not part of the app itself) into data/lexicon/spalding.json (8373
+ * headwords, merged into this module's assets by composeApp/build.gradle.kts),
  * and a lookup here is a local, instant, network-free operation with no
  * runtime failure mode of its own. Re-run that script (and review the
  * diff) if the source page is ever updated -- see its header comment for
@@ -46,7 +47,7 @@ object SpaldingDictionary {
     }
 
     private fun loadEntries(context: Context): Map<String, SpaldingEntry> {
-        val json = context.resources.openRawResource(R.raw.spalding).bufferedReader().use { it.readText() }
+        val json = context.assets.open("spalding.json").bufferedReader().use { it.readText() }
         return parseEntries(json).associateBy { it.word }
     }
 

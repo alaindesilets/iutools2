@@ -28,6 +28,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    sourceSets {
+        getByName("main") {
+            // The Spalding dictionary JSON lives in data/lexicon/ (source of
+            // truth, discoverable on its own -- see that directory's README)
+            // rather than duplicated into this module's own tree. AGP merges
+            // the whole directory into the APK's assets, so data/lexicon/'s
+            // README and generator script ride along too -- a few harmless
+            // KB, traded for keeping the dictionary at a single, flat,
+            // easy-to-find path instead of nesting it under its own
+            // assets/ subfolder.
+            assets.srcDirs("../data/lexicon")
+        }
+    }
+
     // A debug keystore checked into the repo, so every debug APK carries the
     // same signature no matter who builds it or in which devcontainer.
     // Without this, each machine generates its own ~/.android/debug.keystore

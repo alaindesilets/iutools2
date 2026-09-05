@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  * doc/spike-llm-local-iutools-mobile.md's "Un test par fetcher") -- unlike
  * the other fetchers' (which need real network access, see AGENTS.md's
  * "Division of labor"), this one runs against the real embedded
- * res/raw/spalding.json, so it's just a normal JVM test: catches the
+ * data/lexicon/spalding.json, so it's just a normal JVM test: catches the
  * dictionary silently going empty (a bad regeneration) the same way it
  * would catch a network fetcher breaking.
  */
