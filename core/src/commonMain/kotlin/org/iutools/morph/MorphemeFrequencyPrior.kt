@@ -9,10 +9,10 @@ package org.iutools.morph
  * analyzer's own first pick.
  *
  * GENERATED -- do not hand-edit. Regenerate with
- * tools/fst/generate_morpheme_frequency_prior.py (which reads
- * tools/fst/hansard-cache/top10k_words_benoit_decomps.jsonl). This is a
+ * data/grammar/fst/generate_morpheme_frequency_prior.py (which reads
+ * data/grammar/fst/hansard-cache/top10k_words_benoit_decomps.jsonl). This is a
  * deliberate snapshot, not a build-time artifact: see that script's header
- * and tools/fst/benoit_sort.py's module comment for why the table is frozen
+ * and data/grammar/fst/benoit_sort.py's module comment for why the table is frozen
  * rather than recomputed, and why it is a genuine improvement bolted onto
  * Benoit Farley's original two-key sort rather than part of it.
  *

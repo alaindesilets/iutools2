@@ -34,16 +34,25 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
     // only knows canonical/id, so its subclass strips the "surface:" part.
     protected open fun normalizeGoldDecompForComparison(goldDecomp: String): String = goldDecomp
 
-    // When false, skip the "outcomes haven't regressed vs the committed
-    // current-expectations file" and runtime-baseline assertions -- for an
-    // analyzer that has no such snapshot yet, where the run is only meant to
-    // report its histogram.
-    protected open val hasRecordedExpectations: Boolean = true
+    // The committed "current expectations" snapshot each gold standard is
+    // checked against. Every concrete analyzer has its own -- the FST ranks
+    // its decompositions differently from R2L, so a different set of words
+    // lands off the top spot. Both the "outcomes haven't regressed" check and
+    // the per-machine runtime baseline run for every subclass; there is no
+    // opt-out.
+    protected open fun makeHansardExpectations(): MorphAnalCurrentExpectationsAbstract =
+        MorphAnalCurrentExpectations_Hansard()
 
-    // Called once with the actual outcome histogram after every gold word
-    // has been analyzed -- a hook for a subclass to assert against a fixed,
-    // externally-known set of numbers (e.g. the C++ FST's own coverage).
-    protected open fun assertOutcomeHistogram(gotOutcomeHist: FrequencyHistogram<OutcomeType>) {}
+    protected open fun makeWordsThatFailedBeforeExpectations(): MorphAnalCurrentExpectationsAbstract =
+        MorphAnalCurrentExpectations_WordsThatFailedBefore()
+
+    // Tolerance for the per-machine runtime-drift check (fraction, either
+    // direction). The FST runs the whole gold standard in ~1.5 s -- 13x
+    // faster than R2L -- so the same percentage band is a much smaller
+    // absolute window and trips on ordinary machine-load noise; its subclass
+    // widens this. The check still catches a real regression, just needs a
+    // looser band on such a short measurement.
+    protected open val runtimeToleranceFraction: Double = 0.30
 
     @BeforeTest
     fun setUp() {
@@ -55,7 +64,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
             val elapsed = System.currentTimeMillis() - start
 
             println()
-            println("creating new MorphologicalAnalyzer_R2L: Time in milliseconds: $elapsed")
+            println("creating new ${morphAnalyzer!!::class.simpleName}: Time in milliseconds: $elapsed")
         }
         morphAnalyzer!!.activateTimeout()
         gotOutcomeHist = FrequencyHistogram()
@@ -67,7 +76,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         println("Running test_accuracy_with_GoldStandard_Hansard.")
 
         goldStandard = MorphAnalGoldStandard_Hansard()
-        expectations = MorphAnalCurrentExpectations_Hansard()
+        expectations = makeHansardExpectations()
 
         // If you want to only evaluate one word, uncomment and modify the
         // next line.
@@ -81,7 +90,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         println("Running test_accuracy_with_GoldStandard_WordsThatFailedBefore.")
 
         goldStandard = MorphAnalGoldStandard_WordsThatFailedBefore()
-        expectations = MorphAnalCurrentExpectations_WordsThatFailedBefore()
+        expectations = makeWordsThatFailedBeforeExpectations()
 
         // No runtime baseline check here: this gold standard is only a
         // handful of words, so its total decomposition time is dominated by
@@ -132,11 +141,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
         printPerformanceStats()
 
-        assertOutcomeHistogram(gotOutcomeHist)
-
-        if (hasRecordedExpectations) {
-            assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
-        }
+        assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
 
         // Fail if the time to decompose the whole gold standard has drifted
         // by more than 30% -- in EITHER direction -- from the baseline last
@@ -146,10 +151,16 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         // uncommitted JSON file under the build tree (see AssertRuntime); the
         // first run after a checkout or `./gradlew clean` just records it and
         // passes. This does not touch the accuracy histogram above.
-        if (runtimeBaselineTestInfo != null && hasRecordedExpectations) {
+        //
+        // The operation name is analyzer-specific: this test method is
+        // declared on the abstract base, so every subclass shares one
+        // baseline file -- without the analyzer's name in the key, the fast
+        // FST run and the slow R2L run would clobber each other's baseline.
+        if (runtimeBaselineTestInfo != null) {
             AssertRuntime.runtimeHasNotChanged(
-                elapsed.toDouble(), 0.30,
-                "decompose all ${goldStandard.allWords().size} gold-standard words",
+                elapsed.toDouble(), runtimeToleranceFraction,
+                "${morphAnalyzer!!::class.simpleName}: decompose all " +
+                    "${goldStandard.allWords().size} gold-standard words",
                 runtimeBaselineTestInfo,
             )
         }

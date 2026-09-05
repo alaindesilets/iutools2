@@ -34,6 +34,8 @@ import java.util.concurrent.TimeoutException
  */
 class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
 
+    private val traceLogger = LogManager.getLogger("MorphologicalAnalyzer_R2L.analyzeWithCandidateAffixes")
+
     private val arcsByMorpheme = Hashtable<String, Array<Graph.Arc>>()
 
     protected var _decompsSoFar: MutableSet<DecompositionState> = HashSet()
@@ -483,6 +485,14 @@ class MorphologicalAnalyzer_R2L : MorphologicalAnalyzer() {
             } catch (e: LinguisticDataException) {
                 throw MorphologicalAnalyzerException(e)
             }
+            traceLogger.debug(
+                "affixCandidateOrig=$affixCandidateOrig stem=$stem -> " +
+                    "affix=${affix.id} context=${contextualForm.context} form=${contextualForm.form} " +
+                    "validate=$validate reconstructedStems=" +
+                    validStemAffixCombinationsInContext?.map {
+                        "${it.stemBeforeAffixAction}/${it.stemAfterAffixAction}"
+                    }
+            )
             //--------------------- validation -------------------------------------------------------
             if (validate) {
                 val nextPossibleStates = arrayOfNulls<Graph.State>(arcsFollowed!!.size)

@@ -16,11 +16,11 @@ import java.io.File
 import java.io.FileInputStream
 
 /*
- * Runs the HFST-based finite-state analyzer (tools/fst/) from Kotlin, as an
+ * Runs the HFST-based finite-state analyzer (data/grammar/fst/) from Kotlin, as an
  * alternative to MorphologicalAnalyzer_R2L (Benoit Farley's ported R2L
  * analyzer).
  *
- * It reads the compiled transducer tools/fst/lexicon-analyser.hfstol
+ * It reads the compiled transducer data/grammar/fst/lexicon-analyser.hfstol
  * directly, in-process, via the vendored pure-Java optimized-lookup reader
  * (core/src/jvmMain/java/net/sf/hfst/ -- see its VENDORED.md). No subprocess,
  * no native `hfst-lookup` binary needed. That reader is pure Java over an
@@ -45,7 +45,7 @@ import java.io.FileInputStream
  * The transducer path can be overridden with the system property
  * `iutools.fst.transducer` or the env var IUTOOLS_FST_TRANSDUCER; by default
  * it is found by walking up from the working directory looking for
- * tools/fst/lexicon-analyser.hfstol.
+ * data/grammar/fst/lexicon-analyser.hfstol.
  */
 class MorphologicalAnalyzer_FST(
     private val transducer: File = defaultTransducerFile(),
@@ -79,7 +79,7 @@ class MorphologicalAnalyzer_FST(
         val cleaned = normalizeInput(word.trim())
         if (cleaned.isEmpty()) return emptyArray()
 
-        // tools/fst/phonology.xfscript's LENIENT rule gives the "a final
+        // data/grammar/fst/phonology.xfscript's LENIENT rule gives the "a final
         // k/p/q/t was dropped after a vowel" paths weight 1.0 and everything
         // else weight 0.0 -- the FST equivalent of R2L's extended/lenient
         // analysis. Base decomposeWord() passes lenient=true by default.
@@ -93,8 +93,28 @@ class MorphologicalAnalyzer_FST(
             }
         }
 
-        val seen = HashSet<String>()
-        val ranked = ArrayList<RankedDecomposition>()
+        return rankRawResults(rawResults, weightCutoff)
+    }
+
+    /**
+     * The dedup + ranking half of [doDecompose], split out so a cross-
+     * language sync test (SortSyncTest / data/grammar/fst/sort_decomps.py) can drive
+     * exactly this logic with a frozen bag of raw transducer lines and check
+     * the order matches the Python ranking. [rawResults] are the reader's own
+     * "<analysis>\t<weight>" strings (a bare "<analysis>" means weight 0);
+     * entries above [weightCutoff] are dropped.
+     *
+     * The transducer reaches one analysis string by several paths, and
+     * phonology.xfscript's LENIENT rule means the SAME string often comes out
+     * both at weight 0 (a strict parse) and weight 1 (that parse also
+     * reachable by assuming a dropped final consonant). Keep each string
+     * once, at its LOWEST weight -- a parse is strict if any path yields it
+     * strictly. Keeping "whichever the reader emitted first" instead would
+     * make the weight sort key depend on the reader's arbitrary path-
+     * enumeration order (net.sf.hfst and native hfst-lookup differ).
+     */
+    fun rankRawResults(rawResults: Collection<String>, weightCutoff: Float = 1.0f): Array<Decomposition> {
+        val minWeightByAnalysis = LinkedHashMap<String, Float>()
         for (result in rawResults) {
             // Weighted transducer: "canonical+id++...\t<weight>". Unweighted:
             // just "canonical+id++...".
@@ -102,7 +122,12 @@ class MorphologicalAnalyzer_FST(
             val analysis = if (tab < 0) result else result.substring(0, tab)
             val weight = if (tab < 0) 0.0f else result.substring(tab + 1).trim().toFloatOrNull() ?: 0.0f
             if (weight > weightCutoff) continue
-            if (!seen.add(analysis)) continue
+            val prev = minWeightByAnalysis[analysis]
+            if (prev == null || weight < prev) minWeightByAnalysis[analysis] = weight
+        }
+
+        val ranked = ArrayList<RankedDecomposition>(minWeightByAnalysis.size)
+        for ((analysis, weight) in minWeightByAnalysis) {
             val specs = hfstAnalysisToDecompSpecs(analysis)
             // The HFST tag's first morpheme's canonical text IS the root's
             // citation form -- this project's lexicon puts canonical + id on
@@ -119,7 +144,7 @@ class MorphologicalAnalyzer_FST(
         engine?.let { return it }
 
         require(transducer.isFile) {
-            "FST transducer not found at ${transducer.absolutePath} -- build it first (see tools/fst/phonology.xfscript's header), " +
+            "FST transducer not found at ${transducer.absolutePath} -- build it first (see data/grammar/fst/phonology.xfscript's header), " +
                 "or set -Diutools.fst.transducer=/path/to/lexicon-analyser.hfstol"
         }
 
@@ -151,7 +176,7 @@ class MorphologicalAnalyzer_FST(
          * `canonical/tagId` component form Decomposition() parses (its
          * toString() then renders "{atuaq/1v}{gaq/1vn}"). "++" separates
          * morphemes; the first "+" within a morpheme separates canonical
-         * from tag id -- same split tools/fst/histogram.py's
+         * from tag id -- same split data/grammar/fst/histogram.py's
          * parse_hfst_analysis does.
          */
         internal fun hfstAnalysisToDecompSpecs(analysis: String): String =
@@ -178,7 +203,7 @@ class MorphologicalAnalyzer_FST(
             System.getProperty("iutools.fst.transducer")?.let { return File(it) }
             System.getenv("IUTOOLS_FST_TRANSDUCER")?.let { return File(it) }
 
-            val relative = "tools/fst/lexicon-analyser.hfstol"
+            val relative = "data/grammar/fst/lexicon-analyser.hfstol"
             var dir: File? = File(System.getProperty("user.dir")).absoluteFile
             while (dir != null) {
                 val candidate = File(dir, relative)

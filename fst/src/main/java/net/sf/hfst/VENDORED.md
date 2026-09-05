@@ -2,7 +2,7 @@
 
 A pure-Java reader for HFST optimized-lookup (`.hfstol`) transducers. Used by
 `org.iutools.morph.fst.MorphologicalAnalyzer_FST` to run the finite-state
-Inuktitut analyzer (`tools/fst/lexicon-analyser.hfstol`) without shelling out
+Inuktitut analyzer (`data/grammar/fst/lexicon-analyser.hfstol`) without shelling out
 to the native `hfst-lookup` tool -- so the same analyzer can eventually run
 on Android/iOS, not just a dev machine.
 

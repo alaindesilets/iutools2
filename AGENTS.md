@@ -76,7 +76,18 @@ appearance of the page or dialog. In this project specifically: `:core`
 must never depend on Compose or any UI type — `:composeApp` calls into
 `:core`, never the reverse.
 
-### Comments versus proper naming
+### Documenting
+
+There are several ways to document things in this project.
+
+- Comments
+- Agent's own memory
+- Planning documents
+- README files
+
+Below are details about the proper use of each approach.
+
+#### Comments versus proper naming
 
 - Use comments sparingly.
 - If you feel the need to write a comment to explain the purpose of a
@@ -96,6 +107,24 @@ must never depend on Compose or any UI type — `:composeApp` calls into
     portability workarounds (e.g. why a property was renamed to avoid a
     JVM/Kotlin-Native declaration clash) and pruning decisions (why some
     original Java code was dropped rather than ported).
+
+#### Agent Memory
+
+Coding agents may use their personal memory to remember details about what they are currently working on and where they are at.
+
+Use this for the kinds of details that do not need to be shared with other agents or human devs.
+
+#### Planning documents
+
+The doc/dev/plans/ directory contains files that describe plans for tasks, whether they be future ones, or tasks that are undergoing.
+
+The documents in that directory are not meant to be permanent. They are meant to communicate plans and their current status, with other agents and human devs.
+
+#### README.md files
+
+Each directory in this project may contain a README.md that describe the purpose and structure of that directory (and its descendants).
+
+This type of documentation is meant to be more permanent than the docs found in doc/dev/plans/. But if the directory is in a state of flux, the README may explain this and even refer to a planning document, while the directory is being modified.
 
 ## Preserving data integrity
 
