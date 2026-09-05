@@ -26,11 +26,13 @@ shared analyzer core.
 - Kotlin Multiplatform + Compose Multiplatform is the chosen architecture:
   one shared analyzer core, one shared UI codebase, native app shells per
   platform (no separate hand-written native UIs).
-- Kotlin/Native (iOS) has a much smaller stdlib surface than JVM/Android —
-  no `java.util.*`, no `java.io.*`, no `@JvmField`/`@JvmStatic`/
-  `@JvmOverloads`. Code in `commonMain` must build for all three targets;
-  don't assume something that compiles for JVM/Android will compile for
-  iOS too.
+- iOS is a real eventual target, but neither `:core` nor `:composeApp`
+  declares an iOS target in Gradle yet, and nobody is actively building for
+  it. Don't pre-emptively avoid JVM-only APIs (`java.util.*`, `java.io.*`,
+  ...) in `commonMain` for iOS's sake — Kotlin/Native's stdlib is missing
+  those, but that only becomes a real constraint once an iOS target
+  actually exists to fail against. Revisit portability when the iOS port
+  starts, not before.
 
 ## Architecture
 
@@ -38,10 +40,9 @@ Gradle modules:
 - **`:core`** — the analyzer itself, as a Kotlin Multiplatform library
   (`core/src/commonMain/kotlin/org/iutools/**`). This is the single source
   of truth; `:cli` and `:composeApp` both depend on it and add no analyzer
-  logic of their own. Linguistic data (CSV files) is embedded as generated
-  Kotlin source under `core/src/commonMain/kotlin/org/iutools/linguisticdata/dataCSV/generated/`
-  rather than loaded as a runtime resource — deliberate, not an oversight,
-  see the file headers for why.
+  logic of their own. Linguistic data (CSV files) lives under
+  `data/grammar/linguistic-data/` and is loaded by `:core` at runtime via
+  the JVM classpath (`LinguisticDataCSV.kt`).
 - **`:cli`** — JVM-only command-line entry point (`--word`/`--interactive`/
   `--pipeline`, modeled on the original iutools CLI's own option names) plus
   the full ported accuracy/regression test suite.
@@ -130,7 +131,7 @@ This type of documentation is meant to be more permanent than the docs found in 
 
 This isn't a project with production databases or deployed installations,
 but the equivalent concern here is the linguistic data (CSV files under
-`core/.../dataCSV/generated/`) and the accuracy-test gold standard
+`data/grammar/linguistic-data/`) and the accuracy-test gold standard
 (`cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_*.kt`):
 
 - Never hand-retype Inuktitut/linguistic data or large data files. Either

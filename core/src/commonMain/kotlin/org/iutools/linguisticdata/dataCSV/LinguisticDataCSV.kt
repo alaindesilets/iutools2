@@ -29,7 +29,10 @@ class LinguisticDataCSV {
         val tableName = data[2]
         val typeOfObject = if (data.size == 4) data[3] else null
         val fileName = "$tableName.csv"
-        val tablePath = "org/iutools/linguisticdata/dataCSV/$fileName"
+        // Source of truth for these CSVs is data/grammar/linguistic-data/ (see
+        // that directory's README); Gradle maps it onto the JVM classpath root
+        // via commonMain's resources.srcDir, so the lookup path is flat.
+        val tablePath = fileName
         try {
             val stream = ResourceGetter.getResourceAsStream(tablePath)
                 ?: throw IOException("Resource not found: $tablePath")

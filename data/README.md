@@ -10,7 +10,7 @@ Three kinds of data, by provenance / lifecycle / owner:
 
 | directory | what | notes |
 |---|---|---|
-| `grammar/` | grammatical / linguistic-rules data: the FST (`grammar/fst/` -- `lexicon.lexc`, `phonology.xfscript`, the generated `*-generated.lexc`, the `generate_*.py` generators) and, later, the linguistic CSVs | changes when the grammar is refined; small; the analyzer is built from it |
+| `grammar/` | grammatical / linguistic-rules data: the FST (`grammar/fst/` -- `lexicon.lexc`, `phonology.xfscript`, the generated `*-generated.lexc`, the `generate_*.py` generators) and the linguistic CSVs (`grammar/linguistic-data/` -- roots, suffixes, endings, ...) | changes when the grammar is refined; small; the analyzer is built from it |
 | `corpus/` | compilations derived from text corpora: Hansard frequency lists, the Benoit-decomposition cache, translation memory, the morpheme-frequency prior | batch-job output; can be large; usually frozen snapshots. **Empty for now** -- `grammar/fst/hansard-cache/` will move here. |
 | `lexicon/` | lexicographic data: parsed dictionaries (Spalding, the morpheme dictionary) | lookup-oriented. **Empty for now.** |
 

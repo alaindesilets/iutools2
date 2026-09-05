@@ -36,7 +36,7 @@ member repos are directly relevant:
 **Important caveat**: both are structural/methodological templates, not
 sources of reusable vocabulary or rules. The actual Inuktitut roots,
 affixes, and phonological alternations must come from this project's own
-CSV data (`core/.../dataCSV/generated/`) and from Alain's own linguistic
+CSV data (`data/grammar/linguistic-data/`) and from Alain's own linguistic
 judgment — copying Iñupiaq or Kalaallisut lexc/phonology content directly
 would produce a wrong analyzer for Inuktitut specifically.
 

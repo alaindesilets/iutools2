@@ -21,4 +21,12 @@ kotlin {
         }
     }
 
+    sourceSets {
+        commonMain {
+            // Source of truth for the linguistic CSVs is data/grammar/linguistic-data/,
+            // not core/'s own resource tree -- see that directory's README.
+            resources.srcDir("../data/grammar/linguistic-data")
+        }
+    }
+
 }

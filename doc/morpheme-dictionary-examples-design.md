@@ -89,9 +89,8 @@ order) — a synthetic `freq = N - rank` stands in for the tie-break.
 
 Plan: invert `word → decompositions` into `morphemeId → [words]` **offline,
 at generation time**, apply the scoring/gate/balancing/truncation, and
-embed only the capped result as generated Kotlin (same rationale as
-`MorphemeFrequencyPrior` and the linguistic CSVs — available on
-Kotlin/Native too). Runtime does a `Map` lookup and nothing else.
+embed only the capped result as generated Kotlin (same approach as
+`MorphemeFrequencyPrior`). Runtime does a `Map` lookup and nothing else.
 
 ## Design converged on so far
 

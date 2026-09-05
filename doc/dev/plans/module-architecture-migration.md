@@ -110,12 +110,18 @@ functionality needs:
 - Membership test: *is it orchestration that produces a data artifact,
   delegating domain logic to `:core`?* -> yes: `data/`.
 
-### What does NOT move
+### What does NOT move (revised 2026-09-05)
 
-`:core`'s embedded linguistic-data CSVs (`core/.../dataCSV/generated/`)
-stay where they are. Their embedding as generated Kotlin source is a
-deliberate choice for iOS/Android resource-loading portability -- see the
-file headers. `:core` does **not** gain a dependency on `:data`.
+This section originally said the linguistic-data CSVs would stay embedded
+in `:core` (`core/.../dataCSV/generated/`), on the assumption that they
+were already embedded as generated Kotlin source. That directory never
+existed -- the CSVs were plain JVM classpath resources, loaded by
+`LinguisticDataCSV.kt` via `java.io.*`. Moved 2026-09-05 to
+`data/grammar/linguistic-data/`, following the same split the FST already
+uses: raw source data in `data/`, a separate embedded artifact in the
+module that ships it. `:core` still doesn't gain a dependency on `:data` at
+build time -- Gradle points `:core`'s `commonMain` resources at the new
+path directly (`core/build.gradle.kts`'s `resources.srcDir`).
 
 ## Migration steps
 
@@ -206,7 +212,10 @@ do this extraction as part of landing it.
 - [ ] `desktopApp`: the JVM target of `:composeApp` + Compose Desktop
       `nativeDistributions` packaging (macOS / Windows / Linux differ only
       in packaging, not code).
-- [ ] `iosApp`: folded into the existing `ios-work` branch effort.
+- [ ] `iosApp`: not started. (An earlier exploratory attempt on a
+      now-deleted `ios-work` branch was dropped rather than merged --
+      the codebase had moved on enough that starting fresh made more
+      sense than reconciling it.)
 - [ ] Web: explicitly out of scope (`AGENTS.md`). The only standing
       obligation is discipline -- keep `:core/commonMain` to pure Kotlin
       stdlib + kotlinx so a JS/Wasm target stays *possible* without a

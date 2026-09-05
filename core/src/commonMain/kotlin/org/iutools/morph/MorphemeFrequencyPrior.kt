@@ -16,9 +16,7 @@ package org.iutools.morph
  * rather than recomputed, and why it is a genuine improvement bolted onto
  * Benoit Farley's original two-key sort rather than part of it.
  *
- * Embedded as Kotlin source (not a resource) so it is available on every
- * target including Kotlin/Native (iOS), same reasoning as the linguistic
- * CSVs.
+ * Embedded as Kotlin source rather than a resource file.
  */
 object MorphemeFrequencyPrior {
 
