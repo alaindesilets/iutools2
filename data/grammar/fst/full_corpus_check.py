@@ -1,10 +1,11 @@
 """
 Runs the FST prototype (data/grammar/fst/lexicon-analyser.hfstol) over every word in
-the real gold standard (cli/src/test/kotlin/org/iutools/morph/
-MorphAnalGoldStandard_Hansard.kt and MorphAnalGoldStandard_WordsThatFailedBefore.kt)
-and reports the same 4-category histogram as histogram.py and the existing
-919-word :cli regression suite -- first-decomposition-correct /
-correct-but-not-first / correct-not-present / no-decomps.
+the real gold standard (data/grammar/gold-standard/gold-standard.csv) and
+reports the same 4 metrics as histogram.py and
+MorphologicalAnalyzer__AccuracyTest.kt: Recall/Precision against
+all_correct_decomps (every decomposition R2L itself can produce for that
+word) and reference-decomp-present/reference-decomp-in-top-N against
+decomp_as_found_in_source (the single Hansard-attested reading).
 
 Unlike histogram.py (a small hand-picked batch, one gold string per word),
 this groups ALL addCase entries by surface word first: a few words (e.g.
@@ -49,10 +50,11 @@ just don't compare its percentage against the :cli figures, since it's a
 different population.
 """
 import argparse
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from affix_frequency import load_words
-from histogram import categorize, hfst_analyses, parse_hfst_analysis
+from gold_standard_csv_reader import aggregate_metrics, is_flagged, load_gold_standard, print_aggregate_metrics, word_metrics
+from histogram import hfst_analyses, parse_gold, parse_hfst_analysis
 
 
 def group_by_word(entries):
@@ -88,44 +90,51 @@ def main():
 
     lenient = not args.strict
     grouped = group_by_word(load_words(exclude_flagged=not args.all))
+    hansard_cases = load_gold_standard("hansard")
 
-    histogram = Counter()
+    metrics_by_word = {}
+    all_correct_count_by_word = {}
     wrong_words = []
     missing_words = []
 
     for word, gold_morph_lists in grouped.items():
-        gold_parses = [list(morphemes) for morphemes in gold_morph_lists]
+        reference_parses = [tuple(morphemes) for morphemes in gold_morph_lists]
+        case = hansard_cases.get(word)
+        # all_correct_decomps is only populated for FAIR words (empty for
+        # flagged ones, and for words not in the "hansard" source) -- with
+        # --all, a flagged word simply has no all_correct data to compare
+        # against, so it's excluded from the Recall average (see
+        # aggregate_metrics) but still contributes to Precision/reference-
+        # present via reference_parses.
+        all_correct_parses = (
+            [tuple(parse_gold(g)) for g in case.all_correct_decomps] if case else []
+        )
         analyses = hfst_analyses(word, lenient=lenient)
-        hfst_parses = [parse_hfst_analysis(a) for a in analyses]
+        hfst_parses = [tuple(parse_hfst_analysis(a)) for a in analyses]
 
-        category = categorize(gold_parses, hfst_parses)
-        histogram[category] += 1
+        m = word_metrics(hfst_parses, all_correct_parses, reference_parses)
+        metrics_by_word[word] = m
+        all_correct_count = len(set(all_correct_parses))
+        all_correct_count_by_word[word] = all_correct_count
 
-        if category == "correct-not-present":
-            wrong_words.append((word, gold_parses, hfst_parses))
-        elif category == "no-decomps":
+        if m.matched == 0 and all_correct_count > 0:
+            wrong_words.append((word, reference_parses, hfst_parses))
+        if m.produced == 0:
             missing_words.append(word)
 
-    total = len(grouped)
-    print(f"Full gold-standard corpus check ({total} distinct words, "
+    agg = aggregate_metrics(metrics_by_word, all_correct_count_by_word)
+    print(f"Full gold-standard corpus check ({agg.total_words} distinct words, "
           f"{'STRICT' if args.strict else 'lenient'} FST, "
           f"{'all words' if args.all else 'fair vs. :cli'}):")
-    for category in [
-        "first-decomposition-correct",
-        "correct-but-not-first",
-        "correct-not-present",
-        "no-decomps",
-    ]:
-        count = histogram[category]
-        print(f"  {count:4d}  ({100 * count / total:5.1f}%)  {category}")
+    print_aggregate_metrics(agg)
 
     if args.show_wrong and wrong_words:
-        print(f"\n'correct-not-present' words (FST accepted, but with the wrong analysis):")
-        for word, gold_parses, hfst_parses in wrong_words:
-            print(f"  {word}: gold={gold_parses} hfst={hfst_parses}")
+        print(f"\nWords where NONE of the FST's own output matched all_correct_decomps (matched == 0):")
+        for word, reference_parses, hfst_parses in wrong_words:
+            print(f"  {word}: reference={reference_parses} hfst={hfst_parses}")
 
     if args.show_missing:
-        print(f"\nFirst {args.show_missing} 'no-decomps' (rejected) words:")
+        print(f"\nFirst {args.show_missing} words with no FST output at all:")
         for word in missing_words[: args.show_missing]:
             print(f"  {word}")
 

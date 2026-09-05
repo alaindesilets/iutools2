@@ -43,11 +43,10 @@ treated as already-unique; a short hyphen-less id is disambiguated by
 pairing it with its own canonical text ("juq/1vn" vs "ji/1vn") so the two
 don't get silently merged into one inflated count.
 
-Gold-standard source: reads directly from the two Kotlin files (never
-hand-copied) via a regex over `AnalyzerCase("word", arrayOf("decomp", ...`
--- entries with no real decomposition (`null`, or a `[decomposition:...]`
-placeholder for proper names) simply produce zero regex matches and are
-skipped, no special-casing needed.
+Gold-standard source: reads data/grammar/gold-standard/gold-standard.csv via
+gold_standard_csv_reader.py -- entries with no real decomposition (`null`,
+or a `[decomposition:...]` placeholder for proper names) simply produce zero
+regex matches and are skipped, no special-casing needed.
 
 Usage (from repo root):
     python3 data/grammar/fst/affix_frequency.py
@@ -56,60 +55,29 @@ import re
 from collections import Counter
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
-HANSARD_GOLD = REPO_ROOT / "cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_Hansard.kt"
-GOLD_FILES = [
-    HANSARD_GOLD,
-    REPO_ROOT / "cli/src/test/kotlin/org/iutools/morph/MorphAnalGoldStandard_WordsThatFailedBefore.kt",
-]
+from gold_standard_csv_reader import AnalyzerCase, load_gold_standard
+
 OUTPUT_FILE = Path(__file__).parent / "affix-priority.md"
 
-# Word + the whole arrayOf(...) argument list; extract each "..." parse from
-# it separately below. Multi-parse addCase entries (e.g. atuliqujaujuq) have
-# several accepted decompositions, and the real :cli test counts a result
-# correct if it matches ANY of them -- so all must be captured, not just the
-# first. `[^)]*` stops at arrayOf's own ")"; the "[decomposition:/X(X)/]"
-# proper-name placeholder rows it truncates carry no {surface:c/id} and drop
-# out at MORPHEME_RE anyway.
-CASE_RE = re.compile(r'AnalyzerCase\(\s*"([^"]+)"\s*,\s*arrayOf\(([^)]*)')
-PARSE_STR_RE = re.compile(r'"([^"]*)"')
 MORPHEME_RE = re.compile(r"\{[^:]+:([^/]+)/([^}]+)\}")
 
 # The real :cli accuracy suite (MorphologicalAnalyzer__AccuracyTest.kt's
 # evaluateAccuracy()/skipCase()) doesn't evaluate every word in the gold
-# standard -- it skips ones flagged with one of these five chained method
-# calls on the AnalyzerCase (misspelled/possibly-misspelled/proper-name/
-# borrowed/decomp-unknown), on the reasoning that the analyzer can't
-# fairly be expected to handle them. AGENTS.md's own "919 evaluated
+# standard -- it skips ones flagged misspelled/possibly-misspelled/
+# proper-name/borrowed/decomp-unknown, on the reasoning that the analyzer
+# can't fairly be expected to handle them. AGENTS.md's own "919 evaluated
 # words" figure for the Hansard suite is exactly 1092 distinct Hansard
-# words minus 173 carrying one of these flags -- confirmed by reproducing
-# that arithmetic here before trusting this regex. load_words()'s own
-# CASE_RE match ends at the decomposition string and never sees these
-# chained calls (they appear later in the same addCase(...) statement),
-# so finding them needs a second pass over each statement's own text.
-FLAG_RE = re.compile(
-    r"\.isMisspelled\(\)|\.possiblyMisspelledWord\(\)|\.isProperName\(\)"
-    r"|\.isBorrowedWord\(\)|\.correctDecompUnknown\(\)"
-)
+# words minus 173 carrying one of these flags.
 
 
-def flagged_words():
-    """Returns the set of words the real :cli accuracy suite skips (see
-    FLAG_RE's own comment) -- last addCase() for a given word wins, same
-    overwrite behavior as MorphAnalGoldStandardAbstract's own
-    case4word map."""
-    flagged = {}
-    for path in GOLD_FILES:
-        text = path.read_text(encoding="utf-8")
-        starts = [m.start() for m in re.finditer(r"addCase\(AnalyzerCase\(", text)]
-        starts.append(len(text))
-        for i in range(len(starts) - 1):
-            segment = text[starts[i]:starts[i + 1]]
-            m = re.search(r'addCase\(AnalyzerCase\(\s*"([^"]+)"', segment)
-            if not m:
-                continue
-            flagged[m.group(1)] = bool(FLAG_RE.search(segment))
-    return {w for w, is_flagged in flagged.items() if is_flagged}
+def _is_flagged(case: AnalyzerCase) -> bool:
+    return (
+        case.is_misspelled
+        or case.is_possibly_misspelled
+        or case.is_borrowed
+        or case.is_proper_name
+        or case.decomp_unknown
+    )
 
 
 def affix_key(canonical: str, morph_id: str) -> str:
@@ -124,27 +92,26 @@ def load_words(exclude_flagged: bool = False):
     entry that has a real {surface:canonical/id} decomposition.
 
     exclude_flagged: when True, restricts to exactly the population the
-    real :cli Hansard accuracy suite evaluates -- MorphAnalGoldStandard_Hansard
-    only (NOT the separate WordsThatFailedBefore gold, which :cli runs as its
-    own test method), minus the misspelled/proper-name/borrowed/decomp-unknown
-    words flagged_words() reports. Use it whenever comparing this prototype's
-    numbers against the :cli FST/R2L figures, so the two are over an identical
-    population. Default is False (permissive: both gold files, nothing
-    skipped) -- this project's FST work has used the wider net for gap-finding.
+    real :cli Hansard accuracy suite evaluates -- the "hansard" source only
+    (NOT the separate "words_that_failed_before" gold, which :cli runs as
+    its own test method), minus the misspelled/proper-name/borrowed/
+    decomp-unknown words (see _is_flagged()). Use it whenever comparing
+    this prototype's numbers against the :cli FST/R2L figures, so the two
+    are over an identical population. Default is False (permissive: both
+    gold sources, nothing skipped) -- this project's FST work has used the
+    wider net for gap-finding.
 
-    Yields one entry PER accepted parse: a multi-parse addCase produces
-    several (word, morphemes) pairs, which group_by_word() then collects so a
-    caller can accept a result matching any of them."""
-    if exclude_flagged:
-        files, skip = [HANSARD_GOLD], flagged_words()
-    else:
-        files, skip = GOLD_FILES, set()
-    for path in files:
-        text = path.read_text(encoding="utf-8")
-        for word, arrayof_args in CASE_RE.findall(text):
-            if word in skip:
+    Yields one entry PER accepted parse: a multi-parse gold-standard entry
+    produces several (word, morphemes) pairs, which group_by_word() then
+    collects so a caller can accept a result matching any of them."""
+    sources = ["hansard"] if exclude_flagged else ["hansard", "words_that_failed_before"]
+    for source in sources:
+        for word, case in load_gold_standard(source).items():
+            if exclude_flagged and _is_flagged(case):
                 continue
-            for decomp in PARSE_STR_RE.findall(arrayof_args):
+            if not case.correct_decomps:
+                continue
+            for decomp in case.correct_decomps:
                 morphemes = MORPHEME_RE.findall(decomp)
                 if morphemes:
                     yield word, morphemes

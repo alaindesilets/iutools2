@@ -19,4 +19,9 @@ abstract class MorphAnalGoldStandardAbstract {
     fun correctDecomps(word: String): Array<String>? = case4word[word]?.correctDecomps
 
     fun caseData(word: String): AnalyzerCase? = case4word[word]
+
+    /** The gold-standard.csv `source` value for this gold standard's words
+     * (e.g. "hansard"), used to look up all_correct_decomps; null if this
+     * gold standard predates/isn't backed by the CSV. */
+    open fun sourceName(): String? = null
 }

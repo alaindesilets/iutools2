@@ -1,15 +1,45 @@
 package org.iutools.morph
 
-import org.iutools.lib.testing.AssertNumber
 import org.iutools.lib.testing.AssertRuntime
-import org.iutools.lib.testing.FrequencyHistogram
-import org.iutools.morph.MorphAnalCurrentExpectationsAbstract.OutcomeType
+import org.iutools.morph.MorphAnalCurrentExpectationsAbstract.WordExpectation
 import org.junit.jupiter.api.TestInfo
 import java.util.concurrent.TimeoutException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.fail
 
+/**
+ * Shared accuracy-test driver for any MorphologicalAnalyzer implementation
+ * (see MorphologicalAnalyzer_R2L__AccuracyTest / _FST_AccuracyTest). Scores
+ * each "fair" gold-standard word (skipCase()) on 4 metrics, all measured
+ * against data/grammar/gold-standard/gold-standard.csv's all_correct_decomps
+ * (every decomposition R2L itself can produce for that word) and
+ * decomp_as_found_in_source (the single "reference decomp" -- the specific
+ * reading actually attested in the Hansard occurrence the word was drawn
+ * from):
+ *
+ * - Recall: macro-averaged (per-word %, then mean across words -- "example-
+ *   based recall" in multi-label-classification terms, since each word is
+ *   an example with its own correct-answer set) fraction of
+ *   all_correct_decomps the analyzer actually produced.
+ * - Precision: same macro-average, fraction of the analyzer's own produced
+ *   decomps that are in all_correct_decomps. Undefined (excluded from the
+ *   average, tallied separately) for a word where nothing was produced.
+ * - Reference-decomp-present: % of words where the reference decomp is
+ *   anywhere in the produced list.
+ * - Reference-decomp-in-top-N (N=1..5): % of words where it's within the
+ *   top N.
+ *
+ * A committed per-word snapshot (MorphAnalCurrentExpectations_Hansard.kt
+ * and its 3 siblings) still guards against regressions, analyzer-specific
+ * as before -- but only fails on an actual regression (a word getting
+ * WORSE than its snapshot), not on any drift. Unlike the old OutcomeType
+ * histogram, the new per-word data (matched/produced/referenceRank) also
+ * tracks precision, so incidental improvements are common; forcing a
+ * snapshot-file edit for every one of those would defeat the sparse-file
+ * convention the snapshot exists for. Improvements are printed as a
+ * non-fatal "snapshot is stale" notice instead.
+ */
 abstract class MorphologicalAnalyzer__AccuracyTest {
 
     var verbose = false
@@ -19,16 +49,14 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
     lateinit var goldStandard: MorphAnalGoldStandardAbstract
     lateinit var expectations: MorphAnalCurrentExpectationsAbstract
 
-    var gotOutcomeHist = FrequencyHistogram<OutcomeType>()
-    var expOutcomeHist = FrequencyHistogram<OutcomeType>()
-
     protected abstract fun makeAnalyzer(): MorphologicalAnalyzer
 
     // Extension points for a second analyzer whose output/expectations differ
     // from R2L's (see MorphologicalAnalyzer_FST__AccuracyTest). Defaults keep
     // the R2L subclass behaving exactly as before.
 
-    // Applied to every gold-standard decomposition string before it is
+    // Applied to every gold-standard decomposition string (both
+    // all_correct_decomps entries and the reference decomp(s)) before it is
     // matched against the analyzer's own output. R2L emits full
     // {surface:canonical/id} components, so the default is identity; the FST
     // only knows canonical/id, so its subclass strips the "surface:" part.
@@ -45,6 +73,18 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
     protected open fun makeWordsThatFailedBeforeExpectations(): MorphAnalCurrentExpectationsAbstract =
         MorphAnalCurrentExpectations_WordsThatFailedBefore()
+
+    // Which gold standard to run against. Defaults to the hand-written
+    // addCase()-built one; MorphologicalAnalyzer_R2L__AccuracyTest overrides
+    // this to read data/grammar/gold-standard/gold-standard.csv instead
+    // (verified to produce identical AnalyzerCase data by
+    // GoldStandardCsvMatchesKotlinTest). Other subclasses (e.g. the FST run)
+    // keep the default until they're switched over too.
+    protected open fun makeHansardGoldStandard(): MorphAnalGoldStandardAbstract =
+        MorphAnalGoldStandard_Hansard()
+
+    protected open fun makeWordsThatFailedBeforeGoldStandard(): MorphAnalGoldStandardAbstract =
+        MorphAnalGoldStandard_WordsThatFailedBefore()
 
     // Tolerance for the per-machine runtime-drift check (fraction, either
     // direction). The FST runs the whole gold standard in ~1.5 s -- 13x
@@ -67,15 +107,13 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
             println("creating new ${morphAnalyzer!!::class.simpleName}: Time in milliseconds: $elapsed")
         }
         morphAnalyzer!!.activateTimeout()
-        gotOutcomeHist = FrequencyHistogram()
-        expOutcomeHist = FrequencyHistogram()
     }
 
     @Test
     fun test_accuracy_with_GoldStandard_Hansard(testInfo: TestInfo) {
         println("Running test_accuracy_with_GoldStandard_Hansard.")
 
-        goldStandard = MorphAnalGoldStandard_Hansard()
+        goldStandard = makeHansardGoldStandard()
         expectations = makeHansardExpectations()
 
         // If you want to only evaluate one word, uncomment and modify the
@@ -89,7 +127,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
     fun test_accuracy_with_GoldStandard_WordsThatFailedBefore() {
         println("Running test_accuracy_with_GoldStandard_WordsThatFailedBefore.")
 
-        goldStandard = MorphAnalGoldStandard_WordsThatFailedBefore()
+        goldStandard = makeWordsThatFailedBeforeGoldStandard()
         expectations = makeWordsThatFailedBeforeExpectations()
 
         // No runtime baseline check here: this gold standard is only a
@@ -106,7 +144,14 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
         val start = System.currentTimeMillis()
 
-        val outcomeDifferences = mutableMapOf<String, String>()
+        val allCorrectByWord: Map<String, Set<String>> =
+            GoldStandardCsvReader.allCorrectDecomps(goldStandard.sourceName() ?: "")
+                .mapValues { (_, decomps) -> decomps.map { normalizeGoldDecompForComparison(it) }.toSet() }
+
+        val metrics = AccuracyMetricsAccumulator()
+        val regressions = mutableMapOf<String, String>()
+        val improvements = mutableListOf<String>()
+        val liveByWord = mutableMapOf<String, WordExpectation>()
 
         var column = 0
         for (wordToBeAnalyzed in goldStandard.allWords()) {
@@ -131,7 +176,10 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
 
             if (verbose) println(" []")
 
-            checkOutcome(wordToBeAnalyzed, outcome, expectations, goldStandard, outcomeDifferences)
+            checkOutcome(
+                wordToBeAnalyzed, outcome, caseData, allCorrectByWord[wordToBeAnalyzed] ?: emptySet(),
+                expectations, metrics, regressions, improvements, liveByWord,
+            )
         }
 
         val elapsed = System.currentTimeMillis() - start
@@ -139,9 +187,16 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         println()
         println("Analysis of all words: Time in milliseconds: $elapsed")
 
-        printPerformanceStats()
+        metrics.print()
+        maybeDumpSnapshot(liveByWord, allCorrectByWord, expectations)
 
-        assertOutcomesHaveNotChangedSignificantly(outcomeDifferences)
+        if (improvements.isNotEmpty()) {
+            println("\n${improvements.size} word(s) improved beyond their snapshot (not a failure -- " +
+                "consider regenerating the snapshot, see maybeDumpSnapshot()'s -D flag):")
+            improvements.sorted().forEach { println("  $it") }
+        }
+
+        assertNoRegressions(regressions)
 
         // Fail if the time to decompose the whole gold standard has drifted
         // by more than 30% -- in EITHER direction -- from the baseline last
@@ -150,7 +205,7 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         // a later slow-down is still caught. The baseline lives in an
         // uncommitted JSON file under the build tree (see AssertRuntime); the
         // first run after a checkout or `./gradlew clean` just records it and
-        // passes. This does not touch the accuracy histogram above.
+        // passes. This does not touch the accuracy metrics above.
         //
         // The operation name is analyzer-specific: this test method is
         // declared on the abstract base, so every subclass shares one
@@ -173,183 +228,142 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         }
     }
 
-    private fun printPerformanceStats() {
-        println()
-        printCorrectFoundStats()
-        printOutcomeHistogram("Histogram of EXPECTED outcome types", expOutcomeHist)
-        printOutcomeHistogram("Histogram of ACTUAL outcome types", gotOutcomeHist)
-    }
+    /** Aggregates the 4 metrics across the whole run for printing. */
+    private class AccuracyMetricsAccumulator {
+        private var recallSum = 0.0
+        private var recallCount = 0
+        private var precisionSum = 0.0
+        private var precisionCount = 0
+        private var noOutputCount = 0
+        private var referencePresentCount = 0
+        private var totalWords = 0
+        private val topNCounts = IntArray(5)
 
-    private fun printCorrectFoundStats() {
-        val totalWords = gotOutcomeHist.totalOccurences()
-
-        // Words where decomps were produced, but they were all incorrect
-        val totalNotPresent = gotOutcomeHist.frequency(OutcomeType.CORRECT_NOT_PRESENT)
-
-        // Words where no decomps were produced at all
-        val totalNoDecomps = gotOutcomeHist.frequency(OutcomeType.NO_DECOMPS)
-
-        // Words where decomps were produced, and one of them was correct
-        val totalCorrectPresent = totalWords - (totalNoDecomps + totalNotPresent)
-        val correctRate = 1.0 * totalCorrectPresent / totalWords
-
-        println(
-            "\nWords with correct decomp found: $totalCorrectPresent/$totalWords (rate: $correctRate)"
-        )
-    }
-
-    private fun printOutcomeHistogram(title: String, outcomeHist: FrequencyHistogram<OutcomeType>) {
-        echo("\n== $title ==\n")
-
-        echo("Cases with:")
-        echo(
-            "  First decomposition is correct            : " +
-                "${outcomeHist.frequency(OutcomeType.SUCCESS)} (${outcomeHist.relativeFrequency(OutcomeType.SUCCESS, 1)})"
-        )
-        echo(
-            "  Corr. decomp. not in 1st place            : " +
-                "${outcomeHist.frequency(OutcomeType.CORRECT_NOT_FIRST)} (${outcomeHist.relativeFrequency(OutcomeType.CORRECT_NOT_FIRST, 1)})"
-        )
-        echo(
-            "  Some decomps produced but not correct one : " +
-                "${outcomeHist.frequency(OutcomeType.CORRECT_NOT_PRESENT)} (${outcomeHist.relativeFrequency(OutcomeType.CORRECT_NOT_PRESENT, 1)})"
-        )
-        echo(
-            "  No decomps produced at all                : " +
-                "${outcomeHist.frequency(OutcomeType.NO_DECOMPS)} (${outcomeHist.relativeFrequency(OutcomeType.NO_DECOMPS, 1)})"
-        )
-    }
-
-    private fun assertOutcomesHaveNotChangedSignificantly(outcomeDifferences: Map<String, String>) {
-        var failMess = significantChangesMessage()
-
-        if (failMess.isNotEmpty() && outcomeDifferences.isNotEmpty()) {
-            val nDiff = outcomeDifferences.keys.size
-
-            val failingWords = outcomeDifferences.keys.sorted()
-
-            failMess += "Below are the $nDiff words for which there were differences between the expected and achieved outcome.\n"
-            for (word in failingWords) {
-                failMess +=
-                    "\n---------------------------------------\n\n" +
-                        "Word: $word\n" +
-                        "    " +
-                        outcomeDifferences.getValue(word).replace("\n", "\n    ")
+        fun add(matched: Int, produced: Int, allCorrectCount: Int, referenceRank: Int?) {
+            totalWords++
+            if (allCorrectCount > 0) {
+                recallSum += matched.toDouble() / allCorrectCount
+                recallCount++
+            }
+            if (produced > 0) {
+                precisionSum += matched.toDouble() / produced
+                precisionCount++
+            } else {
+                noOutputCount++
+            }
+            if (referenceRank != null) {
+                referencePresentCount++
+                for (n in 1..5) {
+                    if (referenceRank < n) topNCounts[n - 1]++
+                }
             }
         }
-        if (failMess.isNotEmpty()) {
-            fail(failMess)
-        }
-    }
 
-    private fun significantChangesMessage(): String {
-        var mess = ""
+        fun print() {
+            fun pct(x: Double) = "%.1f%%".format(x * 100)
 
-        try {
-            val gotValue = 1.0 * gotOutcomeHist.frequency(OutcomeType.NO_DECOMPS)
-            val expValue = 1.0 * expOutcomeHist.frequency(OutcomeType.NO_DECOMPS)
-            val tolerance = expValue * expectations.tolerance_NO_DECOMPS
-            AssertNumber.performanceHasNotChanged(
-                "Words that do not produce any decomps",
-                gotValue, expValue, tolerance, false
+            println()
+            println("== Accuracy metrics (macro-averaged where noted) ==\n")
+            println("Recall    (macro-avg over $recallCount words) : ${pct(if (recallCount > 0) recallSum / recallCount else 0.0)}")
+            println(
+                "Precision (macro-avg over $precisionCount words with output; " +
+                    "$noOutputCount produced nothing) : ${pct(if (precisionCount > 0) precisionSum / precisionCount else 0.0)}"
             )
-        } catch (e: AssertionError) {
-            mess += "\n" + e.message
-        }
-
-        try {
-            val gotValue = 1.0 * gotOutcomeHist.frequency(OutcomeType.CORRECT_NOT_PRESENT)
-            val expValue = 1.0 * expOutcomeHist.frequency(OutcomeType.CORRECT_NOT_PRESENT)
-            val tolerance = expValue * expectations.tolerance_CORRECT_NOT_PRESENT
-            AssertNumber.performanceHasNotChanged(
-                "Words that do not produce any decomps",
-                gotValue, expValue, tolerance, false
+            println(
+                "Reference decomp present anywhere    : $referencePresentCount/$totalWords " +
+                    "(${pct(if (totalWords > 0) referencePresentCount.toDouble() / totalWords else 0.0)})"
             )
-        } catch (e: AssertionError) {
-            mess += "\n" + e.message
+            println("Reference decomp in top-N:")
+            for (n in 1..5) {
+                println("  N=$n: ${topNCounts[n - 1]}/$totalWords (${pct(if (totalWords > 0) topNCounts[n - 1].toDouble() / totalWords else 0.0)})")
+            }
         }
-
-        try {
-            val gotValue = 1.0 * gotOutcomeHist.frequency(OutcomeType.CORRECT_NOT_FIRST)
-            val expValue = 1.0 * expOutcomeHist.frequency(OutcomeType.CORRECT_NOT_FIRST)
-            val tolerance = expValue * expectations.tolerance_CORRECT_NOT_FIRST
-            AssertNumber.performanceHasNotChanged(
-                "Words where the first decomp is not correct",
-                gotValue, expValue, tolerance, false
-            )
-        } catch (e: AssertionError) {
-            mess += "\n" + e.message
-        }
-
-        return mess
     }
 
     private fun checkOutcome(
         word: String,
         gotOutcome: AnalysisOutcome,
+        caseData: AnalyzerCase,
+        allCorrectSet: Set<String>,
         expectations: MorphAnalCurrentExpectationsAbstract,
-        goldStandard: MorphAnalGoldStandardAbstract,
-        outcomeDiffs: MutableMap<String, String>,
+        metrics: AccuracyMetricsAccumulator,
+        regressions: MutableMap<String, String>,
+        improvements: MutableList<String>,
+        liveByWord: MutableMap<String, WordExpectation>,
     ) {
-        val expOutcomeType = expectations.expectedOutcome(word)
-        expOutcomeHist.updateFreq(expOutcomeType)
-
-        val correctDecomps = goldStandard.correctDecomps(word)
+        val referenceDecomps = caseData.correctDecomps
             ?.map { normalizeGoldDecompForComparison(it) }
             ?.toTypedArray()
-        val gotOutcomeType = expectations.type4outcome(gotOutcome, correctDecomps)
-        gotOutcomeHist.updateFreq(gotOutcomeType)
 
-        if (gotOutcomeType != expOutcomeType) {
-            val diffMess = diffMessage(expOutcomeType, gotOutcomeType, gotOutcome, correctDecomps)
-            logOutcomeDifference(word, diffMess, outcomeDiffs)
+        val producedSet = gotOutcome.producedSet()
+        val matched = producedSet.count { it in allCorrectSet }
+        val referenceRank = gotOutcome.decompRank(referenceDecomps)
+
+        metrics.add(matched, producedSet.size, allCorrectSet.size, referenceRank)
+
+        val live = WordExpectation(matched, producedSet.size, referenceRank)
+        liveByWord[word] = live
+        val expected = expectations.expectedFor(word, allCorrectSet.size)
+
+        if (live != expected) {
+            if (expectations.isRegression(live, expected)) {
+                regressions[word] = regressionMessage(word, live, expected, gotOutcome, referenceDecomps)
+            } else {
+                improvements += "$word (snapshot: $expected, now: $live)"
+            }
         }
     }
 
-    private fun diffMessage(
-        expOutcomeType: OutcomeType,
-        gotOutcomeType: OutcomeType,
+    private fun regressionMessage(
+        word: String,
+        live: WordExpectation,
+        expected: WordExpectation,
         gotOutcome: AnalysisOutcome,
-        correctDecomps: Array<String>?,
+        referenceDecomps: Array<String>?,
     ): String {
-        var mess = ""
-        val improved = gotOutcomeType.compareTo(expOutcomeType) > 0
-
-        if (improved) {
-            mess += "GOOD NEWS\n"
-            mess += improvementMessage(expOutcomeType)
-        } else {
-            mess += "BAD NEWS\n"
-            mess += worseningMessage(expOutcomeType)
-            mess += currentStateMessage(gotOutcome, correctDecomps)
-        }
-
-        return mess
-    }
-
-    private fun currentStateMessage(gotOutcome: AnalysisOutcome, correctDecomps: Array<String>?): String {
-        return "\n" +
-            "Correct decomps :\n  ${correctDecomps?.joinToString("\n  ")}\n" +
+        return "Snapshot expected $expected, got $live\n" +
+            "Reference decomps :\n  ${referenceDecomps?.joinToString("\n  ")}\n" +
             "Got decomps:\n${gotOutcome.joinDecomps()}"
     }
 
-    private fun worseningMessage(expOutcomeType: OutcomeType): String {
-        return when (expOutcomeType) {
-            OutcomeType.SUCCESS -> "First decomposition used to be correct"
-            OutcomeType.CORRECT_NOT_FIRST -> "Correct decompositions used to be somewhere in the list"
-            else -> ""
+    /** Dev-time convenience: pass -Diutools.accuracy.dumpSnapshot=true to
+     * print ready-to-paste expect(...) calls for every word that deviates
+     * from the "perfect" default, for regenerating the snapshot file
+     * wholesale after a real, reviewed change in analyzer behavior. Not a
+     * standalone tool -- no regeneration automation existed before this, and
+     * hand-transcribing 3 integers per word from a failure message is
+     * error-prone, hence this. */
+    private fun maybeDumpSnapshot(
+        liveByWord: Map<String, WordExpectation>,
+        allCorrectByWord: Map<String, Set<String>>,
+        expectations: MorphAnalCurrentExpectationsAbstract,
+    ) {
+        if (System.getProperty("iutools.accuracy.dumpSnapshot") == null) return
+
+        println("\n==== GENERATED expect(...) calls " +
+            "(paste into ${expectations::class.simpleName}.initMorphAnalCurrentExpectations()) ====")
+        var listed = 0
+        for (word in liveByWord.keys.sorted()) {
+            val live = liveByWord.getValue(word)
+            val allCorrectCount = allCorrectByWord[word]?.size ?: 0
+            val perfect = WordExpectation(matched = allCorrectCount, produced = allCorrectCount, referenceRank = 0)
+            if (live != perfect) {
+                println("""expect("$word", matched = ${live.matched}, produced = ${live.produced}, referenceRank = ${live.referenceRank})""")
+                listed++
+            }
         }
+        println("==== end ($listed words listed; ${liveByWord.size - listed} at perfect defaults omitted) ====\n")
     }
 
-    private fun improvementMessage(expOutcomeType: OutcomeType): String {
-        return when (expOutcomeType) {
-            OutcomeType.CORRECT_NOT_FIRST -> "Correct decomposition is now first in the list."
-            else -> ""
-        }
-    }
+    private fun assertNoRegressions(regressions: Map<String, String>) {
+        if (regressions.isEmpty()) return
 
-    private fun logOutcomeDifference(word: String, diffMess: String, outcomeDifferences: MutableMap<String, String>) {
-        outcomeDifferences[word] = diffMess
+        var failMess = "${regressions.size} word(s) regressed vs. their snapshot expectation.\n"
+        for (word in regressions.keys.sorted()) {
+            failMess += "\n---------------------------------------\n\n" +
+                "Word: $word\n    " + regressions.getValue(word).replace("\n", "\n    ")
+        }
+        fail(failMess)
     }
 
     private fun skipCase(caseData: AnalyzerCase, focusOnWord: String?): Boolean {
@@ -378,9 +392,5 @@ abstract class MorphologicalAnalyzer__AccuracyTest {
         }
 
         return outcome
-    }
-
-    private fun echo(mess: String) {
-        println(mess)
     }
 }

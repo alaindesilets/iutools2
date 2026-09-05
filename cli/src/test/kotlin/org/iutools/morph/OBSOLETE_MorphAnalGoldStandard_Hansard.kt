@@ -1,6 +1,17 @@
 package org.iutools.morph
 
+/**
+ * OBSOLETE: this class's data has been exported to
+ * data/grammar/gold-standard/gold-standard.csv (see export_gold_standard.py
+ * in that directory). MorphologicalAnalyzer_R2L__AccuracyTest reads the CSV
+ * directly (via MorphAnalGoldStandard_Hansard_FromCsv) instead; this class
+ * is kept only as export_gold_standard.py's hand-authored input, and as the
+ * default gold standard for analyzers (currently just FST) not yet
+ * switched to the CSV.
+ */
 class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
+
+    override fun sourceName(): String = "hansard"
 
     override fun initCases() {
         addCase(AnalyzerCase("Haammalakkut", arrayOf("{Haammala:Haammalat/1n}{kkut:kkut/1nn}")));
@@ -253,7 +264,23 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		* pour l’instant, taggons le comme possiblyMisspelled()
 //
         addCase(AnalyzerCase("iksivautaaq", null)
-                .possiblyMisspelledWord());
+                .possiblyMisspelledWord()
+                .comment("iksivautaaq: frequency: 15140 -- and its variants 'itsivautaaq' (2571), " +
+                        "'issivautaaq' (1941). This word (frequency: 15140) is always used to address " +
+                        "the person who is the 'Mr. Speaker'. In the same context, we also find the " +
+                        "forms 'iksivautaq' (29893), 'itsivautaq' (4381), 'issivautaq' (2733), " +
+                        "'iksivautaa' (2493), 'itsivautaa' (787), 'issivautaa' (104). " +
+                        "The 'utaq' form is by far much more frequent than the 'utaaq' and 'utaa' " +
+                        "forms, and is analyzed with, as its last morpheme, the morpheme 'ut', one of " +
+                        "whose forms is 'utaq'. " +
+                        "The 'utaaq' and 'utaa' forms are in fact the same form 'utaaq' where the 'q' " +
+                        "in the 2nd form was dropped -- a very common phenomenon: a word's final " +
+                        "consonant is often not written. But how to explain this 'utaaq' form with a " +
+                        "double 'a'? I believe the double 'a' comes from the address context: in this " +
+                        "context one uses a 'vocative' form, which normally takes the dual form -- " +
+                        "dropping the final consonant, lengthening (doubling) the vowel, and adding " +
+                        "'k'. In these cases, there is no 'k'. Is that an error? I don't know. " +
+                        "(2020-04, BF)"));
         addCase(AnalyzerCase("iksivautap", arrayOf("{iksiva:iksiva/1v}{uta:ut/1vn}{p:up/tn-gen-s}"))
                 .isMisspelled());
         addCase(AnalyzerCase("iksivautaq", arrayOf("{iksiva:iksiva/1v}{utaq:ut/1vn}")));
@@ -338,7 +365,30 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //				de la même façon que "taimaimmat", qui est effectivement analysé avec succès par l'analyseur :
 //				{taima:taima/1a}{im:it/3nv}{mat:mat/tv-caus-4s}
 //				Pour l'instant, "imaimmat" ne sera pas décomposé parce que la forme "ima" n'est pas connue. "taima" est un adverbe dans la base de données qui signifie 1) "so", "therefore" 2) "That's it! It's finished!", "Enough! Stop!". Je suppose qu'on pourrait ajouter la forme "ima" en parallèle à "taima", mais comme j'ai dit, les adverbes, c'est compliqué, j'avais l'intention de revisiter ça après avoir réétudié ça, mais jamais eu le temps.
-        addCase(AnalyzerCase("imaimmat", arrayOf("{ima:ima/1a}{im:it/3nv}{mat:mat/tv-caus-4s}")));
+        addCase(AnalyzerCase("imaimmat", arrayOf("{ima:ima/1a}{im:it/3nv}{mat:mat/tv-caus-4s}"))
+                .comment("imaimmat: Frequency = 229, \"whereas\", \"as it is\". It's complicated, as is " +
+                        "everything involving adverbs. Spalding has an entry \"imannaittuq\" meaning " +
+                        "\"one like this (as shown)\". This word is based on the root \"imanna\", with " +
+                        "what I believe is the suffix \"it\", and finally the suffix \"juq/tuq\". " +
+                        "Related to it are the word \"imaittuq\", used in South Baffin and East Coast " +
+                        "Hudson Bay, and the word \"tamainnaittuq\" (same meaning). \"ima\" would be a " +
+                        "form of \"imanna\". There is also an entry \"taimaittuq\" meaning \"it is like " +
+                        "that\" or \"one like that (which is shown)\", associated with \"imaittuq\". " +
+                        "\"ta\" is a \"prefix\", unique of its kind in Inuktitut, placed before " +
+                        "adverbs. It has a specific meaning whose details I no longer remember. There " +
+                        "are always pairs of \"X\" and \"taX\", like \"ima\" and \"taima\", \"imanna\" " +
+                        "and \"taimanna\". The word \"imaimmat\" is, in my view, the same thing: " +
+                        "ima + it + mat, where \"mat\" is a verbal ending [remember that \"juq/tuq\" " +
+                        "is both a suffix AND a verbal ending]. I think we should define this word's " +
+                        "decomposition as follows: {ima:ima/1a}{im:it/3nv}{mat:mat/tv-caus-4s}, the " +
+                        "same way as \"taimaimmat\", which the analyzer does successfully decompose: " +
+                        "{taima:taima/1a}{im:it/3nv}{mat:mat/tv-caus-4s}. For now, \"imaimmat\" won't " +
+                        "be decomposed because the form \"ima\" isn't known. \"taima\" is an adverb in " +
+                        "the database meaning 1) \"so\", \"therefore\" 2) \"That's it! It's " +
+                        "finished!\", \"Enough! Stop!\". I suppose we could add the form \"ima\" in " +
+                        "parallel to \"taima\", but as I said, adverbs are complicated -- I meant to " +
+                        "come back to this after studying it further, but never had the time. " +
+                        "(2020-04, BF)"));
 
         addCase(AnalyzerCase("imanna", arrayOf("{imanna:imannak/1a}")));
         addCase(AnalyzerCase("imannak", arrayOf("{imannak:imannak/1a}")));
@@ -373,7 +423,16 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		Pour le moment, on le taggue comme decomposition unknown
 //
         addCase(AnalyzerCase("inuinnaqtun", arrayOf("[decomposition:/inuinnaqtun(inuinnaqtun)/]"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("inuinnaqtun: This is the name of the dialect spoken in western Nunavut. It " +
+                        "breaks down as inu + innaq + tun, where 'tun' corresponds to the 'tut' used " +
+                        "elsewhere; it's common to find 'n' at the end of words instead of 't'. This " +
+                        "word is the base for several other words. I'm not sure yet what to do with " +
+                        "this word: add it as-is to the database, but under what part of speech? It's " +
+                        "not a noun, it's not a verb. Maybe in the CommonCompositeWords.csv file, " +
+                        "with 'inuinnaqtut' in the 'morpheme' field and 'inuinnaqtun' in the " +
+                        "'variant' field; worth trying. For now, tagging it as decomposition unknown. " +
+                        "(2020-04, BF)"));
         addCase(AnalyzerCase("inuit", arrayOf("{inu:inuk/1n}{it:it/tn-nom-p}")));
         addCase(AnalyzerCase("inuk", arrayOf("{inuk:inuk/1n}")));
         addCase(AnalyzerCase("inuki", arrayOf("[decomposition:/inuki(inuki)/]"))
@@ -428,14 +487,15 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("issivautaa", arrayOf("{issiva:iksiva/1v}{uta:ut/1vn}{a:k/tn-nom-d}")));
         addCase(AnalyzerCase("issivautaaq", arrayOf(""))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'iksivautaaq'"));
         addCase(AnalyzerCase("issivautaq", arrayOf("{issiva:iksiva/1v}{utaq:ut/1vn}")));
         addCase(AnalyzerCase("isumagillugu", arrayOf("{isuma:isuma/1n}{gi:gi/1nv}{llugu:lugu/tv-part-1s-3s-prespas}")));
         addCase(AnalyzerCase("itsivauta", arrayOf("{itsiva:iksiva/1v}{uta:ut/1vn}")));
         addCase(AnalyzerCase("itsivautaa", arrayOf("{itsiva:iksiva/1v}{uta:ut/1vn}{a:k/tn-nom-d}")));
         addCase(AnalyzerCase("itsivautaaq", null)
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; [decomposition:/itsiva(iksiva)/utaaq(ut)/]"));
+                .comment("See comment for 'iksivautaaq'. Possible decomposition sketch: " +
+                        "[decomposition:/itsiva(iksiva)/utaaq(ut)/]"));
         addCase(AnalyzerCase("itsivautaq", arrayOf("{itsiva:iksiva/1v}{utaq:ut/1vn}")));
         addCase(AnalyzerCase("ivvit", arrayOf("{ivvit:igvit/1p}")));
         addCase(AnalyzerCase("jaak", arrayOf("[decomposition:/jaak(jaak)/]"))
@@ -499,7 +559,14 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //
         addCase(AnalyzerCase("katimajit", arrayOf("{kati:kati/1v}{ma:ma/1vv}{ji:ji/1vn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment"));
+                .comment("katimajit: (frequency: 189) the word should be 'katimajiit' (frequency: " +
+                        "2767). This is the phenomenon whereby the plural, which should normally be " +
+                        "'it', is rendered as 't', without the 'i'. I don't know what to do with this " +
+                        "phenomenon, which is why I marked the word with @. I recently found " +
+                        "information about the i-less plural that would explain its absence in words " +
+                        "ending with the morpheme 'ksaq'. But I need to study this further. Same " +
+                        "thing for: maligaliuqtit, pigiaqtitat, piliriaksat, piqujaksat, uqausiksat. " +
+                        "For now, let's tag it as possiblyMisspelled() (2020-04, BF)"));
         addCase(AnalyzerCase("katimajiujut", arrayOf("{kati:kati/1v}{ma:ma/1vv}{ji:ji/1vn}{u:u/1nv}{jut:jut/tv-ger-3p}")));
         addCase(AnalyzerCase("katimajiuqataujut", arrayOf("{kati:kati/1v}{ma:ma/1vv}{ji:ji/1vn}{u:u/1nv}{qatau:qatau/1vv}{jut:jut/tv-ger-3p}")));
         addCase(AnalyzerCase("katimajjutiksait", arrayOf("{kati:kati/1v}{ma:ma/1vv}{jjuti:jjut/1vn}{ksa:ksaq/1nn}{it:it/tn-nom-p}")));
@@ -526,7 +593,15 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		côté dans l’analyse morphologique, de là le correctDecompUnknown().
 //
         addCase(AnalyzerCase("katimmajjutiksaq", arrayOf("{kati:kati/1v}{mma:ma/1v}{jjuti:jjut/1vn}{ksaq:ksaq/1nn}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("katimmajjutiksaq: (frequency: 514) the word is based on the root 'katima'. " +
+                        "There is a variant 'katimajjutiksaq' with a frequency of 2782. The only way " +
+                        "I can explain the 2nd 'm' is the phenomenon of 'inchoativity', which " +
+                        "consists of doubling the final consonant of a verbal root. 'Inchoative' " +
+                        "roughly means 'to begin to be, to happen'. As I understand it, this doesn't " +
+                        "apply to all verbal roots, so until I know more about the topic, I've " +
+                        "decided to leave it out of the morphological analysis -- hence the " +
+                        "correctDecompUnknown(). (2020-04, BF)"));
         addCase(AnalyzerCase("katitsutik", arrayOf("{katit:katit/1v}{sutik:lutik/tv-part-3p-prespas}")));
         addCase(AnalyzerCase("katittugit", arrayOf("{katit:katit/1v}{tugit:lugit/tv-part-4p-3p-prespas}")));
         addCase(AnalyzerCase("kattuk", arrayOf("[decomposition:/kattuk(kattuk)/]"))
@@ -559,7 +634,11 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //
         addCase(AnalyzerCase("kiinaujatigut", arrayOf("{kiinauja:kiinaujaq/1n}{tigut:tigut/tn-via-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment;"));
+                .comment("kiinaujatigut: frequency: 1152. Variant 'kiinaujaqtigut': frequency 108. " +
+                        "As far as I know, there should be a 'q' before 'tigut', but this form is " +
+                        "encountered more often than the one I would have thought correct. So: I " +
+                        "don't know -- yet -- what to do with this, hence the possiblyMisspelledWord. " +
+                        "Same thing for: maligatigut, qallunaatitut. (2020-04, BF)"));
         addCase(AnalyzerCase("kikkulimaanut", arrayOf("{kikku:kikkut/1p}{limaa:limaaq/1nn}{nut:nut/tn-dat-p}")));
         addCase(AnalyzerCase("kikkulimaat", arrayOf("{kikku:kikkut/1p}{limaa:limaaq/1nn}{t:it/tn-nom-p}")));
         addCase(AnalyzerCase("kikkut", arrayOf("{kikkut:kikkut/1p}")));
@@ -655,7 +734,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("maligaliuqtinut", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{liuq:liuq/1nv}{ti:ji/1vn}{nut:nut/tn-dat-p}")));
         addCase(AnalyzerCase("maligaliuqtit", arrayOf("{maliga:maligaq/1n}{liuq:liuq/1nv}{ti:ji/1vn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'katimajit'"));
         addCase(AnalyzerCase("maligaliuqtiujuq", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{liuq:liuq/1nv}{ti:ji/1vn}{u:u/1nv}{juq:juq/1vn}")));
         addCase(AnalyzerCase("maligaliuqtiujut", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{liuq:liuq/1nv}{ti:ji/1vn}{u:u/1nv}{jut:jut/tv-ger-3p}")));
         addCase(AnalyzerCase("maligaliuqtiup", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{liuq:liuq/1nv}{ti:ji/1vn}{up:up/tn-gen-s}")));
@@ -684,7 +763,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("maligassaq", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{ssaq:ksaq/1nn}")));
         addCase(AnalyzerCase("maligatigut", arrayOf("{maliga:maligaq/1n}{tigut:tigut/tn-via-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'kiinaujatigut'"));
         addCase(AnalyzerCase("maligatsait", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{tsa:ksaq/1nn}{it:it/tn-nom-p}")));
         addCase(AnalyzerCase("maligatsaq", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{tsaq:ksaq/1nn}")));
         addCase(AnalyzerCase("maligaujuq", arrayOf("{mali:malik/1v}{ga:gaq/1vn}{u:u/1nv}{juq:juq/1vn}")));
@@ -723,7 +802,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         // 2020-04, BF: Voir commentaire de 'milianik' ci-dessus.
         addCase(AnalyzerCase("milianit", arrayOf("{milia:milian/1n}{nit:nit/tn-abl-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'milianik'"));
         addCase(AnalyzerCase("minisitaujuq", arrayOf("{minisita:minista/1n}{u:u/1nv}{juq:juq/1vn}")));
         addCase(AnalyzerCase("minista", arrayOf("{minista:minista/1n}")));
         addCase(AnalyzerCase("ministaa", arrayOf("{minista:minista/1n}{a:k/tn-nom-d}")));
@@ -776,7 +855,11 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		Spalding la présente comme une alternative à « naliak » qui signifie
 //		« which one ? ».
         addCase(AnalyzerCase("nalliani", arrayOf("{nalli:nalliq/1p}{ani:ngani/tn-loc-s-4s}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("nalliani: Frequency: 132. 'any', 'some', ... The expected proposed " +
+                        "decomposition contains the root nalliq/1p. This root, which would be a " +
+                        "pronoun, does not exist in the database! Spalding presents it as an " +
+                        "alternative to 'naliak', meaning 'which one?'. (2020-04, BF)"));
         addCase(AnalyzerCase("nalunanngittuq", arrayOf("{naluna:nalunak/1v}{nngit:nngit/1vv}{tuq:juq/1vn}")));
         addCase(AnalyzerCase("namminiq", arrayOf("{namminiq:nangminiq/1n}")));
         addCase(AnalyzerCase("namminiqaqtunut", arrayOf("{nammini:nangminiq/1n}{qaq:qaq/1nv}{tu:juq/1vn}{nut:nut/tn-dat-p}")));
@@ -801,7 +884,12 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		de là le possiblyMisspelledWord().
 //
         addCase(AnalyzerCase("niqsunaqtuq", arrayOf("{niqsu:niqtuq/1v}{naq:naq/1vv}{tuq:juq/1vn}"))
-                .possiblyMisspelledWord());
+                .possiblyMisspelledWord()
+                .comment("niqsunaqtuq: 'honourable', frequency: 584. Spalding has the root 'nirtur' " +
+                        "= 'niqtuq'. The word 'niqtunaqtuq' is found 1679 times. Schneider also has " +
+                        "the form 'niqtuq'. I don't know. I've often noticed confusion between 's' " +
+                        "and 't' in Inuktitut, but I don't know what to do in this case -- hence the " +
+                        "possiblyMisspelledWord(). (2020-04, BF)"));
         addCase(AnalyzerCase("niqtunaqtuq", arrayOf("{niqtu:niqtuq/1v}{naq:naq/1vv}{tuq:juq/1vn}")));
         addCase(AnalyzerCase("niriuppugut", arrayOf("{niriup:niriuk/1v}{pugut:vugut/tv-dec-1p}")));
         addCase(AnalyzerCase("niriuppunga", arrayOf("{niriup:niriuk/1v}{punga:vunga/tv-dec-1s}")));
@@ -870,7 +958,12 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		correctDecompUnknown()
 //
         addCase(AnalyzerCase("nunnguani", arrayOf("{nunngu:nunnguq/1n}{ani:ngani/tn-loc-s-4s}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("nunnguani: 'its end'. Spalding has the verbal root 'nungut' meaning 'to be " +
+                        "used up, consumed, worn away, erased', which has a tenuous but plausible " +
+                        "link to 'end'. But 'ani' is a nominal ending, and there is no pronoun " +
+                        "'nungu...' or 'nunngu...' in either Spalding or Schneider. So I don't know " +
+                        "what to do with this, hence the correctDecompUnknown() (2020-04, BF)"));
         addCase(AnalyzerCase("nuqqaqpuq", arrayOf("{nuqqaq:nuqqaq/1v}{puq:vuq/tv-dec-3s}")));
         addCase(AnalyzerCase("nutaami", arrayOf("{nutaa:nutaaq/1n}{mi:mi/tn-loc-s}")));
         addCase(AnalyzerCase("nutaamik", arrayOf("{nutaa:nutaaq/1n}{mik:mik/tn-acc-s}")));
@@ -904,7 +997,15 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		mot « paktaqtuqtut ». Mais le mot a « paktaQ » et non
 //		« paktaK ». Je ne sais donc pas quoi faire avec ça actuellement.
         addCase(AnalyzerCase("paktaqtuqtut", arrayOf("{paktak:paktak/1v}{tuq:tuq/1vv}{tut:jut/tv-ger-3p}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("paktaqtuqtut: 'Applause', frequency: 179. Spalding has no verbal root " +
+                        "'paktak'. It does have a root 'patik' which, with the frequentative suffix " +
+                        "'taq' added, means 'to clap hands together in ovation or approval' -- which " +
+                        "is indeed applause. Schneider also has 'patik' with the same meaning, as " +
+                        "well as 'pattak' ('to slap with the palm of one's hand'). Adding the " +
+                        "frequentative 'tuq' (another form of the frequentative, equivalent to " +
+                        "'taq') could explain the word 'paktaqtuqtut'. But the word has 'paktaQ' and " +
+                        "not 'paktaK'. So I don't currently know what to do with this. (2020-04, BF)"));
         addCase(AnalyzerCase("paliisikkut", arrayOf("{paliisi:paliisi/1n}{kkut:kkut/1nn}")));
         addCase(AnalyzerCase("panniqtuumi", arrayOf("{panniqtuu:pangnirtuuq/1n}{mi:mi/tn-loc-s}")));
         addCase(AnalyzerCase("panniqtuuq", arrayOf("{panniqtuuq:pangnirtuuq/1n}")));
@@ -923,7 +1024,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("pigiaqtitaq", arrayOf("{pi:pi/1v}{giaq:giaq/1vv}{ti:tit/1vv}{taq:jaq/1vn}")));
         addCase(AnalyzerCase("pigiaqtitat", arrayOf("{pi:pi/1v}{giaq:giaq/1vv}{ti:tit/1vv}{ta:jaq/1vn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'katimajit'"));
         addCase(AnalyzerCase("pigiaqtitaujuq", arrayOf("{pi:pi/1v}{giaq:giaq/1vv}{ti:tit/1vv}{ta:jaq/1vn}{u:u/1nv}{juq:juq/1vn}")));
         addCase(AnalyzerCase("pigiarutiksanit", arrayOf("{pi:pi/1v}{gia:giaq/1vv}{ruti:ut/1vn}{ksa:ksaq/1nn}{nit:nit/tn-abl-p}")));
         addCase(AnalyzerCase("piiku", null)
@@ -946,7 +1047,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
                 .comment("Picco"));
         addCase(AnalyzerCase("piliriaksat", arrayOf("{piliria:piliriaq/1n}{ksa:ksaq/1nn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'katimajit'"));
         addCase(AnalyzerCase("piliriamik", arrayOf("{piliria:piliriaq/1n}{mik:mik/tn-acc-s}")));
         addCase(AnalyzerCase("piliriamut", arrayOf("{piliria:piliriaq/1n}{mut:mut/tn-dat-s}")));
         addCase(AnalyzerCase("piliriangujuq", arrayOf("{piliria:piliriaq/1n}{ngu:u/1nv}{juq:juq/1vn}")));
@@ -985,7 +1086,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("piqujaksaq", arrayOf("{pi:pi/1v}{qu:qu/2vv}{ja:jaq/1vn}{ksaq:ksaq/1nn}")));
         addCase(AnalyzerCase("piqujaksat", arrayOf("{pi:pi/1v}{qu:qu/2vv}{ja:jaq/1vn}{ksa:ksaq/1nn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'katimajit'"));
         addCase(AnalyzerCase("piqujaq", arrayOf("{pi:pi/1v}{qu:qu/2vv}{jaq:jaq/1vn}")));
         addCase(AnalyzerCase("pivalliatittinirmut", arrayOf("{pi:pi/1v}{vallia:vallia/1vv}{tit:tit/1vv}{ti:si/1vv}{nir:niq/2vn}{mut:mut/tn-dat-s}")));
         addCase(AnalyzerCase("pu", arrayOf("[decomposition:/pu(pu)/]"))
@@ -1009,7 +1110,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("qallunaat", arrayOf("{qallunaa:qaplunaaq/1n}{t:it/tn-nom-p}")));
         addCase(AnalyzerCase("qallunaatitut", arrayOf("{qallunaaq:qaplunaaq/1n}{titut:titut/tn-sim-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'kiinaujatigut'"));
         addCase(AnalyzerCase("qamaniqtuaq", arrayOf("{qamaniqtuaq:qamaniqjuaq/1n}")));
         addCase(AnalyzerCase("qamaniqtuarmi", arrayOf("{qamaniqtuar:qamaniqjuaq/1n}{mi:mi/tn-loc-s}")));
         addCase(AnalyzerCase("qamanittuarmi", arrayOf("{qamanittuar:qamaniqjuaq/1n}{mi:mi/tn-loc-s}")));
@@ -1031,7 +1132,12 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		deux, d'ou le correctDecompUnknown()
 //
         addCase(AnalyzerCase("qattinik", arrayOf("{qatti:qapsit/1n}{nit:nit/tn-acc-p}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("qattinik: during the contract we found that this word would actually be " +
+                        "based on the root 'qapsi', and that something would then be missing from " +
+                        "the database to explain and accept the form 'qatti' = 'qapsi'. Since I " +
+                        "don't yet know the link between the two, hence the correctDecompUnknown() " +
+                        "(2020-04, BF)"));
         addCase(AnalyzerCase("qaujigiarutit", arrayOf("{qauji:qauji/1v}{gia:giaq/1vv}{rut:ut/1vn}{it:it/tn-nom-p}")));
         addCase(AnalyzerCase("qaujigumajunga", arrayOf("{qauji:qauji/1v}{guma:juma/1vv}{junga:junga/tv-ger-1s}")));
         addCase(AnalyzerCase("qaujijumajunga", arrayOf("{qauji:qauji/1v}{juma:juma/1vv}{junga:junga/tv-ger-1s}")));
@@ -1193,7 +1299,14 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		enlever le correctDecompUnknown().
 //
         addCase(AnalyzerCase("taimannganit", arrayOf("{taimanngat:taimanngat/1a}{nit:nit/tn-abl-p}"))
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("taimannganit: 'since (then)', frequency: 203. Spalding and Schneider have " +
+                        "'taimanngat' (187 occurrences in the Hansard), an adverb. 'nit' could be the " +
+                        "plural nominal ending, but I don't see why one would add a plural nominal " +
+                        "ending to this adverb. Maybe there's an explanation: 'nit' means 'from', " +
+                        "which is related to 'since'; and the adverb's final 't' could be related to " +
+                        "the plural? Hence the @. If I could explain the link with the 'nit' ending, " +
+                        "we could remove the correctDecompUnknown(). (2020-04, BF)"));
         addCase(AnalyzerCase("taimanngat", arrayOf("{taimanngat:taimanngat/1a}")));
         addCase(AnalyzerCase("tainna", arrayOf("{tainna:taingna/pd-sc-s}")));
         addCase(AnalyzerCase("taissumani", arrayOf("{taissu:taiksu/rpd-sc-s}{mani:mani/tpd-loc-s}")));
@@ -1265,7 +1378,13 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
 //		De là le correctDecompUnknown().
 
         addCase(AnalyzerCase("titiqqak", null)
-                .correctDecompUnknown());
+                .correctDecompUnknown()
+                .comment("titiqqa...: the whole series of words starting with 'titiqqa...'. " +
+                        "titiqqat: 'document', 'petition', 'letter' -- something that is written. " +
+                        "I recently read that 'qqat' might be a plural form equivalent to 'rait' " +
+                        "(raq + it). I've never known how to handle this before. I may have a " +
+                        "solution now, but I need to study it further. Hence the " +
+                        "correctDecompUnknown(). (2020-04, BF)"));
         addCase(AnalyzerCase("titiqqakkut", null)
                 .correctDecompUnknown()
                 .comment("See comment for 'titiqqak'"));
@@ -1410,7 +1529,7 @@ class MorphAnalGoldStandard_Hansard : MorphAnalGoldStandardAbstract() {
         addCase(AnalyzerCase("uqausiksangit", arrayOf("{uqa:uqaq/1v}{usi:usiq/1vn}{ksa:ksaq/1nn}{ngit:ngit/tn-nom-p-4s}")));
         addCase(AnalyzerCase("uqausiksat", arrayOf("{uqausi:uqausiq/1n}{ksa:ksaq/1nn}{t:it/tn-nom-p}"))
                 .possiblyMisspelledWord()
-                .comment("TODO-BF: Please add a SHORT comment; "));
+                .comment("See comment for 'katimajit'"));
         addCase(AnalyzerCase("uqausilirinirmut", arrayOf("{uqa:uqaq/1v}{usi:usiq/1vn}{liri:liri/1nv}{nir:niq/2vn}{mut:mut/tn-dat-s}")));
         addCase(AnalyzerCase("uqausinga", arrayOf("{uqa:uqaq/1v}{usi:usiq/1vn}{nga:nga/tn-nom-s-4s}")));
         addCase(AnalyzerCase("uqausingit", arrayOf("{uqa:uqaq/1v}{usi:usiq/1vn}{ngit:ngit/tn-nom-p-4s}")));

@@ -1,6 +1,5 @@
 package org.iutools.morph
 
-import org.iutools.morph.MorphAnalCurrentExpectationsAbstract
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
 import org.iutools.utilities.StopWatch
 import java.util.concurrent.TimeUnit
@@ -95,7 +94,7 @@ abstract class MorphologicalAnalyzerTest {
 
         // Only use the first 100 words from the GS
         val firstNWords = 100
-        val goldStandard = MorphAnalGoldStandard_Hansard()
+        val goldStandard = MorphAnalGoldStandard_Hansard_FromCsv()
         val words = goldStandard.allWords().sorted().subList(0, firstNWords)
 
         // The analyzer keeps a process-wide decomposition cache whose key

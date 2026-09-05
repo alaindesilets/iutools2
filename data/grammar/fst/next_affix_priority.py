@@ -14,12 +14,15 @@ its decomposition is already implemented), adding that one affix would
 unlock that word immediately -- credit it. Rank unimplemented affixes by
 that marginal unlock count.
 
-"Already implemented" is derived from data/grammar/fst/histogram.py's own
-GOLD_CASES rather than hand-maintained separately: every affix key that
-appears anywhere in that curated list has a real, hand-verified working
-example backing it (that's the whole point of histogram.py), so the set
-self-updates every time a new affix's example word gets added there --
-no separate bookkeeping to keep in sync.
+"Already implemented" means: at least one gold-standard word using this
+affix is actually first-decomposition-correct against the FST right now --
+not merely present somewhere in the gold standard. Since
+data/grammar/fst/histogram.py's GOLD_CASES grew from a small hand-picked
+"this affix demonstrably works" sample to the full 919-word fair
+population (most of which the FST does NOT yet get first-decomposition-
+correct -- see histogram.py's own docstring), "appears in GOLD_CASES" no
+longer implies "confirmed working"; only actually re-running the FST and
+checking the category does.
 
 Usage (from data/grammar/fst/):
     python3 next_affix_priority.py
@@ -27,24 +30,28 @@ Usage (from data/grammar/fst/):
 from collections import Counter, defaultdict
 
 from affix_frequency import load_words, affix_key
-from histogram import GOLD_CASES, parse_gold
+from histogram import GOLD_CASES, categorize, hfst_analyses, parse_gold, parse_hfst_analysis
 
 OUTPUT_FILE = None  # printed only; rerun before each batch, not tracked as a file
 
 
 def implemented_affix_keys() -> set[str]:
     keys = set()
-    for _, gold_strings in GOLD_CASES:
-        for gold_string in gold_strings:
-            morphemes = parse_gold(gold_string)
-            for canonical, morph_id in morphemes[1:]:  # [0] is always the root
-                keys.add(affix_key(canonical, morph_id))
+    for word, gold_strings in GOLD_CASES:
+        gold_parses = [parse_gold(g) for g in gold_strings]
+        analyses = hfst_analyses(word)
+        hfst_parses = [parse_hfst_analysis(a) for a in analyses]
+        if categorize(gold_parses, hfst_parses) != "first-decomposition-correct":
+            continue
+        matched_parse = hfst_parses[0]
+        for canonical, morph_id in matched_parse[1:]:  # [0] is always the root
+            keys.add(affix_key(canonical, morph_id))
     return keys
 
 
 def main():
     implemented = implemented_affix_keys()
-    print(f"{len(implemented)} affix keys confirmed implemented (from histogram.py's GOLD_CASES)\n")
+    print(f"{len(implemented)} affix keys confirmed implemented (FST first-decomposition-correct on a gold-standard word)\n")
 
     grouped = defaultdict(list)
     for word, morphemes in load_words():
