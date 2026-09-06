@@ -182,15 +182,31 @@ the host side; agents only read it.
 - Large, exploratory, or likely-to-be-reverted work (e.g. a platform port
   that isn't finished) belongs on its own branch, not on `main` — `main`
   should stay in a state that actually builds and runs.
-- **Running a second agent in parallel (git worktrees)**: default to no
-  persistent branch. Create the second worktree detached, not on a named
-  branch — `git worktree add --detach <path> main` — so it never competes
-  for a branch name and never needs its own long-lived identity. Integrate
-  finished work from the primary worktree with `git merge <sha>` (or
-  `git cherry-pick`), or push straight from the detached worktree with
-  `git push origin HEAD:main`. Once integrated, reset that worktree to the
-  new tip of `main` (`git checkout --detach main`) rather than letting it
-  drift.
+- **Recommended workflow (a recommendation, not a rule — another dev may
+  prefer a different flow; the only hard requirement is that `main` builds
+  and stays green, and that branches don't accumulate):**
+  - **One task = one commit.** Grow it as the work progresses with
+    `git commit --amend --no-edit` (drop `--no-edit` to refine the
+    message). Don't let a stack of unpushed commits build up — several
+    unpushed commits almost always means one task, which should be one
+    amended commit.
+  - **Ship each task as it finishes:** `git pull --rebase origin main`,
+    re-run the regression gate on the updated base, then `git push`. If
+    the push is rejected, repeat. `main` is the trunk; no feature branch,
+    no PR step. (An AI agent still confirms before `git push` unless Alain
+    has said to push freely for this stretch of work.)
+- **Two agents in parallel:** each runs in its **own independent clone**,
+  both on `main`; `origin` is the only channel between them. Because every
+  commit is pushed as above, an agent that needs the other's work just
+  `git pull --rebase origin main` — there is nothing unpushed to chase.
+  No git worktrees (two worktrees can't both hold `main`, and a worktree
+  straddling the devcontainer boundary is fragile — see the
+  `project_workspace_is_linked_git_worktree` memory), no cross-clone
+  `sibling` remotes. Give the two agents **disjoint scopes** (e.g. one on
+  `:composeApp`, one on `:core` / FST / `data/grammar`) so their commits
+  rarely touch the same files; if cross-agent conflicts are frequent, fix
+  the scoping, not the git flow. Full setup:
+  `doc/dev/plans/agent-parallelism-two-clones.md`.
   - **Exception**: genuinely experimental work whose outcome is still
     uncertain (e.g. the FST prototype in its early days) does warrant a
     real named branch — that's what named branches are for. When creating

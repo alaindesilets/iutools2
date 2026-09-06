@@ -45,5 +45,6 @@ Current plans:
   corpus usage, feeding the Morpheme Dictionary "good example words" gate.
 - [`agent-parallelism-two-clones.md`](agent-parallelism-two-clones.md) --
   retire the container's linked `git worktree`; run each parallel agent in
-  its own independent clone, both on `main`, integrating via `origin` (or
-  a local-path `sibling` remote for exchange without GitHub).
+  its own independent clone, both on `main`, one amended commit per task,
+  every commit pushed (fetch+rebase, gate, push) so `origin` is the only
+  exchange channel.

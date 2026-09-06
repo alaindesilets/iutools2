@@ -25,13 +25,13 @@
     "--cap-add=NET_RAW",
     "--platform=linux/amd64",
     // Derive the container name from the opened folder rather than leaving
-    // it random. This also means each git worktree of this project (opened
+    // it random. This also means each git clone of this project (opened
     // in its own VS Code window/container) gets its own uniquely-named
     // container automatically, so they can run side by side without a name
     // collision — Docker refuses two containers sharing one name.
     "--name", "${localWorkspaceFolderBasename}-claude-sandbox"
   ],
-  "postCreateCommand": "npm install --prefix /home/vscode/.claude/local @anthropic-ai/claude-code@latest",
+  "postCreateCommand": "npm install --prefix /home/vscode/.claude/local @anthropic-ai/claude-code@latest && git config core.hooksPath hooks",
   "remoteEnv": {
     "PATH": "/home/vscode/.claude/local/node_modules/.bin:${containerEnv:PATH}"
   },
@@ -52,10 +52,10 @@
   "mounts": [
     // Named with a fixed per-project slug ("iutools-mobile") rather than
     // "-${devcontainerId}": devcontainerId is derived from the opened
-    // folder's path, so every git worktree would otherwise get its own
+    // folder's path, so every git clone would otherwise get its own
     // separate volume and have to re-authenticate Claude Code, lose shell
     // history, or re-download the Gradle/Android SDK caches. A fixed name
-    // means all worktrees of this project share these across their
+    // means all clones of this project share these across their
     // separate containers.
     "source=iutools-mobile-claude-code-bashhistory,target=/commandhistory,type=volume",
     "source=iutools-mobile-claude-code-config,target=/home/vscode/.claude,type=volume",
@@ -69,16 +69,12 @@
     // container's mount point; the files are still normal, freely editable
     // files on the host.
     "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly",
-    // Running multiple agents in parallel via git worktrees (see the
-    // README section of the same name)? A worktree's .git is just a text
-    // file pointing at an absolute host path inside the MAIN repo's .git
-    // (e.g. "gitdir: /Users/you/Documents/iutools-mobile/.git/worktrees/wt1"),
-    // which isn't visible inside the container since only /workspace is
-    // mounted — every git command in the worktree fails with "fatal: not a
-    // git repository: (null)" otherwise. Fix: bind the main repo's .git
-    // into the container at that SAME absolute path, so git resolves it
-    // correctly regardless of which worktree is currently open.
-    "source=${localWorkspaceFolder}/../iutools2/.git,target=${localWorkspaceFolder}/../iutools2/.git,type=bind,consistency=cached"
+    // Shared, read-only reference data managed by Alain on the host: the
+    // recovered Living Dictionary, the gov.nu.ca crawl, raw .bak / corpus
+    // archives. Read-only so an agent can't clobber it and can't leak it
+    // into git in place; see AGENTS.md "Shared reference data (/shared)".
+    "source=${localEnv:HOME}/iutools-agent-shared/ref,target=/shared/ref,type=bind,readonly"
+
   ],
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
