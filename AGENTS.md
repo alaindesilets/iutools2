@@ -143,6 +143,29 @@ but the equivalent concern here is the linguistic data (CSV files under
   purpose, that's a real finding to report, not something to quietly paper
   over by editing the fixture.
 
+## Shared reference data (`/shared`)
+
+Large, private, or licensed material that several agents need but that must
+**never** enter git lives on a host directory mounted into the containers,
+**read-only**, at `/shared/ref`: the recovered Nunavut Living Dictionary,
+the gov.nu.ca crawl, raw `.bak` / corpus archives. Alain populates it from
+the host side; agents only read it.
+
+- **Never `git add` anything copied out of `/shared`.** The
+  `hooks/pre-commit` guard (enable with `git config core.hooksPath hooks`;
+  the agent devcontainers do this automatically) rejects staged files that
+  are over 5 MiB or whose content fingerprints as one of these datasets,
+  and `.gitignore` covers the obvious paths. `git commit --no-verify`
+  bypasses the hook — don't, unless you have confirmed it is a false
+  positive.
+- There is **no agent-writable shared space** by design. To hand a non-git
+  file to another agent, ask Alain to place it on `/shared`.
+- Rights: most of the recovered Living Dictionary is drawn from
+  copyrighted third-party dictionaries (only the Schneider subset is
+  licensed). Treat it as *look-but-don't-incorporate* — it may inform your
+  own judgement, but its content does not go into iutools2 code, data, or
+  prompts. See `doc/dev/plans/offline-dictionary.md` → "Rights".
+
 ## Git History
 
 - Commit messages should focus on the PURPOSE of the commit, not the HOW.

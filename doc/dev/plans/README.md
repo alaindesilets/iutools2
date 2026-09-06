@@ -43,3 +43,7 @@ Current plans:
   over the top ~10k Hansard word forms: pre-computed Guess Meaning plus a
   per-decomposition annotation of whether it matches a real bilingual
   corpus usage, feeding the Morpheme Dictionary "good example words" gate.
+- [`agent-parallelism-two-clones.md`](agent-parallelism-two-clones.md) --
+  retire the container's linked `git worktree`; run each parallel agent in
+  its own independent clone, both on `main`, integrating via `origin` (or
+  a local-path `sibling` remote for exchange without GitHub).

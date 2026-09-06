@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# pre-commit: keep large / private / licensed data out of git history.
+#
+# Guards the reference material that lives read-only under /shared/ref in the
+# agent containers -- the recovered Living Dictionary, the gov.nu.ca crawl,
+# raw .bak / corpus archives, etc. Nothing copied out of /shared may be
+# committed. See AGENTS.md "Shared reference data (/shared)".
+#
+# Enable once per clone:      git config core.hooksPath hooks
+# Deliberate override:        git commit --no-verify   (be certain -- see below)
+
+set -u
+
+max_bytes=$((5 * 1024 * 1024))   # 5 MiB per file
+
+# Content fingerprints of datasets that must never be committed.
+# Add patterns here as new private sources arrive (e.g. the gov.nu.ca crawl,
+# once its on-disk shape is known).
+patterns='syndeo_Items|syndeo_DataBlocks|syndeo_Datasources|syndeo_dr_[A-Za-z]|DSV_KEY_[0-9]|ld2bak02|livingDictionary2|Schneider\. Ulirnaisigutiit|Dorais\. 1000 (Inuit Words|Mots Inuit)|Inuktitut Dictionary: Tununiq Dialect|term_pk,language,name|def_pk,language,text'
+
+fail=0
+while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+  # don't scan the hooks themselves -- this file lists the fingerprints
+  case "$f" in hooks/*) continue ;; esac
+
+  bytes=$(wc -c < "$f" | tr -d ' ')
+  if [ "${bytes:-0}" -gt "$max_bytes" ]; then
+    printf 'BLOCKED  >5 MiB         %s\n' "$f" >&2
+    fail=1
+    continue
+  fi
+
+  # -I: skip binary files (already size-capped, so scanning the whole file is cheap)
+  if LC_ALL=C grep -I -q -E "$patterns" -- "$f"; then
+    printf 'BLOCKED  private data    %s\n' "$f" >&2
+    fail=1
+  fi
+done < <(git diff --cached -z --name-only --diff-filter=ACM)
+
+if [ "$fail" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+Refusing this commit. A staged file is either larger than 5 MiB or looks
+like private / licensed reference data (recovered Living Dictionary,
+gov.nu.ca crawl, raw .bak, ...). That material stays read-only under
+/shared/ref and must never enter git -- see AGENTS.md "Shared reference
+data (/shared)".
+
+  - genuine false positive -> narrow the pattern in hooks/pre-commit
+  - a real large build artifact -> add it to .gitignore
+  - you are certain this is fine -> git commit --no-verify
+EOF
+  exit 1
+fi
+exit 0

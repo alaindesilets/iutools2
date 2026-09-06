@@ -61,3 +61,13 @@ local.properties
 # Python bytecode cache (data/grammar/fst/*.py)
 __pycache__/
 
+# Shared / private / licensed reference data. Lives read-only under /shared/ref
+# in the agent containers (recovered Living Dictionary, gov.nu.ca crawl, raw
+# .bak / corpus archives) and must never be committed -- see AGENTS.md "Shared
+# reference data (/shared)" and the hooks/pre-commit guard. These lines also
+# catch a stray copy pulled into the working tree.
+/shared/
+**/living-dictionary-recovery/
+**/gov-nu-ca-crawl/
+*.bak
+
