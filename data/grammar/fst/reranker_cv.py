@@ -9,13 +9,20 @@ current 5-key hand sort (which already ~= R2L: 671/919 fair
 first-decomposition-correct); LightGBM lambdarank is worth installing only
 if this is promising.
 
-  python3 reranker_cv.py [--drop GROUP ...] [--loo]
+  python3 reranker_cv.py [--drop GROUP ...] [--loo] [--target reference|correct]
 
---drop : ablate FEATURE_GROUPS.
---loo  : rebuild the morpheme-frequency table PER FOLD from the 10k Hansard
-         cache with that fold's gold words removed, and recompute the freq
-         features -- removes the "the freq prior already saw the eval word"
-         optimism (981 of 985 gold words are in that 10k cache).
+--drop   : ablate FEATURE_GROUPS.
+--loo    : rebuild the morpheme-frequency table PER FOLD from the 10k Hansard
+           cache with that fold's gold words removed, and recompute the freq
+           features -- removes the "the freq prior already saw the eval word"
+           optimism (981 of 985 gold words are in that 10k cache).
+--target : what the pairwise loss ranks first. "reference" (default) = only
+           the single Hansard-attested decomp; "correct" = the whole correct
+           set (is_correct = reference OR in all_correct_decomps); "graded" =
+           3-tier (reference > other-correct > incorrect), i.e. reference
+           first AND the rest of the correct set right behind it. Every run
+           reports BOTH the reference P@1/P@3/MRR and the graded
+           R-precision / P@min(5,N), so the trade-off is visible.
 
 Reports P@1 / P@3 / MRR over held-out folds, overall + fair-only, vs the
 current sort and an oracle ceiling. Run from data/grammar/fst/ after
@@ -263,14 +270,29 @@ def standardize(rows, n):
     return mean, std
 
 
-def train(words, train_words, n):
+def relevance(r, target):
+    """Training relevance tier of a candidate row under `target`:
+      "label"      -> 1 for the Hansard reference decomp, else 0
+      "is_correct" -> 1 for any decomp in the correct set, else 0
+      "graded"     -> 2 reference, 1 other-correct, 0 incorrect (3-tier:
+                      reference FIRST, then the rest of the correct set
+                      right behind it, then the incorrect candidates)
+    A pairwise loss then ranks every higher tier above every lower one."""
+    if target == "graded":
+        return 2 if r["label"] else (1 if r["is_correct"] else 0)
+    return 1 if r[target] == 1 else 0
+
+
+def train(words, train_words, n, target="label"):
     w = [0.0] * n
     pairs = []
     for wd in train_words:
         cs = words[wd]
-        for p in (r for r in cs if r["label"] == 1):
-            for q in (r for r in cs if r["label"] == 0):
-                pairs.append((p["xn"], q["xn"]))
+        rel = [relevance(r, target) for r in cs]
+        for a, p in enumerate(cs):
+            for b, q in enumerate(cs):
+                if rel[a] > rel[b]:
+                    pairs.append((p["xn"], q["xn"]))
     rng = random.Random(SEED)
     for _ in range(EPOCHS):
         rng.shuffle(pairs)
@@ -282,11 +304,12 @@ def train(words, train_words, n):
     return w
 
 
-def train_listwise(words, train_words, n):
+def train_listwise(words, train_words, n, target="label"):
     """Softmax cross-entropy over each word's candidate set toward its
-    correct candidate(s). SGD + L2."""
+    correct candidate(s). SGD + L2. target: see train()."""
     w = [0.0] * n
-    groups = [[(r["xn"], r["label"]) for r in words[wd]] for wd in train_words]
+    groups = [[(r["xn"], 1 if relevance(r, target) >= 1 else 0) for r in words[wd]]
+              for wd in train_words]
     rng = random.Random(SEED)
     for _ in range(EPOCHS):
         rng.shuffle(groups)
@@ -322,6 +345,38 @@ def eval_detail(cs, scorer):
     return int(b == 0), b, order[0], correct
 
 
+def graded_metrics_eval(cs, scorer, max_n=5):
+    """Second re-ranker objective (measure-only, no retraining): not just
+    "reference decomp first" but "the WHOLE set of correct decomps clustered
+    at the top", scored against `is_correct` (reference decomp OR in the
+    word's all_correct_decomps -- see build_reranker_table.py) instead of the
+    reference-only `label`. Returns (r_precision, p_at_n, correct_at_1, scored):
+      r_precision  : of this word's R correct decomps (R = count of is_correct
+                     candidates), the fraction landing in the top R by score.
+      p_at_n       : of the top min(max_n, n_candidates) by score, the
+                     fraction that are correct -- what a user who sees ~5
+                     decomps would actually get.
+      correct_at_1 : 1 iff the top-ranked decomp is in the correct set (any
+                     grammatical reading, not necessarily the Hansard one --
+                     a looser bar than score_eval's reference@1). Circular
+                     against R2L (all_correct_decomps IS R2L's output), so
+                     only meaningful FST-config vs FST-config / vs hand sort.
+      scored       : 0 for a word with no is_correct candidate (R=0), which
+                     the caller excludes from the averages; 1 otherwise. (In
+                     practice R>=1 for every word the table keeps, since it
+                     already drops words with no reference match -- the guard
+                     is defensive.)"""
+    order = sorted(cs, key=lambda r: -scorer(r))
+    R = sum(1 for r in cs if r.get("is_correct"))
+    if R == 0:
+        return 0.0, 0.0, 0, 0
+    r_precision = sum(1 for r in order[:R] if r.get("is_correct")) / R
+    k = min(max_n, len(order))
+    p_at_n = sum(1 for r in order[:k] if r.get("is_correct")) / k
+    correct_at_1 = int(bool(order) and order[0].get("is_correct"))
+    return r_precision, p_at_n, correct_at_1, 1
+
+
 def main():
     args = sys.argv[1:]
     loo = "--loo" in args
@@ -330,7 +385,10 @@ def main():
     drop = set(args[args.index("--drop") + 1:]) if "--drop" in args else set()
     listwise = "--listwise" in args
     buckets = int(args[args.index("--buckets") + 1]) if "--buckets" in args else 0
-    for f in ("--loo", "--dump", "--ensemble", "--listwise", "--buckets", str(buckets)):
+    target_arg = args[args.index("--target") + 1] if "--target" in args else "reference"
+    target = {"correct": "is_correct", "graded": "graded"}.get(target_arg, "label")
+    for f in ("--loo", "--dump", "--ensemble", "--listwise", "--buckets", str(buckets),
+              "--target", target_arg):
         drop.discard(f)
 
     rows, words, keep = load(drop)
@@ -344,6 +402,8 @@ def main():
     trainer = train_listwise if listwise else train
 
     agg = {k: [0, 0, 0.0, 0] for k in ("m_all", "m_fair", "c_all", "c_fair")}
+    # graded objective (fair only): [r_prec_sum, p_at_n_sum, correct@1_sum, n]
+    graded = {k: [0.0, 0.0, 0, 0] for k in ("m_fair", "c_fair")}
     LAMBDAS = [0.0, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0, 2.0]
     TOPK = [1, 2, 3, 4, 5, 6, 8, 12, 999]
     ens_fuse = {lam: 0 for lam in LAMBDAS}   # rank-fusion P@1 (fair)
@@ -353,26 +413,37 @@ def main():
     def bump(k, h1, h3, rr):
         agg[k][0] += h1; agg[k][1] += h3; agg[k][2] += rr; agg[k][3] += 1
 
-    for test in folds:
+    for fi, test in enumerate(folds):
         test_set = set(test)
         if loo:
             recompute_stats(rows, build_stats(cache_rows, test_set))
         set_x(rows, keep)
         train_rows = [r for r in rows if r["word"] not in test_set]
         make_xn(rows, train_rows, keep, buckets)
-        wv = trainer(words, [w for w in all_words if w not in test_set], len(rows[0]["xn"]))
+        wv = trainer(words, [w for w in all_words if w not in test_set],
+                     len(rows[0]["xn"]), target)
+        print(f"  fold {fi} trained ({agg['m_fair'][3]} fair scored so far)", flush=True)
         for w in test:
             cs = words[w]
             fair = cs[0]["fair"]
             mscore = lambda r: sum(wv[i] * r["xn"][i] for i in range(len(wv)))
+            handscore = lambda r: -r["feat"]["rank_current_sort"]
             h = score_eval(cs, mscore)
             bump("m_all", *h)
             if fair:
                 bump("m_fair", *h)
-            c = score_eval(cs, lambda r: -r["feat"]["rank_current_sort"])
+            c = score_eval(cs, handscore)
             bump("c_all", *c)
             if fair:
                 bump("c_fair", *c)
+            if fair:
+                for key, sc in (("m_fair", mscore), ("c_fair", handscore)):
+                    rp, pn, c1, scored = graded_metrics_eval(cs, sc)
+                    if scored:
+                        graded[key][0] += rp
+                        graded[key][1] += pn
+                        graded[key][2] += c1
+                        graded[key][3] += 1
             if ensemble and fair:
                 ens_n += 1
                 # model rank within word (0 = best by model)
@@ -406,12 +477,23 @@ def main():
 
     n_fair = sum(1 for w in all_words if words[w][0]["fair"])
     print(f"\n{len(all_words)} words ({n_fair} fair), grouped {FOLDS}-fold CV | "
-          f"drop={sorted(drop) or 'none'} | loo={loo}")
+          f"drop={sorted(drop) or 'none'} | loo={loo} | train target={target}")
     print("\n-- learned re-ranker (pairwise-logistic) --")
     line("all", agg["m_all"]); line("fair", agg["m_fair"])
     print("\n-- current 5-key hand sort --")
     line("all", agg["c_all"]); line("fair", agg["c_fair"])
     print("\nreference: R2L 673/919 fair first-correct (73.2%)")
+
+    def gline(name, a):
+        rp, pn, c1, n = a
+        print(f"  {name:22} correct@1 {100*c1/n:5.1f}%   R-precision {100*rp/n:5.1f}%   "
+              f"P@min(5,N) {100*pn/n:5.1f}%   ({n} fair words)")
+
+    print("\n-- graded objective: cluster ALL correct decomps near the top --")
+    print("   (scored vs is_correct = reference OR in all_correct_decomps;")
+    print("    correct@1 = any grammatical reading first, looser than reference@1 above)")
+    gline("learned re-ranker", graded["m_fair"])
+    gline("current hand sort", graded["c_fair"])
 
     if ensemble:
         print(f"\n-- ensemble (fair, {ens_n} words; pure model {agg['m_fair'][0]}, "

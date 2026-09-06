@@ -33,3 +33,9 @@ Current plans:
 - [`gov-nu-ca-crawling-investigation.md`](gov-nu-ca-crawling-investigation.md)
   -- bilingual-sentence-source crawling: bot-protection findings and the
   plan for resuming once it runs from a non-datacenter IP.
+- [`reranker-objectives-and-analyzers.md`](reranker-objectives-and-analyzers.md)
+  -- decomposition re-ranking: the distinct objectives (reference@1,
+  correct@1, R-precision, P@min(5,N)) and why they conflict, the best
+  models so far per analyzer (R2L vs FST) × objective, and the case for
+  multiple re-rankers. Strategic layer above
+  `data/grammar/fst/reranker-experiment.md`.

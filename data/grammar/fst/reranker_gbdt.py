@@ -16,6 +16,14 @@ this is promising). Reports P@1/P@3/MRR, fair + all, vs hand sort / R2L 73.2%.
 
   python3 reranker_gbdt.py [--drop GROUP ...] [--trees N] [--depth D]
                            [--lr F] [--bins N] [--leaf N] [--lambda F]
+                           [--target reference|correct|graded]
+
+--target : pairwise-loss objective. "reference" (default) ranks only the
+           Hansard-attested decomp first; "correct" ranks the whole correct
+           set first (is_correct = reference OR in all_correct_decomps);
+           "graded" is 3-tier (reference > other-correct > incorrect) --
+           reference first AND the rest of the correct set right behind it.
+           All report reference P@1/P@3/MRR AND graded R-precision / P@min(5,N).
 Run from data/grammar/fst/ after build_reranker_table.py.
 """
 import math
@@ -110,27 +118,38 @@ def tree_pred(node, b):
 
 
 # ------------------------------------------------------------------ boosting
-def train_gbdt(rows, words, train_words, nf, nbins, cfg, rng):
+def train_gbdt(rows, words, train_words, nf, nbins, cfg, rng, target="label"):
+    """target (see reranker_cv.relevance): "label" ranks only the Hansard
+    reference decomp first; "is_correct" ranks the whole correct set first;
+    "graded" is 3-tier (reference > other-correct > incorrect)."""
     tw = set(train_words)
     tr_rows = [r for r in rows if r["word"] in tw]
     for r in tr_rows:
         r["F"] = 0.0
+    # (higher-relevance group, lower-relevance group) per word. Binary targets
+    # give one pair (correct, incorrect); "graded" gives up to three
+    # (reference > other-correct > incorrect) so the boosting ranks the
+    # reference decomp first AND the rest of the correct set right behind it.
     pairs_by_word = []
     for wd in train_words:
         cs = words[wd]
-        pos = [r for r in cs if r["label"] == 1]
-        neg = [r for r in cs if r["label"] == 0]
-        if pos and neg:
-            pairs_by_word.append((pos, neg))
+        rel = [R.relevance(r, target) for r in cs]
+        tiers = sorted({v for v in rel}, reverse=True)
+        by_tier = {t: [cs[i] for i in range(len(cs)) if rel[i] == t] for t in tiers}
+        for hi_i in range(len(tiers)):
+            for lo_i in range(hi_i + 1, len(tiers)):
+                hi, lo = by_tier[tiers[hi_i]], by_tier[tiers[lo_i]]
+                if hi and lo:
+                    pairs_by_word.append((hi, lo))
     trees = []
     for _ in range(cfg["trees"]):
         g = {}; h = {}
         for r in tr_rows:
             g[id(r)] = 0.0; h[id(r)] = 0.0
-        for pos, neg in pairs_by_word:
-            nsamp = min(len(neg), cfg["neg"])
-            ns = neg if len(neg) <= cfg["neg"] else rng.sample(neg, nsamp)
-            for p in pos:
+        for hi, lo in pairs_by_word:
+            nsamp = min(len(lo), cfg["neg"])
+            ns = lo if len(lo) <= cfg["neg"] else rng.sample(lo, nsamp)
+            for p in hi:
                 for q in ns:
                     m = p["F"] - q["F"]
                     s = 1.0 / (1.0 + math.exp(m))     # sigma(-m)
@@ -160,11 +179,19 @@ def score_all(rows, trees, lr):
 
 def evaluate(words, test_words, fair_of):
     tot = {"all": [0, 0, 0.0, 0], "fair": [0, 0, 0.0, 0]}
+    graded = {"model": [0.0, 0.0, 0, 0], "hand": [0.0, 0.0, 0, 0]}   # fair only
     for wd in test_words:
         a, b, c = R.score_eval(words[wd], lambda r: r["S"])
         for k in ("all",) + (("fair",) if fair_of[wd] else ()):
             tot[k][0] += a; tot[k][1] += b; tot[k][2] += c; tot[k][3] += 1
-    return tot
+        if fair_of[wd]:
+            for key, sc in (("model", lambda r: r["S"]),
+                            ("hand", lambda r: -r["feat"]["rank_current_sort"])):
+                rp, pn, c1, scored = R.graded_metrics_eval(words[wd], sc)
+                if scored:
+                    graded[key][0] += rp; graded[key][1] += pn
+                    graded[key][2] += c1; graded[key][3] += 1
+    return tot, graded
 
 
 def main():
@@ -180,10 +207,12 @@ def main():
         rowsub=opt("--rowsub", 0.4, float), featsub=opt("--featsub", 0.6, float),
     )
     nbins = opt("--bins", 32, int)
+    target_arg = opt("--target", "reference", str)
+    target = {"correct": "is_correct", "graded": "graded"}.get(target_arg, "label")
     drop = {a for a in argv if not a.startswith("--")}
     for v in ("--drop",):
         drop.discard(v)
-    # strip numeric option values that leaked into `drop`
+    # strip numeric option values / --target value that leaked into `drop`
     drop = {d for d in drop if d in R.FEATURE_GROUPS}
 
     rows, words, keep = R.load(drop)
@@ -200,22 +229,33 @@ def main():
     rng = random.Random(SEED)
 
     agg = {"all": [0, 0, 0.0, 0], "fair": [0, 0, 0.0, 0]}
+    gtot = {"model": [0.0, 0.0, 0, 0], "hand": [0.0, 0.0, 0, 0]}
     for fi, test in enumerate(folds):
         tr = [w for w in all_words if w not in set(test)]
-        trees = train_gbdt(rows, words, tr, nf, nbins, cfg, rng)
+        trees = train_gbdt(rows, words, tr, nf, nbins, cfg, rng, target)
         score_all([r for w in test for r in words[w]], trees, cfg["lr"])
-        t = evaluate(words, test, fair_of)
+        t, g = evaluate(words, test, fair_of)
         for k in ("all", "fair"):
             for j in range(4):
                 agg[k][j] += t[k][j]
+        for k in ("model", "hand"):
+            for j in range(4):
+                gtot[k][j] += g[k][j]
         h1, _, _, n = agg["fair"]
         print(f"fold {fi}: fair-P@1 so far {h1}/{n} ({100*h1/max(n,1):.1f}%)", flush=True)
 
-    print(f"\nGBDT  drop={sorted(drop) or 'none'}  cfg={cfg} bins={nbins}")
+    print(f"\nGBDT  drop={sorted(drop) or 'none'}  cfg={cfg} bins={nbins} target={target}")
     for k in ("all", "fair"):
         h1, h3, rr, n = agg[k]
         print(f"  {k:5} P@1 {h1}/{n} ({100*h1/n:.1f}%)   P@3 {100*h3/n:.1f}%   MRR {rr/n:.3f}")
     print("reference: hand sort / R2L 73.2% fair ; bucketed-linear ~86% (nested CV)")
+    print("\n-- graded objective: cluster ALL correct decomps near the top (fair) --")
+    print("   (scored vs is_correct = reference OR in all_correct_decomps;")
+    print("    correct@1 = any grammatical reading first, looser than reference P@1 above)")
+    for key, name in (("model", "GBDT re-ranker"), ("hand", "current hand sort")):
+        rp, pn, c1, n = gtot[key]
+        print(f"  {name:22} correct@1 {100*c1/n:.1f}%   R-precision {100*rp/n:.1f}%   "
+              f"P@min(5,N) {100*pn/n:.1f}%   ({n} fair words)")
 
 
 if __name__ == "__main__":

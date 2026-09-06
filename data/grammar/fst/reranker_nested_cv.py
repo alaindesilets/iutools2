@@ -68,6 +68,20 @@ def score(words, w, n, test_words):
     return h1, h3, rr, len(test_words)
 
 
+def graded_score(words, test_words, scorer):
+    """correct@1 / R-precision / P@min(5,N) sums for the "cluster ALL correct
+    decomps near the top" objective (see R.graded_metrics_eval). `scorer` is
+    the model score fn `lambda r: sum(w[i]*r["xn"][i] ...)` or the hand-sort
+    baseline `lambda r: -r["feat"]["rank_current_sort"]`."""
+    rp = pn = c1 = 0.0
+    cnt = 0
+    for wd in test_words:
+        a, b, c, scored = R.graded_metrics_eval(words[wd], scorer)
+        if scored:
+            rp += a; pn += b; c1 += c; cnt += 1
+    return rp, pn, c1, cnt
+
+
 def main():
     argv = sys.argv[1:]
     seed = int(argv[argv.index("--seed") + 1]) if "--seed" in argv else SEED
@@ -84,6 +98,8 @@ def main():
     outer = [all_words[i::FOLDS] for i in range(FOLDS)]
 
     tot = {"all": [0, 0, 0.0, 0], "fair": [0, 0, 0.0, 0]}
+    # graded objective, fair only: [r_prec_sum, p_at_n_sum, correct@1_sum, n]
+    graded = {"model": [0.0, 0.0, 0, 0], "hand": [0.0, 0.0, 0, 0]}
     picks = []
     rng = random.Random(seed)
 
@@ -111,6 +127,11 @@ def main():
         tf = [x for x in test if fair_of[x]]
         fh1, fh3, frr, fn = score(words, w, n, tf)
         tot["fair"][0] += fh1; tot["fair"][1] += fh3; tot["fair"][2] += frr; tot["fair"][3] += fn
+        for key, sc in (("model", lambda r: sum(w[i] * r["xn"][i] for i in range(n))),
+                        ("hand", lambda r: -r["feat"]["rank_current_sort"])):
+            grp, gpn, gc1, gn = graded_score(words, tf, sc)
+            graded[key][0] += grp; graded[key][1] += gpn
+            graded[key][2] += gc1; graded[key][3] += gn
         print(f"outer {oi}: picked buckets={best[0]} L2={best[1]}  "
               f"inner-fair-P@1={best_score:.3f}  outer-fair-P@1 so far "
               f"{tot['fair'][0]}/{tot['fair'][3]} ({100*tot['fair'][0]/max(tot['fair'][3],1):.1f}%)",
@@ -122,6 +143,14 @@ def main():
         h1, h3, rr, n = tot[k]
         print(f"  {k:5} P@1 {h1}/{n} ({100*h1/n:.1f}%)   P@3 {100*h3/n:.1f}%   MRR {rr/n:.3f}")
     print("reference: hand sort / R2L = 73.2% fair")
+
+    print("\n-- graded objective: cluster ALL correct decomps near the top (fair) --")
+    print("   (scored vs is_correct = reference OR in all_correct_decomps;")
+    print("    correct@1 = any grammatical reading first, looser than P@1 above)")
+    for key, name in (("model", "linear re-ranker"), ("hand", "current hand sort")):
+        rp, pn, c1, n = graded[key]
+        print(f"  {name:22} correct@1 {100*c1/n:.1f}%   R-precision {100*rp/n:.1f}%   "
+              f"P@min(5,N) {100*pn/n:.1f}%   ({n} fair words)")
 
 
 if __name__ == "__main__":

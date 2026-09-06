@@ -10,8 +10,17 @@ decomposition shape, grammatical-category codes, and faithfulness to the
 surface string. (Morpheme-frequency features are a deliberate later escalation
 tier, kept out of this baseline.)
 
+`label` (the training target -- untouched) is 1 only for the single
+Hansard-attested reference decomp. `is_correct` is the broader ground truth
+for the "cluster ALL correct decomps near the top" objective: 1 iff the
+candidate is the reference decomp OR appears in the word's
+`all_correct_decomps` gold column (every decomp R2L itself can produce). The
+union with `label` matters for the 2 known words (imaimmat, taaksumunga)
+whose `all_correct_decomps` doesn't list their own reference decomp.
+
 Output: scratchpad/reranker_table.jsonl, one JSON object per (word, candidate):
-  {"word", "fair" (bool), "decomp", "label" (0/1), "feat": {...}}
+  {"word", "fair" (bool), "decomp", "label" (0/1), "is_correct" (0/1),
+   "feat": {...}}
 
 Words whose correct parse the FST never produces are dropped (no positive to
 rank toward). Pure standard library.
@@ -24,7 +33,8 @@ from collections import defaultdict
 
 from affix_frequency import load_words
 from benoit_sort import sort_with_frequency_tiebreak
-from histogram import hfst_analyses_weighted, parse_hfst_analysis
+from gold_standard_csv_reader import load_gold_standard
+from histogram import hfst_analyses_weighted, parse_gold, parse_hfst_analysis
 
 OUT = "scratchpad/reranker_table.jsonl"
 
@@ -135,8 +145,22 @@ def add_relative_features(rows):
             r["feat"]["n_candidates"] = len(group)
 
 
+def load_all_correct_parses():
+    """word -> set of (canonical, id) tuple-sequences for every decomp in the
+    gold `all_correct_decomps` column, over the same permissive population as
+    load_words() (both gold sources). Canonical+id only, no surface span --
+    the same comparison histogram.py already uses for FST candidates."""
+    by_word = defaultdict(set)
+    for source in ("hansard", "words_that_failed_before"):
+        for word, case in load_gold_standard(source).items():
+            for decomp in case.all_correct_decomps:
+                by_word[word].add(tuple(parse_gold(decomp)))
+    return by_word
+
+
 def main():
     fair_words = {w for w, _ in load_words(exclude_flagged=True)}
+    all_correct_parses = load_all_correct_parses()
     grouped = defaultdict(list)
     for w, m in load_words():           # permissive superset
         grouped[w].append(list(m))
@@ -155,15 +179,18 @@ def main():
             dropped += 1
             continue
         kept += 1
+        word_correct_parses = all_correct_parses.get(word, set())
         for analysis, weight, parts in parsed:
             feat = features(word, parts)
             feat["weight"] = float(weight)          # 0 strict / 1 lenient (sort key 1)
+            label = int(parts in gold_parses)
             rows.append({
                 "word": word,
                 "fair": word in fair_words,
                 "decomp": analysis,
                 "parts": parts,                     # [[canonical, id], ...] for per-fold freq recompute
-                "label": int(parts in gold_parses),
+                "label": label,
+                "is_correct": int(label or tuple(parts) in word_correct_parses),
                 "_sort_key": sort_pos[analysis],
                 "feat": feat,
             })
@@ -177,8 +204,10 @@ def main():
     n_words = len({r["word"] for r in rows})
     n_fair = len({r["word"] for r in rows if r["fair"]})
     pos = sum(r["label"] for r in rows)
+    corr = sum(r["is_correct"] for r in rows)
     print(f"{OUT}: {len(rows)} rows, {n_words} words ({n_fair} fair), "
-          f"{pos} positive candidates; dropped {dropped} words (no correct candidate)")
+          f"{pos} reference (label=1) / {corr} correct-set (is_correct=1) candidates; "
+          f"dropped {dropped} words (no correct candidate)")
 
 
 def dedup_min_weight(pairs):
