@@ -8,6 +8,12 @@ out/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
+# Daemon JVM criteria file: recent VS Code Java tooling (Buildship) writes this
+# on project import, pinning the Gradle daemon to whatever JDK it guessed
+# (Java 25, un-downloadable behind the devcontainer firewall). The project has
+# never opted into a pinned daemon JVM -- keep it out of git so an IDE sync
+# can't slip it into a commit.
+gradle/gradle-daemon-jvm.properties
 
 # Kotlin
 .kotlin/
