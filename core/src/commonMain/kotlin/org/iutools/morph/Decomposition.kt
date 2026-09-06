@@ -4,7 +4,22 @@ import org.apache.logging.log4j.LogManager
 import org.iutools.linguisticdata.Morpheme
 import org.iutools.morph.r2l.StateGraphForward
 
-class Decomposition(val decompSpecs: String) {
+/**
+ * One morphological decomposition of a word, as a "surface:id ..." spec
+ * string (see [decompSpecs]).
+ *
+ * [lenient] is true when this decomposition was only found by assuming the
+ * word had a final consonant (k/p/q/t) that was silently dropped after a
+ * vowel -- R2L's `_decomposeForFinalConsonantPossiblyMissing` /
+ * `assumedMissingFinalConsonant` path, enabled by `extendedAnalysisIn`. It
+ * is the same "guessed final consonant" signal the ranking already turns
+ * into a sort weight (strict readings rank ahead of lenient ones); exposing
+ * it per-decomposition lets callers (e.g. an offline analyzed-lexicon
+ * dataset) record which readings are strict and which are reconstructions.
+ * A decomposition obtainable both strictly and leniently is `false` (the
+ * strict producer is kept when duplicates are removed).
+ */
+class Decomposition(val decompSpecs: String, val lenient: Boolean = false) {
 
     private var _components: Array<String>? = null
 

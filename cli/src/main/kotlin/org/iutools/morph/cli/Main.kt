@@ -191,8 +191,12 @@ private fun pipelineJson(
     result.fold(
         onSuccess = { decs ->
             val decompsJson = decs.joinToString(",") { "\"${jsonEscape(it.toString())}\"" }
+            // Parallel to "decompositions": whether each reading was only
+            // found by assuming a dropped final consonant (Decomposition.lenient).
+            val lenientJson = decs.joinToString(",") { it.lenient.toString() }
             return "{\"word\":$wordJson,\"lenient\":$lenient,\"elapsedMSecs\":$elapsedMSecs," +
-                "\"timedOut\":false,\"exception\":null,\"decompositions\":[$decompsJson]}"
+                "\"timedOut\":false,\"exception\":null,\"decompositions\":[$decompsJson]," +
+                "\"decompositionsLenient\":[$lenientJson]}"
         },
         onFailure = { e ->
             val timedOut = e is TimeoutException

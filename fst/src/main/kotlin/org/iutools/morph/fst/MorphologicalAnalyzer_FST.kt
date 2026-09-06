@@ -135,7 +135,11 @@ class MorphologicalAnalyzer_FST(
             // R2L's -- so its length is the root-canonical-length sort key
             // directly.
             val rootCanonicalLength = specs.substringBefore(' ').substringBefore('/').length
-            ranked.add(RankedDecomposition(Decomposition(specs), rootCanonicalLength, weight))
+            // weight 1.0 == this parse was only reached via phonology.xfscript's
+            // LENIENT (guessed dropped final consonant) paths -- the FST
+            // equivalent of R2L's assumedMissingFinalConsonant, so both
+            // analyzers populate Decomposition.lenient the same way.
+            ranked.add(RankedDecomposition(Decomposition(specs, lenient = weight >= 1.0f), rootCanonicalLength, weight))
         }
         return sortDecompositions(ranked, breakTiesByMorphemeFrequency = true)
     }

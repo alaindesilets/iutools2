@@ -115,7 +115,7 @@ class DecompositionState(
     @Throws(DecompositionException::class)
     fun toDecomposition(): Decomposition {
         val decompStr = formatDecompStr(toString(), MorphFormat.NO_BRACES)
-        return Decomposition(decompStr)
+        return Decomposition(decompStr, lenient = assumedMissingFinalConsonant)
     }
 
     fun isComplete(): Boolean = true // stem is non-null by construction in this Kotlin port
