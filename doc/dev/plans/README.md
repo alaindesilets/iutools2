@@ -39,3 +39,7 @@ Current plans:
   models so far per analyzer (R2L vs FST) × objective, and the case for
   multiple re-rankers. Strategic layer above
   `data/grammar/fst/reranker-experiment.md`.
+- [`offline-dictionary.md`](offline-dictionary.md) -- an offline LLM pass
+  over the top ~10k Hansard word forms: pre-computed Guess Meaning plus a
+  per-decomposition annotation of whether it matches a real bilingual
+  corpus usage, feeding the Morpheme Dictionary "good example words" gate.
