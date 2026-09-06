@@ -1,23 +1,32 @@
-# About iutools2
 
-Started as a Kotlin Multiplatform port of the morphological analyzer core
-from [iutools](https://github.com/iutools/iutools) (Java), which decomposes
-Inuktitut words into their constituent morphemes (e.g. `atuagaq` →
-`{atua:atuaq/1v}{gaq:gaq/1vn}`). That analyzer (`:core`) remains the single
-source of truth for morphological analysis, but the app has grown beyond a
-pure port: it also looks words up directly in dictionaries (Spalding,
-parsed once and embedded locally; Tusaalanga, queried live over the network
-— see `:composeApp`'s `SpaldingDictionary`/`TusaalangaFetcher`), and, when
-no dictionary has the word, can ask an LLM (Claude) to guess its meaning
-from the morphological decomposition ("Guess Meaning"). These are new
-features built for this app, not ports of anything from the original
-iutools project — its own spellchecker, concordancer, dictionary/
-Elasticsearch, and web/servlet layers remain explicitly out of scope, and
-nothing from them was reused.
+This project aims to be a multi-platform port of the original iutools project, 
+which was a web-based application.
 
-The goal is to ship this as a real mobile app (Android/iOS), not just a
-library — a CLI and a Compose UI both exist as ways of exercising the same
-shared analyzer core.
+It aims at developing basic language tools for Inuktut, the language of the Inuit people.
+
+It currently includes user facing tools like:
+
+- Word dictionary
+- Morpheme dictionary
+
+And we plan to eventualy provide additional ones like:
+- Spell checker
+- Translation Memory
+- Reading assistant for second language learner.
+
+The project also includes developer facing tools like:
+
+- Morphological decomposer
+- Transliterator
+- Tokenizer
+
+Which are available in the form of Kotlin classes, as well as a Command Line Interface.
+
+At the moment, the project only ships as an Android mobile app. But other future
+platorm will include:
+- Desktop (OSX, Windows, Linux)
+- iOS
+- Web services, and apps 
 
 ## Technical constraints
 
@@ -37,7 +46,7 @@ shared analyzer core.
 ## Architecture
 
 Gradle modules:
-- **`:core`** — the analyzer itself, as a Kotlin Multiplatform library
+- **`:core`** — the morphological analyzer itself, as a Kotlin Multiplatform library
   (`core/src/commonMain/kotlin/org/iutools/**`). This is the single source
   of truth; `:cli` and `:composeApp` both depend on it and add no analyzer
   logic of their own. Linguistic data (CSV files) lives under
@@ -166,7 +175,7 @@ the host side; agents only read it.
   own judgement, but its content does not go into iutools2 code, data, or
   prompts. See `doc/dev/plans/offline-dictionary.md` → "Rights".
 
-## Git History
+## Git guidelines
 
 - Commit messages should focus on the PURPOSE of the commit, not the HOW.
   If at all possible, write the message in terms that an end user might
@@ -195,8 +204,8 @@ the host side; agents only read it.
     the push is rejected, repeat. `main` is the trunk; no feature branch,
     no PR step. (An AI agent still confirms before `git push` unless Alain
     has said to push freely for this stretch of work.)
-- **Two agents in parallel:** each runs in its **own independent clone**,
-  both on `main`; `origin` is the only channel between them. Because every
+- **Multiple agents in parallel:** each runs in its **own independent clone**,
+  all on `main`; `origin` is the only channel between them. Because every
   commit is pushed as above, an agent that needs the other's work just
   `git pull --rebase origin main` — there is nothing unpushed to chase.
   No git worktrees (two worktrees can't both hold `main`, and a worktree
@@ -267,9 +276,9 @@ line, every time, and hand off only what genuinely needs a device:
   hardware/OS-backed Android Keystore `EncryptedSharedPreferences` relies
   on.
 
-### Giving Alain a test APK to try on his phone
+### Giving devs a test APK to try on their phone
 
-When Alain asks for a build to install ("compile the APK and send it",
+When a dev asks for a build to install ("compile the APK and send it",
 "build me an APK", "publie un APK"):
 
 1. `./build-android-apk.sh debug` — this now works in the devcontainer
