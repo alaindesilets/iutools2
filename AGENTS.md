@@ -1,10 +1,13 @@
 
-This project aims to be a multi-platform port of the original iutools project, 
-which was a web-based application.
+This project is a Kotlin port of some of the apps in the original 
+iutools project (which was a web-based application). This port aims 
+at making those tools availble as Android or Desktop (OSX, Linux,
+Windows) apps.
 
-It aims at developing basic language tools for Inuktut, the language of the Inuit people.
+The tools and apps in this project help speaker, writers and learner of
+Inuktut, the language of the Inuit people.
 
-It currently includes user facing tools like:
+The project currently includes user facing tools like:
 
 - Word dictionary
 - Morpheme dictionary
