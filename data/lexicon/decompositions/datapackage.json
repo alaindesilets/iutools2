@@ -1,0 +1,72 @@
+{
+  "name": "iutools-analyzed-lexicon-s1",
+  "title": "Analyzed lexicon of Inuktitut (stage S1) — Nunavut Hansard word forms and their R2L decompositions",
+  "description": "For each of the 100 000 most frequent syllabic word forms in the Nunavut Hansard, every morphological decomposition produced by the R2L (Uqailaut / Benoit Farley) analyzer, in the analyzer's native ranking order, with strict vs. 'guessed dropped final consonant' readings flagged. Stage S1 of the analyzed-lexicon dataset; see the project design doc.",
+  "version": "1.0.0",
+  "created": "2026-09-06",
+  "homepage": "https://github.com/alaindesilets/iutools2/tree/main/data/lexicon/decompositions",
+  "keywords": ["Inuktitut", "Inuktut", "morphology", "morphological analysis", "decomposition", "lexicon", "Nunavut Hansard", "low-resource"],
+  "licenses": [
+    { "name": "CC-BY-4.0", "title": "Creative Commons Attribution 4.0 International", "path": "https://creativecommons.org/licenses/by/4.0/" }
+  ],
+  "sources": [
+    {
+      "title": "Nunavut Hansard Inuktitut-English Parallel Corpus 3.0.1",
+      "path": "https://nrc-digital-repository.canada.ca/",
+      "hash": "sha256:da13155845112b6e568d040c7f4110aa2ba27e9782c72cf049f715e9e99ca477",
+      "note": "The .iu (syllabics) side only. (c) 1999-2020 Legislative Assembly of Nunavut; alignment (c) NRC Canada; CC-BY-4.0. Not an official transcript. Cite: Joanis, Knowles, Kuhn, Larkin, Littell, Lo, Stewart & Micher, 'The Nunavut Hansard Inuktitut-English Parallel Corpus 3.0 with Preliminary Machine Translation Results', LREC 2020. TODO: replace path with the exact NRC Digital Repository record URL."
+    }
+  ],
+  "resources": [
+    {
+      "name": "hansard-top100k-decomps",
+      "profile": "tabular-data-resource",
+      "path": "https://github.com/alaindesilets/iutools2/releases/download/analyzed-lexicon-v1/hansard-top100k-decomps.jsonl.gz",
+      "format": "ndjson",
+      "mediatype": "application/x-ndjson",
+      "compression": "gz",
+      "encoding": "utf-8",
+      "hash": "sha256:TODO-fill-with-sha256-of-the-.gz-asset-at-publish-time",
+      "bytes": 0,
+      "_uncompressed_sha256": "sha256:c27c3c829a58b42aeaa046ebf75ec266318e61a9905bd01ae909a3d9b61e89ae",
+      "_uncompressed_bytes": 251978145,
+      "_note": "hash/bytes describe the .gz release asset and are filled when the release is cut; _uncompressed_* describe the .jsonl after gunzip and are what fetch.sh verifies.",
+      "schema": {
+        "fields": [
+          { "name": "rank", "type": "integer", "description": "Frequency rank of this word form in the corpus; 1 = most frequent." },
+          { "name": "count", "type": "integer", "description": "Number of occurrences of word_syl in the corpus." },
+          { "name": "word_syl", "type": "string", "description": "The word form in Inuktitut syllabics, exactly as tokenised from the corpus (regex [᐀-ᙿᢰ-᣿]+)." },
+          { "name": "word_rom", "type": "string", "description": "The same word form transliterated to Roman by the iutools TransCoder." },
+          { "name": "analyzer_outcome", "type": "string", "description": "Whether R2L finished, hit its 20 s per-word timeout, or crashed on this word.", "constraints": { "enum": ["completed", "timed_out", "crashed"] } },
+          { "name": "decomps", "type": "array", "description": "Every decomposition R2L produced, in R2L's native order (best-ranked first). Each element is a string of {surface:morpheme/id} segments. Empty when analyzer_outcome is not 'completed', or when the analyzer finished but found no parse." },
+          { "name": "decomps_lenient", "type": "array", "description": "Booleans, parallel to decomps. true = a 'guessed dropped final consonant' reading (R2L assumed a vowel-final word had lost a final k/p/q/t)." },
+          { "name": "n_decomps", "type": "integer", "description": "Length of decomps." },
+          { "name": "r2l_timed_out", "type": "boolean", "description": "Legacy per-record flag, equal to (analyzer_outcome == 'timed_out'). Kept for older consumers." },
+          { "name": "r2l_error", "type": "string", "description": "Legacy: an error tag if the analyzer crashed on this word, otherwise null.", "constraints": { "required": false } }
+        ]
+      }
+    }
+  ],
+  "record_counts": {
+    "records": 100000,
+    "with_at_least_one_decomposition": 82046,
+    "no_parse_found": 17761,
+    "analyzer_timed_out": 192,
+    "analyzer_crashed": 1
+  },
+  "provenance": {
+    "prov:wasGeneratedBy": {
+      "prov:activity": "python3 data/lexicon/decompositions/mine_decompositions.py --top 100000 --shards 4",
+      "prov:wasAssociatedWith": "iutools2 @ df0889c8358aa4349de2829213ed6b13b0349ea8 — MorphologicalAnalyzer_R2L (Uqailaut / Benoit Farley), no re-ranking, --lenient-decomps on, --timeout-secs 20",
+      "prov:used": [
+        "corpus: Nunavut Hansard Inuktitut-English Parallel Corpus 3.0.1, .iu side (sha256:da13155845112b6e568d040c7f4110aa2ba27e9782c72cf049f715e9e99ca477)",
+        "word list: the 100 000 most frequent syllabic word types in that corpus (tokenised on regex [᐀-ᙿᢰ-᣿]+, over 7 747 828 tokens); see hansard-freq-top100k.tsv"
+      ],
+      "prov:endedAtTime": "2026-09-06T18:37:45-04:00"
+    },
+    "generator_script": "data/lexicon/decompositions/mine_decompositions.py",
+    "rebuild": "data/lexicon/decompositions/regenerate.sh",
+    "reproducibility": "Non-deterministic at ~0.2 %: ~192 words sit close to R2L's 20 s per-word timeout and flip between a parse and a timeout run to run; 1 word (kigliliuqtausimaningit, rank 98857) hangs and is dropped. A rebuild has slightly different record_counts and a different SHA-256; the dataset is stored, not regenerated on demand. See README.md."
+  },
+  "_status": "DRAFT — no GitHub release cut yet. resources[0].path is the intended asset URL; resources[0].hash and .bytes are placeholders until the release is published (see README.md § 'Publish a new version')."
+}

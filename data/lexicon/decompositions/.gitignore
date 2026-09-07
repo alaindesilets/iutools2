@@ -1,0 +1,8 @@
+# The mined dataset itself is not in git -- it is published as a GitHub
+# release asset and pinned by datapackage.json (see README.md).
+*.jsonl
+*.jsonl.gz
+*.partial
+_work/
+run-manifest.json
+__pycache__/
