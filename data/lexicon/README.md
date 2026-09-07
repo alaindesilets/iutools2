@@ -19,5 +19,11 @@
 - **The morpheme dictionary**: no separate data file -- it's a search over
   the linguistic CSVs already in `data/grammar/linguistic-data/`, not a
   distinct dataset.
+- **Word decompositions** (`decompositions/`) -- for the 100k most frequent
+  Nunavut Hansard words, every grammatically correct R2L decomposition.
+  Published as a GitHub release, not stored in git; `decompositions/fetch.sh`
+  downloads it. See `decompositions/README.md`. The app does not read this;
+  it is a standalone dataset (and a future input to the Morpheme
+  Dictionary's example-words feature).
 
 See [`../README.md`](../README.md).
