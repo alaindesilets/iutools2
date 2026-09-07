@@ -22,4 +22,4 @@ dependencyResolutionManagement {
     }
 }
 
-include(":core", ":cli", ":composeApp", ":fst", ":enrichment")
+include(":core", ":cli", ":composeApp", ":fst")

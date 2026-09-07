@@ -1,6 +1,14 @@
 # Plan: extract `GuessMeaningEngine` + an `LlmClient` interface into `:core`
 
-Status: **COMPLETE** (2026-09-07, all 4 sub-steps). Part of
+Status: **COMPLETE** (2026-09-07, all 4 sub-steps).
+
+> Follow-up: the `:enrichment` module and the `commonMain`-can't-take-a-jar
+> constraints discussed below are undone by
+> `doc/dev/plans/drop-kmp-core.md` -- once KMP is dropped from `:core`,
+> `LlmClient_Anthropic` and its Anthropic dependency move straight into
+> `:core` and `:enrichment` is deleted.
+
+Part of
 [`module-architecture-migration.md`](module-architecture-migration.md)
 Phase 1. This is the last substantial Phase 1 piece and the one that
 unblocks Phase 2 (the LLM silver-standard generator needs to make the same

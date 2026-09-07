@@ -13,9 +13,9 @@ import org.iutools.llm.estimatedCostUsd
 /*
  * Connects :core's GuessMeaningEngine to this app for one conversation turn.
  *
- * The engine (build the request, append the reply, branch on errors) lives
- * in :core; the actual Claude call lives in :enrichment
- * (LlmClient_Anthropic). This function supplies the client, hands the
+ * The engine (build the request, append the reply, branch on errors) and
+ * the actual Claude call (LlmClient_Anthropic) both live in :core. This
+ * function supplies the client, hands the
  * engine the app's localized error strings, and -- only when a call
  * actually reached the model -- folds the reported cost into the on-screen
  * per-model stats and the persisted spend log.

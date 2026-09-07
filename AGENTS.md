@@ -22,48 +22,47 @@ The project also includes developer facing tools like:
 
 Which are available in the form of Kotlin classes, as well as a Command Line Interface.
 
-At the moment, the project only ships as an Android mobile app. But other future
-platorm will include:
-- Desktop (OSX, Windows, Linux)
-- iOS
-- Web services, and apps 
+At the moment, the project only ships as an Android mobile app. The next
+target is **Desktop (macOS — Alain's main platform — plus Linux and
+Windows)**. **iOS is not planned for the short term**, and there is no web
+target.
 
 ## Technical constraints
 
-- Target platforms: JVM (CLI, dev/test), Android, iOS. No web browser
+- Target platforms: **Android and Desktop (macOS / Linux / Windows) — both
+  JVM** — plus the JVM CLI for dev/test. No iOS short-term. No web browser
   target — this is not a web app.
-- Kotlin Multiplatform + Compose Multiplatform is the chosen architecture:
-  one shared analyzer core, one shared UI codebase, native app shells per
-  platform (no separate hand-written native UIs).
-- iOS is a real eventual target, but neither `:core` nor `:composeApp`
-  declares an iOS target in Gradle yet, and nobody is actively building for
-  it. Don't pre-emptively avoid JVM-only APIs (`java.util.*`, `java.io.*`,
-  ...) in `commonMain` for iOS's sake — Kotlin/Native's stdlib is missing
-  those, but that only becomes a real constraint once an iOS target
-  actually exists to fail against. Revisit portability when the iOS port
-  starts, not before.
+- Because every target is JVM, `:core` and the other shared modules are
+  plain Kotlin/JVM libraries. Use `java.*` / JVM APIs freely. **Kotlin
+  Multiplatform is being dropped** from `:core` (it was the only KMP module
+  and bought nothing for an all-JVM target set) — see
+  `doc/dev/plans/drop-kmp-core.md`; until that lands, `:core` is still
+  configured as KMP with a single `commonMain` source set.
+- If iOS is ever revisited it is a project of its own (convert `:core`
+  back to multiplatform, write a Compose Multiplatform iOS shell) — not a
+  constraint to design around now.
 
 ## Architecture
 
 Gradle modules:
-- **`:core`** — the morphological analyzer itself, as a Kotlin Multiplatform library
-  (`core/src/commonMain/kotlin/org/iutools/**`). This is the single source
-  of truth; `:cli` and `:composeApp` both depend on it and add no analyzer
-  logic of their own. Linguistic data (CSV files) lives under
+- **`:core`** — the morphological analyzer itself, plus reusable domain
+  logic including the Guess Meaning enrichment and its one concrete LLM
+  client (`org.iutools.llm`, `LlmClient_Anthropic`). A plain Kotlin/JVM
+  library (`core/src/main/kotlin/org/iutools/**`). This is the single
+  source of truth; `:cli` and `:composeApp` both depend on it and add no
+  analyzer logic of their own. Linguistic data (CSV files) lives under
   `data/grammar/linguistic-data/` and is loaded by `:core` at runtime via
   the JVM classpath (`LinguisticDataCSV.kt`).
 - **`:cli`** — JVM-only command-line entry point (`--word`/`--interactive`/
   `--pipeline`, modeled on the original iutools CLI's own option names) plus
   the full ported accuracy/regression test suite.
-- **`:composeApp`** — the graphical app (Jetpack Compose / Compose
-  Multiplatform). Named `composeApp` (rather than e.g. `:app`/`:mobile`)
-  because that's the module name JetBrains' official Kotlin Multiplatform
-  wizard (kmp.jetbrains.com) generates by default for the Compose
-  Multiplatform UI module, paired with an `iosApp` module (see below) — not
-  a project-specific naming choice.
-- **`iosApp`** (once it exists) — thin native Xcode wrapper embedding the
-  Kotlin/Native framework; no analyzer or UI logic of its own. Also the
-  default name from the same KMP wizard scaffold.
+- **`:composeApp`** — the graphical app: today a plain Android app
+  (`com.android.application` + Jetpack Compose). Named `composeApp` (rather
+  than `:app`/`:mobile`) because that's the module name JetBrains' KMP
+  wizard generates for the Compose UI module; kept for continuity, not
+  because the project is multiplatform. A Compose **Desktop** build is the
+  next planned target (either by adding a desktop target here or a sibling
+  `:desktopApp`).
 
 The real entry point into the analyzer is
 `org.iutools.morph.r2l.MorphologicalAnalyzer_R2L.decomposeWord()`.
@@ -148,10 +147,9 @@ Below are details about the proper use of each approach.
     properly named function/method, then by all means, write a comment.
   - If there is something non-obvious about the rationale for why a
     particular section is written the way it is, then by all means, write
-    a comment — this project relies on this heavily for platform-
-    portability workarounds (e.g. why a property was renamed to avoid a
-    JVM/Kotlin-Native declaration clash) and pruning decisions (why some
-    original Java code was dropped rather than ported).
+    a comment — this project relies on this heavily for pruning decisions
+    (why some original Java code was dropped rather than ported) and the
+    occasional build/portability workaround.
 
 #### Agent Memory
 

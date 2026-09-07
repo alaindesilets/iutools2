@@ -7,10 +7,9 @@ package org.iutools.lib
  * crashes with NoSuchMethodError at class-load time on a real Android
  * device/emulator (compiles fine, only fails at runtime).
  *
- * Uses java.util.LinkedHashMap's access-order mode, available on both JVM
- * and Android — NOT available in Kotlin/Native, so this will need to move
- * behind expect/actual (or a from-scratch implementation) if/when an iOS
- * target is added.
+ * Uses java.util.LinkedHashMap's access-order mode — fine on every current
+ * target (Android and Desktop are both JVM). Only relevant if iOS is ever
+ * added (not planned): it would need a from-scratch implementation.
  */
 class SimpleLruCache<K, V>(private val maxSize: Int) {
     private val map = object : LinkedHashMap<K, V>(16, 0.75f, true) {

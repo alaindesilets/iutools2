@@ -53,7 +53,7 @@ questions.
 
 | grouping | modules | role |
 |---|---|---|
-| **core** | `:core` | the analyzer + reusable domain logic (incl. the Guess Meaning enrichment logic). KMP library. Ships in every app. |
+| **core** | `:core` | the analyzer + reusable domain logic (incl. the Guess Meaning enrichment + `LlmClient_Anthropic`). Plain Kotlin/JVM library (KMP dropped -- see `drop-kmp-core.md`). Ships in every app. |
 | **apps** | `:cli`, `:composeApp`, later `desktopApp` / `iosApp` | entry points and UI. Depend on `:core`; add no domain logic of their own. |
 | **data** | passive artifacts under `data/`, plus a JVM-only `:data-gen` (or `:cli` subcommands) | data files + the thin generator/manager code that produces them. |
 
@@ -64,6 +64,12 @@ modules -- renaming churns `settings.gradle.kts`, every build file, IDE run
 configs, and the Android-Studio test-config skill's `iutools2.*` labels.
 
 ### Axis 2 -- platform: KMP source sets inside each module
+
+> **Superseded (2026-09-07).** The near-term target set is Android +
+> Desktop, both JVM; iOS is not planned short-term. KMP buys `:core`
+> nothing in that scope and is being dropped -- see
+> `doc/dev/plans/drop-kmp-core.md`. The source-set discussion below is kept
+> for history / a possible future iOS revival.
 
 `commonMain` / `jvmMain` / `androidMain` / `iosMain` / `desktopMain`
 (/ `jsMain` if web ever returns). Each module declares only the targets its
