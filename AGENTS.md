@@ -108,6 +108,41 @@ Below are details about the proper use of each approach.
   section into a function/method, and giving it a clear name.
 - Appropriate use of comments:
   - Put a comment at the top of each package, file, class (compulsory).
+  - In that top-of-file/class/function comment, lead with the overview:
+    the first sentence(s) say what the thing does, globally. Rationale,
+    mechanics and edge cases come after — not first. More on what
+    "the overview" means, because a terse abstract label is NOT it:
+    - Write for a reader who does not already know this codebase or this
+      feature. Plain, unhurried expository prose — a few short sentences —
+      not one dense sentence stacked with clauses and semicolons, and not
+      a clever compressed one-liner.
+    - "What it does, globally" is allowed to start from *why the thing
+      exists*. The motivating context ("we cache LLM replies to avoid
+      re-calling; this builds the cache key") is often the fastest way in,
+      and a concrete example (a real value, a real prompt fragment)
+      belongs here when it makes the point land.
+    - Litmus: could someone who has never seen this feature read the
+      comment alone and correctly say what the class is for?
+      This FAILS the litmus (assumes you know the feature, reads as an
+      aphorism):
+        /* Identity of one "guess the meaning" attempt, used to cache the
+         * model's reply. Every field here can change the answer. */
+      This PASSES:
+        /*
+         * To avoid calling the LLM every time, we cache some of its
+         * replies. This class builds the cache key for one "Guess
+         * Meaning" request.
+         *
+         * The key captures the word, plus the other things that change
+         * the LLM's answer (e.g. the exact prompt text used).
+         */
+  - Don't enumerate the code's callers. One or two examples of callers
+    are fine; an exhaustive list is a coupling smell (the callee
+    "knowing" its clients) and goes stale as callers come and go.
+    Better: describe the *kind* of caller or input abstractly rather
+    than naming classes ("some source — a dictionary, a corpus index, a
+    web lookup" rather than "used by SpaldingDictionary,
+    NunavutHansardLocalIndex").
   - If a section of a function/method does something that is not clear,
     and it is difficult to clarify that section by turning it into a
     properly named function/method, then by all means, write a comment.
@@ -135,6 +170,10 @@ The documents in that directory are not meant to be permanent. They are meant to
 Each directory in this project may contain a README.md that describe the purpose and structure of that directory (and its descendants).
 
 This type of documentation is meant to be more permanent than the docs found in doc/dev/plans/. But if the directory is in a state of flux, the README may explain this and even refer to a planning document, while the directory is being modified.
+
+Keep it high-level: a README states the *intent* of the directory. It is
+not an inventory of the files inside it, nor a per-file rationale — that
+belongs in each file's own top comment, or in a planning document.
 
 ## Preserving data integrity
 

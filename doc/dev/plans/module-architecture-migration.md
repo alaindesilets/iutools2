@@ -145,9 +145,16 @@ steps that touch `:composeApp`). Do the work on a branch, not on `main`.
 
 ### Phase 1 -- extract the Guess Meaning enrichment into `:core`
 
-Prerequisite: reconcile with the `llm-guess-meaning-spike` branch -- the
-Guess Meaning code is not on `main` yet. Either land that branch first, or
-do this extraction as part of landing it.
+Status (2026-09-07): the Guess Meaning code **is on `main`** now
+(`GuessMeaningEngine`, `GuessMeaningInline`, `guessMeaningSeedPrompt()` in
+`WordLookupScreen.kt`, `SpaldingDictionary`, `TusaalangaFetcher`,
+`NunavutHansardLocalIndex`, all under `composeApp/.../org/iutools/app/`).
+The `llm-guess-meaning-spike` reconciliation is done. An in-progress
+unpushed commit on `main` has already moved the leaf value types
+(`CandidateMeanings`, `ChatMessage`, `GuessMeaningCacheKey`, `LlmCost`,
+`ModelStats`, `MorphemeRow`) to `:core` `org.iutools.llm`, and
+`PrefixFallback` to `org.iutools.search`. The pieces below are what's
+left.
 
 - [ ] Inventory the pieces in `:composeApp`: `SpaldingDictionary`,
       `TusaalangaFetcher`, Hansard example assembly, prompt builder,
@@ -164,6 +171,68 @@ do this extraction as part of landing it.
       copies.
 - [ ] Gate: `:composeApp:compileDebugKotlin`, `:composeApp:testDebugUnitTest`,
       `:cli:test`.
+
+Progress (2026-09-07): the leaf value types, `guessMeaningSeedPrompt()`,
+`BilingualExample`, `DictionaryLookupResult` / `ShorterWordDictionaryResult`
+are all moved (see the migration memory for the list). **The `LlmClient`
+interface + `GuessMeaningEngine` extraction now has its own detailed,
+resume-from-cold plan: [`guess-meaning-engine-to-core.md`](guess-meaning-engine-to-core.md).**
+Still-app-side after that: `GuessMeaningCostLog`, `SpaldingDictionary`,
+`TusaalangaFetcher`.
+
+#### Phase 1 follow-up -- unify "decomposition -> human-readable form"
+
+Do this **after** the enrichment above is in `:core`, not before (it would
+mean refactoring code that's about to move). Deferred 2026-09-07 as too big
+to fold into the mechanical class moves; noted here so it isn't lost.
+
+Today there are three separate paths that turn a morpheme / decomposition
+into readable text, two of them called `MorphemeRow`:
+
+| where | type | output |
+|---|---|---|
+| `org.iutools.morphemedict.MorphemeDictionary` | `private class MorphemeRow(id, Morpheme?)` + `descr: MorphemeHumanReadableDescr` | canonical form + grammar gloss + meaning, via `MorphemeHumanReadableDescr` (in `:core`, tested) |
+| `org.iutools.llm.MorphemeRow` (moved in the in-progress commit) | `(surfaceForm, morphemeId, Morpheme?)` | rendered by `guessMeaningSeedPrompt()` as `- <surface> (<id>): <meaning>` -- no grammar gloss, forced to syllabic |
+| `WordLookupScreen.kt` morpheme-detail popup | -- | reads `morpheme.frenchMeaning` / `englishMeaning` directly |
+
+`MorphemeHumanReadableDescr` is already the "human-readable form" engine;
+Guess Meaning just doesn't use it and re-derives a poorer version.
+
+Proposed shape (Alain, 2026-09-07): an abstract `MorphDecompFormatter` in
+`org.iutools.morph` (`:core`) that owns the traversal (walk components,
+parse `{surface:id/tag}` vs `id/tag`, resolve the `Morpheme`, assemble the
+whole, incl. the multi-candidate case) and defers three seams to
+subclasses:
+
+- `formatCanonicalForm(canonical)`
+- `formatSurfaceForm(surface?)`  -- may be absent (FST output has no matched substring)
+- `formatDefinition(morpheme?)`  -- incl. the "unknown morpheme" fallback
+
+Notes / decisions to make when this is picked up:
+
+- The Guess Meaning subclass is **domain logic -> lives in `:core`**, not
+  `:composeApp`. Only a Compose-rendering formatter would go in the app.
+- The Morpheme Dictionary is **not** a subclass: `MorphemeResultCard`
+  renders Compose `Text`, not a `String`, and it formats a *single*
+  morpheme (a search hit), not a whole decomposition. It stays on
+  `MorphemeHumanReadableDescr`.
+- Real clients of `MorphDecompFormatter` today: Guess Meaning's prompt;
+  plausibly a CLI `--pipeline` text dump later; possibly the detail popup.
+  With effectively one client now, the concrete formatter could come
+  first and the abstract base be factored out when a second one appears.
+- The three seams should **delegate to `MorphemeHumanReadableDescr`**
+  internally -- do not add a 4th grammar-gloss implementation.
+- Resolves the `MorphemeRow` name collision: the base consumes one shared
+  per-morpheme struct (surface + id + `Morpheme?`) that replaces
+  `org.iutools.llm.MorphemeRow`.
+- Behaviour change to weigh: routing Guess Meaning through
+  `MorphemeHumanReadableDescr` would add the grammar gloss to the prompt
+  (currently omitted). Decide if that's wanted.
+- Cheap intermediate step available on its own: make
+  `guessMeaningSeedPrompt()`'s morpheme line call
+  `MorphemeHumanReadableDescr` instead of its hand-rolled string (~20
+  lines, no hierarchy, no collision to untangle) -- same grammar-gloss
+  caveat.
 
 ### Phase 2 -- first `:data` generator: the LLM silver standard
 

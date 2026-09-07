@@ -8,6 +8,10 @@ dependencies {
     testImplementation(kotlin("test"))
     // For MorphologicalAnalyzer_FST__AccuracyTest.
     testImplementation(project(":fst"))
+    // runBlocking, to drive :core's suspend APIs (e.g. GuessMeaningEngine)
+    // from tests. :core itself declares no coroutines dependency -- it only
+    // uses the `suspend` language feature, not the library.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 }
 
 kotlin {

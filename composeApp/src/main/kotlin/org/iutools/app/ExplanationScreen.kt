@@ -37,8 +37,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.anthropic.models.messages.MessageParam
 import kotlinx.coroutines.launch
+import org.iutools.llm.AggregatedBackendStats
+import org.iutools.llm.ChatMessage
+import org.iutools.llm.ChatRole
+import org.iutools.llm.GuessMeaningConversationKey
+import org.iutools.llm.extractCandidateMeanings
+import org.iutools.llm.extractExplanation
 import org.iutools.script.Script
 
 /*
@@ -59,7 +64,7 @@ import org.iutools.script.Script
  * the *full* prompt that produced the current candidates/explanation -- both
  * the system instructions (chat_system_prompt) and the seed message, each
  * editable separately since that's how they're actually sent (see
- * GuessMeaningEngine.send()'s systemPrompt/text parameters) -- and
+ * sendGuessMeaningTurn()'s systemPrompt/text parameters) -- and
  * resubmittable. A lighter replacement for the old "Advanced" chat screen's
  * prompt-tuning workflow, scoped to one word at a time. Resubmitting
  * overwrites this same attempt's cache entry (see
@@ -89,7 +94,7 @@ internal fun ExplanationScreen(
 
     val messages = conversations[conversationKey] ?: emptyList()
     val latestMessage = remember(messages) {
-        messages.lastOrNull { it.role == MessageParam.Role.ASSISTANT && !it.isError }
+        messages.lastOrNull { it.role == ChatRole.ASSISTANT && !it.isError }
     }
     val candidates = remember(latestMessage) {
         latestMessage?.let { extractCandidateMeanings(it.text) } ?: emptyList()
@@ -168,14 +173,17 @@ internal fun ExplanationScreen(
 
     if (showInspectPrompt) {
         InspectPromptDialog(
-            uiLanguage = conversationKey.uiLanguage,
+            // Same value as conversationKey's language (both fixed at first
+            // send); wordInfo carries it as AppLanguage, which this dialog's
+            // LocalizedContent needs.
+            uiLanguage = wordInfo.uiLanguage,
             // The exact system + seed text that produced the current
             // candidates/explanation -- conversationKey.systemPrompt is
             // fixed at first send (see GuessMeaningConversationKey's header
             // comment), so it's still accurate even if the app's default
             // chat_system_prompt has since been edited.
             initialSystemPrompt = conversationKey.systemPrompt,
-            initialSeed = messages.firstOrNull { it.role == MessageParam.Role.USER }?.text ?: "",
+            initialSeed = messages.firstOrNull { it.role == ChatRole.USER }?.text ?: "",
             resubmitting = resubmitting,
             onDismiss = { showInspectPrompt = false },
             onResubmit = { editedSystemPrompt, editedSeed ->
@@ -185,7 +193,7 @@ internal fun ExplanationScreen(
                     // follow-up appended to the old one) -- the point is to
                     // see what the edited prompt alone produces.
                     conversations[conversationKey] = emptyList()
-                    GuessMeaningEngine.send(
+                    sendGuessMeaningTurn(
                         context = context,
                         history = emptyList(),
                         text = editedSeed,
@@ -231,7 +239,7 @@ private fun InspectPromptDialog(
             // comfortably than the dialog's small fields allow -- copies
             // both fields together (system prompt, then seed), each under
             // its own labeled section, since that's the two-part shape the
-            // backend actually sends (see GuessMeaningEngine.send()).
+            // backend actually sends (see sendGuessMeaningTurn()).
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(R.string.inspect_prompt_dialog_title),
@@ -259,7 +267,8 @@ private fun InspectPromptDialog(
             // Two separate fields, not one combined block of text: the
             // Claude/local-model API takes the system instructions and the
             // seed message as two distinct parameters (see
-            // GuessMeaningEngine.kt), so editing them separately matches
+            // sendGuessMeaningTurn() and :core's GuessMeaningEngine), so
+            // editing them separately matches
             // what actually gets sent. No single SelectionContainer wrapping
             // the whole Column, unlike a first version of this dialog --
             // each field already has its own built-in text selection, and

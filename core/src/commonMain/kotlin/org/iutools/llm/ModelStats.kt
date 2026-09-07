@@ -1,17 +1,8 @@
-package org.iutools.app
+package org.iutools.llm
 
 /*
- * Aggregate performance stats per backend/model for Guess Meaning: average
- * latency, average input tokens, average output tokens. Deliberately only
- * fed from real backend calls (see the call site in GuessMeaningEngine.kt's
- * send(), inside the Claude success branch) -- a conversation replayed from
- * the cache (see GuessMeaningConversationKey) never reaches that call site,
- * so it's excluded automatically rather than needing an explicit check.
- *
- * Keyed by a per-backend/model label (currently only ever the Claude model
- * constant) -- the on-device backend this once also tracked, keyed by its
- * model file's name so different local models tracked separately, is
- * disabled; see composeApp/disabled-features/local-llm/README.md.
+ * Per-model running averages of how the LLM backends are performing:
+ * latency, and input/output token counts per call.
  */
 
 data class BackendCallStats(

@@ -1,12 +1,14 @@
-package org.iutools.app
+package org.iutools.search
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /*
- * Plain JUnit: findByLongestPrefix() is a pure function, no Android
- * framework dependency.
+ * findByLongestPrefix() is a pure function, no platform dependency. Lives
+ * in :cli's test source set because :core has none of its own (see
+ * AGENTS.md) -- moved here from :composeApp when PrefixFallback moved into
+ * :core.
  */
 class PrefixFallbackTest {
 

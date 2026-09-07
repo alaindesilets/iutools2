@@ -11,27 +11,14 @@ import org.robolectric.annotation.Config
 import java.util.Calendar
 
 /*
- * estimatedCostUsd() is a pure function -- straightforward to test directly.
  * GuessMeaningCostLog needs a real Context for SharedPreferences, hence
  * Robolectric (see UiStringLocalizationTest.kt/SpaldingDictionaryTest.kt for
- * the same pattern already used elsewhere in this suite).
+ * the same pattern already used elsewhere in this suite). The pure cost
+ * calculation itself is tested in :cli (org.iutools.llm.LlmCostTest).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class GuessMeaningCostTrackerTest {
-
-    @Test
-    fun estimatedCostUsd_knownModel_pricesInputAndOutputTokensSeparately() {
-        // claude-haiku-4-5: $1/1M input, $5/1M output (see the price table).
-        val cost = estimatedCostUsd("claude-haiku-4-5", inputTokens = 1_000_000, outputTokens = 1_000_000)
-
-        assertEquals(6.0, cost!!, 0.0001)
-    }
-
-    @Test
-    fun estimatedCostUsd_unknownModel_returnsNull() {
-        assertNull(estimatedCostUsd("some-local-model.litertlm", inputTokens = 100, outputTokens = 50))
-    }
 
     private fun at(year: Int, month: Int, day: Int, hour: Int): Long =
         Calendar.getInstance().apply {

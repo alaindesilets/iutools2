@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
+import org.iutools.corpus.BilingualExample
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
 import org.junit.Assert.assertEquals

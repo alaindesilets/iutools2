@@ -4,8 +4,10 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.iutools.corpus.BilingualExample
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
+import org.iutools.search.findByLongestPrefix
 import java.io.File
 
 /*
@@ -30,8 +32,11 @@ import java.io.File
  * (neither has happened yet) or its schema is out of date (SCHEMA_VERSION
  * bumped since it was generated/downloaded), the feature just reports that
  * rather than crashing -- see NunavutHansardResult.
+ *
+ * The BilingualExample type these queries return now lives in :core
+ * (org.iutools.corpus) -- it is plain corpus data, useful beyond this
+ * Android-only index.
  */
-data class BilingualExample(val inuktitut: String, val english: String, val date: String)
 
 sealed interface NunavutHansardResult {
     // word is the syllabic form actually matched against the corpus (see

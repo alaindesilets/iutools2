@@ -12,6 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import org.iutools.llm.AggregatedBackendStats
+import org.iutools.llm.ChatMessage
+import org.iutools.llm.GuessMeaningConversationKey
 
 // Two screens, no navigation library: a bare enum + mutableStateOf is
 // enough for this app's size, and avoids pulling in Navigation Compose.
@@ -53,7 +56,7 @@ class MainActivity : ComponentActivity() {
                 // re-calling that backend for it, and so that trying a different backend
                 // or a tweaked prompt for the *same* word creates its own entry rather
                 // than colliding with or replaying a previous attempt -- see
-                // GuessMeaningEngine.kt's header comment. Owned here, shared by
+                // GuessMeaningConversationKey's header comment. Owned here, shared by
                 // WordLookupScreen (the normal inline flow, see GuessMeaningSection in
                 // GuessMeaningInline.kt) and ExplanationScreen (its debug-only prompt
                 // resubmission), so either one picks up an attempt the other started

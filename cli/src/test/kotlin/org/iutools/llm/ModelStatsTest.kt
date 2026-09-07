@@ -1,7 +1,7 @@
-package org.iutools.app
+package org.iutools.llm
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class ModelStatsTest {
 
@@ -13,6 +13,25 @@ class ModelStatsTest {
         assertEquals(0.0, stats.averageLatencySeconds, 0.0)
         assertEquals(0.0, stats.averageInputTokens, 0.0)
         assertEquals(0.0, stats.averageOutputTokens, 0.0)
+    }
+
+    @Test
+    fun aggregatedBackendStats_afterOneCall_averagesEqualThatCall() {
+        val stats = AggregatedBackendStats() +
+            BackendCallStats(latencyMs = 2500, inputTokens = 120, outputTokens = 80)
+
+        assertEquals(1, stats.callCount)
+        assertEquals(2.5, stats.averageLatencySeconds, 0.0001)
+        assertEquals(120.0, stats.averageInputTokens, 0.0001)
+        assertEquals(80.0, stats.averageOutputTokens, 0.0001)
+    }
+
+    @Test
+    fun aggregatedBackendStats_plus_doesNotMutateTheLeftOperand() {
+        val empty = AggregatedBackendStats()
+        empty + BackendCallStats(latencyMs = 1000, inputTokens = 10, outputTokens = 5)
+
+        assertEquals(0, empty.callCount)
     }
 
     @Test

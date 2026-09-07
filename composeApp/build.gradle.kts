@@ -102,9 +102,11 @@ dependencies {
     // changes (and update MorphologicalAnalyzer_FST__AccuracyTest's numbers).
     implementation(project(":fst"))
 
-    // Guess Meaning spike: Anthropic's official Java SDK (Kotlin uses the
-    // Java SDK -- there is no separate Kotlin SDK).
-    implementation("com.anthropic:anthropic-java:2.34.0")
+    // Concrete implementations of :core's enrichment interfaces -- the LLM
+    // call (LlmClient_Anthropic, which is what pulls in the Anthropic SDK),
+    // and, as they move here, the web/bundled dictionary sources. See
+    // enrichment/README.md.
+    implementation(project(":enrichment"))
 
     // Encrypts the user's own Claude.ai API key at rest (see AppSettings.kt)
     // -- an AES256-GCM value wrapped by a key held in the Android Keystore,

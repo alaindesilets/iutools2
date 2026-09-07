@@ -4,47 +4,20 @@ import android.content.Context
 import java.util.Calendar
 
 /*
- * Estimated USD cost of Guess Meaning's online-model calls, per Alain's
- * request to see roughly how much this is costing him: the cost of the
- * current word's conversation, plus running totals for today/this week/this
- * month. "Estimated" (his own word) because it's derived from
- * response.usage() token counts and the price table below, not read back
- * from Anthropic's own billing. Local-model calls are never priced --
- * estimatedCostUsd() returns null for any model not in
- * PRICING_PER_MILLION_TOKENS_USD, which callers (GuessMeaningInline.kt,
- * GuessMeaningEngine.kt) take as "don't show a cost for this reply".
+ * Persisted running totals of Guess Meaning's estimated LLM spend, per
+ * model, for today / this week / this month -- they need to survive app
+ * restarts to mean anything (a "today's total" that resets on every launch
+ * isn't useful). Each real call's cost is appended to a small
+ * SharedPreferences-backed log (same approach as AppSettings.kt), pruned to
+ * the last month's worth on every write.
  *
- * Broken down **per model**, not one lumped total: Alain is planning to try
- * other online models (GPT-4, Qwen, Gemini, ...) alongside Claude to compare
- * them, at per-token prices that can differ from Haiku's by 3-10x, so a
- * single combined total would hide which model is actually driving the
- * spend. A local model simply never appears in these totals (no entries are
- * ever recorded for one), which is the same as saying it costs $0.
+ * Per model, not one lumped total: different models' per-token prices can
+ * differ severalfold, so a combined figure would hide which one is driving
+ * the spend. A model with no recorded calls simply has no entry, which
+ * reads as $0.
  *
- * Day/week/month totals need to survive app restarts to mean anything (a
- * "today's total" that resets on every launch isn't useful), so each real
- * call's cost is appended to a small persisted log (SharedPreferences, same
- * approach as AppSettings.kt) rather than kept only in memory -- pruned back
- * to the last month's worth on every write, since that's the widest window
- * ever queried.
+ * The per-call cost figure comes from estimatedCostUsd() (org.iutools.llm).
  */
-
-private data class ModelPricing(val inputPerMillionUsd: Double, val outputPerMillionUsd: Double)
-
-// $/1M tokens, from Anthropic's published pricing at the time this was
-// written -- update here if MODEL (GuessMeaningEngine.kt) changes model, or
-// Anthropic changes its prices. Add an entry here for each new online model
-// as it's wired up (see this file's header comment) -- a model with no entry
-// is simply never priced (estimatedCostUsd() returns null for it).
-private val PRICING_PER_MILLION_TOKENS_USD = mapOf(
-    "claude-haiku-4-5" to ModelPricing(inputPerMillionUsd = 1.0, outputPerMillionUsd = 5.0),
-)
-
-fun estimatedCostUsd(model: String, inputTokens: Long, outputTokens: Long): Double? {
-    val pricing = PRICING_PER_MILLION_TOKENS_USD[model] ?: return null
-    return (inputTokens / 1_000_000.0) * pricing.inputPerMillionUsd +
-        (outputTokens / 1_000_000.0) * pricing.outputPerMillionUsd
-}
 
 object GuessMeaningCostLog {
     private const val PREFS_NAME = "guess_meaning_cost_log"

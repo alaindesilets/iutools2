@@ -24,8 +24,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.anthropic.models.messages.MessageParam
 import kotlinx.coroutines.launch
+import org.iutools.llm.AggregatedBackendStats
+import org.iutools.llm.ChatMessage
+import org.iutools.llm.ChatRole
+import org.iutools.llm.GuessMeaningCacheKey
+import org.iutools.llm.GuessMeaningConversationKey
+import org.iutools.llm.extractCandidateMeanings
 
 /*
  * The inline Guess Meaning experience on WordLookupScreen: a button shown at
@@ -41,7 +46,7 @@ import kotlinx.coroutines.launch
  * WordLookupScreen is the one with the word info (dictionary/decomposition/
  * Hansard) that screen's bottom pane needs.
  *
- * Uses GuessMeaningEngine for the actual backend calls, and reads/writes the
+ * Uses sendGuessMeaningTurn() for the actual backend calls, and reads/writes the
  * same `conversations`/`modelStats` maps ExplanationScreen uses (both
  * hoisted in MainActivity) -- so a debug-only prompt resubmission there (see
  * that file) is immediately reflected here once the user navigates back.
@@ -97,7 +102,7 @@ internal fun GuessMeaningSection(
     // word naturally starts collapsed again, without needing an explicit
     // reset.
     val key = remember(wordCacheKey, useLocalModel, uiLanguage, systemPrompt, seed) {
-        GuessMeaningConversationKey(wordCacheKey, useLocalModel, uiLanguage, systemPrompt, seed)
+        GuessMeaningConversationKey(wordCacheKey, useLocalModel, uiLanguage.toMeaningLanguage(), systemPrompt, seed)
     }
     // Starts true when this exact attempt is already cached (re-searching a
     // word tried earlier this session) -- shows the past result immediately,
@@ -106,7 +111,7 @@ internal fun GuessMeaningSection(
     var sending by remember(key) { mutableStateOf(false) }
     val messages = conversations[key] ?: emptyList()
     val latestCandidates = remember(messages) {
-        messages.lastOrNull { it.role == MessageParam.Role.ASSISTANT }
+        messages.lastOrNull { it.role == ChatRole.ASSISTANT }
             ?.takeIf { !it.isError }
             ?.let { extractCandidateMeanings(it.text) }
             ?: emptyList()
@@ -117,7 +122,7 @@ internal fun GuessMeaningSection(
         if (sending) return
         sending = true
         scope.launch {
-            GuessMeaningEngine.send(
+            sendGuessMeaningTurn(
                 context = context,
                 history = conversations[key] ?: emptyList(),
                 text = text,
@@ -191,7 +196,7 @@ internal fun GuessMeaningResultPanel(
     sending: Boolean,
     onExplainClick: () -> Unit,
 ) {
-    val latestMessage = remember(messages) { messages.lastOrNull { it.role == MessageParam.Role.ASSISTANT } }
+    val latestMessage = remember(messages) { messages.lastOrNull { it.role == ChatRole.ASSISTANT } }
 
     when {
         sending && latestMessage == null -> {

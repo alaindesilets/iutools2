@@ -7,7 +7,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
-import com.anthropic.models.messages.MessageParam
+import org.iutools.llm.AggregatedBackendStats
+import org.iutools.llm.ChatMessage
+import org.iutools.llm.ChatRole
+import org.iutools.llm.GuessMeaningCacheKey
+import org.iutools.llm.GuessMeaningConversationKey
+import org.iutools.llm.MeaningLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -81,9 +86,9 @@ class GuessMeaningSectionApiKeyTest {
         // branch the bug lived in.
         val context = ApplicationProvider.getApplicationContext<Context>()
         val systemPrompt = context.getString(R.string.chat_system_prompt)
-        val key = GuessMeaningConversationKey(wordCacheKey, false, AppLanguage.FRENCH, systemPrompt, "seed text")
+        val key = GuessMeaningConversationKey(wordCacheKey, false, MeaningLanguage.FRENCH, systemPrompt, "seed text")
         conversations[key] = listOf(
-            ChatMessage(role = MessageParam.Role.ASSISTANT, text = "Candidate meanings:\n- foo"),
+            ChatMessage(role = ChatRole.ASSISTANT, text = "Candidate meanings:\n- foo"),
         )
 
         composeTestRule.onNodeWithTag("guess_meaning_button").performClick()

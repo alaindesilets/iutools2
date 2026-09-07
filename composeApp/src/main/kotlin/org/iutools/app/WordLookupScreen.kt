@@ -65,8 +65,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.iutools.linguisticdata.LinguisticData
-import org.iutools.linguisticdata.Morpheme
+import org.iutools.corpus.BilingualExample
+import org.iutools.dictionary.DictionaryLookupResult
+import org.iutools.dictionary.ShorterWordDictionaryResult
+import org.iutools.llm.AggregatedBackendStats
+import org.iutools.llm.ChatMessage
+import org.iutools.llm.GuessMeaningCacheKey
+import org.iutools.llm.GuessMeaningConversationKey
+import org.iutools.llm.GuessMeaningSeedLabels
+import org.iutools.llm.MeaningLanguage
+import org.iutools.llm.MorphemeRow
+import org.iutools.llm.guessMeaningSeedPrompt
+import org.iutools.llm.toMorphemeRows
 import org.iutools.morph.Decomposition
 import org.iutools.morph.MorphologicalAnalyzer
 import org.iutools.morph.MorphologicalAnalyzerException
@@ -107,6 +117,13 @@ enum class AppLanguage(val locale: Locale, val endonym: String) {
 
 fun defaultAppLanguage(): AppLanguage =
     if (Locale.getDefault().language == "fr") AppLanguage.FRENCH else AppLanguage.ENGLISH
+
+// Guess Meaning (in :core) works in its own two-value MeaningLanguage; the
+// app's UI language picks which one.
+fun AppLanguage.toMeaningLanguage(): MeaningLanguage = when (this) {
+    AppLanguage.ENGLISH -> MeaningLanguage.ENGLISH
+    AppLanguage.FRENCH -> MeaningLanguage.FRENCH
+}
 
 // Overrides stringResource()'s language for [content], independently of the
 // device's system locale -- every screen that has its own uiLanguage
@@ -229,38 +246,12 @@ enum class DisplayScript { ROMAN, SYLLABIC, AS_ENTERED }
 // R.string.error_fst_not_available.
 enum class AnalyzerChoice { UQAILAUT, FST }
 
-// One hit from one dictionary source (Spalding, Tusaalanga, ...). Carries its own
-// display title (source name, already localized) rather than a source enum, since
-// DictionaryResultSection just needs to print it -- no other code branches on which
-// source a result came from. Pairs the hit with the script the user typed it in --
-// captured at lookup time, since (unlike DecomposeState.Success) a dictionary lookup
-// can succeed even when decomposition fails, so there's no other enteredScript to
-// read it off of.
-// internal (not private): referenced by WordLookupScreenState below, which
-// needs to be internal itself -- see that class's header comment.
-internal data class DictionaryLookupResult(
-    val title: String,
-    val word: String,
-    val meaning: String,
-    val enteredScript: Script,
-)
-
-// A dictionary definition found for a shorter prefix of the searched word,
-// not the word itself (see PrefixFallback.kt) -- kept separate from
-// DictionaryLookupResult/dictionaryResults on purpose: per Alain, this does
-// NOT count as "a definition was found" for gating the Guess Meaning button
-// or the automatic Hansard search (see findWord()) -- only an exact-word hit
-// does. Guess Meaning stays offered, and this gets sent to the AI as useful
-// context (see guessMeaningSeedPrompt(), converted to syllabic there, same
-// reasoning as decomposition morphemes -- per Alain, initially thought
-// unnecessary since he'd expected an exact-word hit to always suppress Guess
-// Meaning entirely, until he remembered this shorter-word case stays
-// reachable). Still shown on screen either way (see
-// ShorterWordDictionarySection).
-internal data class ShorterWordDictionaryResult(
-    val originalWord: String,
-    val result: DictionaryLookupResult,
-)
+// DictionaryLookupResult and ShorterWordDictionaryResult moved to :core
+// (org.iutools.dictionary) -- plain dictionary-lookup data, reusable beyond
+// this screen. The screen-specific rule still lives here: a
+// ShorterWordDictionaryResult does NOT count as "a definition was found"
+// for gating the Guess Meaning button or the automatic Hansard search (see
+// findWord() and shouldOfferGuessMeaning()) -- only an exact-word hit does.
 
 // A frozen copy of everything WordLookupScreen shows about the current word
 // below its search controls (dictionary/decomposition/Hansard results) --
@@ -309,14 +300,6 @@ internal fun displayFormBothScripts(text: String, script: DisplayScript, entered
     return "$primary ($other)"
 }
 
-// internal (not private): constructed directly in WordLookupScreenTest.kt to
-// exercise guessMeaningSeedPrompt() without needing a real analyzer run.
-internal data class MorphemeRow(
-    val surfaceForm: String,
-    val morphemeId: String,
-    val fullRecord: Morpheme?,
-)
-
 // internal (not private): DecomposeState below (internal for the same
 // reason as DictionaryLookupResult) carries a FailureReason.
 internal sealed interface FailureReason {
@@ -342,160 +325,6 @@ internal sealed interface DecomposeState {
     data class Failure(val reason: FailureReason) : DecomposeState
 }
 
-private fun Decomposition.toMorphemeRows(): List<MorphemeRow> {
-    val linguisticData = LinguisticData.getInstance()
-    // Parsed here rather than via Decomposition.surfaceForms()/getMorphemes()
-    // so a component with no "surface:" prefix is tolerated: the FST analyzer
-    // (MorphologicalAnalyzer_FST) only knows the canonical morpheme + tag
-    // ("atuaq/1v"), not the surface substring it matched, so its components
-    // are just "atuaq/1v". For those, the canonical form ("atuaq") stands in
-    // for the surface form in the "Morpheme" column, rather than leaving it
-    // blank.
-    return components().map { raw ->
-        val comp = raw.removeSurrounding("{", "}")
-        val colon = comp.indexOf(':')
-        val morphemeId = if (colon >= 0) comp.substring(colon + 1) else comp
-        val surfaceForm = if (colon >= 0) comp.substring(0, colon) else morphemeId.substringBefore('/')
-        MorphemeRow(
-            surfaceForm = surfaceForm,
-            morphemeId = morphemeId,
-            fullRecord = linguisticData.getMorpheme(morphemeId),
-        )
-    }
-}
-
-// Localized scaffold text for guessMeaningSeedPrompt() -- resolved once via
-// stringResource() in the composable that builds the seed prompt (see the
-// "Guess Meaning" button in WordLookupScreen), since guessMeaningSeedPrompt()
-// itself runs inside a button click handler, not a @Composable context.
-// internal (not private): constructed directly in WordLookupScreenTest.kt.
-internal data class GuessMeaningSeedLabels(
-    // %1$s: the word, in syllabic. Placed first (not last, as before), per
-    // Alain's request -- the seed now opens with the actual question, then
-    // explains what follows it, rather than piling up data and asking the
-    // question at the end.
-    val questionTemplate: String,
-    // Two variants, not one -- when there's just one decomposition it's
-    // presented as fact; with several, the prompt also has to say they're
-    // competing alternatives, not all necessarily correct (see
-    // decompositions.size below).
-    val decompositionSingleIntro: String,
-    val decompositionMultipleIntro: String,
-    val decompositionNumberTemplate: String,
-    val unknownMorpheme: String,
-    // %1$s: the word, in syllabic.
-    val shorterWordDictionaryIntroTemplate: String,
-    // Two variants, not one -- the instruction to verify candidate meanings
-    // against the examples only makes sense when they're for the exact word
-    // (see guessMeaningSeedPrompt's hansardExamplesAreExactMatch parameter
-    // and its own header comment); when they're only for a shorter, related
-    // word, the prompt says the opposite instead. %1$s: the word, in
-    // syllabic, in both variants.
-    val hansardExamplesExactIntroTemplate: String,
-    val hansardExamplesShorterWordIntroTemplate: String,
-)
-
-/**
- * Builds the seed message sent to the AI for Guess Meaning: opens with the
- * actual question, then, for each kind of information actually available
- * for this specific word, a plain-language sentence saying what it is and
- * how (or whether) to use it, followed by that data -- morphological
- * decomposition(s), a dictionary definition found for a shorter/related word
- * (see ShorterWordDictionaryResult -- never an exact-word definition, since
- * Guess Meaning isn't offered at all when one exists, see WordLookupScreen's
- * gating), and/or bilingual sentence pairs. Per Alain's request: rather than
- * one system prompt trying to describe every case a seed *might* contain,
- * each seed instead describes exactly what *this* one contains and why,
- * conversationally -- chat_system_prompt now only carries the few rules that
- * really are true for every attempt (output format, response language,
- * brief-then-detailed-on-request). Both this seed and that system prompt
- * follow the app's UI language, per Alain's earlier request, so Claude's
- * replies do too.
- *
- * Every Inuktitut word included here (the word itself, decomposition
- * morphemes, the shorter-word dictionary headword) is always written in
- * syllabic, regardless of displayScript or how the word was typed -- per
- * Alain, Roman-script Inuktitut looks enough like gibberish to small local
- * models that they were observed falling back to their default language
- * (Chinese) instead of English. Hansard examples don't need the same
- * conversion, their Inuktitut side is already always syllabic (see
- * NunavutHansardLocalIndex.kt).
- *
- * [hansardExamplesAreExactMatch] controls which of
- * [GuessMeaningSeedLabels.hansardExamplesExactIntroTemplate]/
- * [GuessMeaningSeedLabels.hansardExamplesShorterWordIntroTemplate]
- * introduces [hansardExamples] -- see those fields' own comment. Ignored
- * when [hansardExamples] is empty.
- *
- * Takes [word]/[decompositions]/[hansardExamples]/[shorterWordDictionaryResults]
- * directly rather than a DecomposeState.Success/NunavutHansardResult/screen
- * state -- it only ever reads these fields, and this keeps it testable
- * (WordLookupScreenTest.kt) without needing full state instances.
- * [hansardExamples] is expected to already be deduplicated (see
- * NunavutHansardLocalIndex.queryExamples) and capped to however many should
- * be sent -- this function doesn't cap it itself.
- */
-internal fun guessMeaningSeedPrompt(
-    word: String,
-    decompositions: List<List<MorphemeRow>>,
-    hansardExamples: List<BilingualExample>,
-    hansardExamplesAreExactMatch: Boolean,
-    shorterWordDictionaryResults: List<ShorterWordDictionaryResult>,
-    preferFrench: Boolean,
-    labels: GuessMeaningSeedLabels,
-): String {
-    val syllabicWord = TransCoder.ensureScript(Script.SYLLABIC, word)
-    val question = String.format(labels.questionTemplate, syllabicWord)
-
-    // Omitted entirely (not just an empty section) when there are no
-    // decompositions -- e.g. the analyzer found none for this word.
-    val decompositionSection = if (decompositions.isEmpty()) {
-        ""
-    } else {
-        val intro = if (decompositions.size > 1) labels.decompositionMultipleIntro else labels.decompositionSingleIntro
-        val decompositionsText = decompositions.mapIndexed { index, rows ->
-            val header = if (decompositions.size > 1) {
-                String.format(labels.decompositionNumberTemplate, index + 1) + "\n"
-            } else {
-                ""
-            }
-            val morphemes = rows.joinToString("\n") { row ->
-                val meaning = row.fullRecord?.preferredMeaning(preferFrench) ?: labels.unknownMorpheme
-                val surfaceForm = TransCoder.ensureScript(Script.SYLLABIC, row.surfaceForm)
-                "- $surfaceForm (${row.morphemeId}): $meaning"
-            }
-            header + morphemes
-        }.joinToString("\n\n")
-        "\n\n$intro\n\n$decompositionsText"
-    }
-
-    // Same omit-when-empty treatment as decompositionSection. Comes before
-    // hansardSection, matching Alain's own example of the desired wording.
-    val shorterWordSection = if (shorterWordDictionaryResults.isEmpty()) {
-        ""
-    } else {
-        val intro = String.format(labels.shorterWordDictionaryIntroTemplate, syllabicWord)
-        val definitionsText = shorterWordDictionaryResults.joinToString("\n") {
-            val headword = TransCoder.ensureScript(Script.SYLLABIC, it.result.word)
-            "- ${it.result.title}, \"$headword\": ${it.result.meaning}"
-        }
-        "\n\n$intro\n\n$definitionsText"
-    }
-
-    // Omitted entirely (not just an empty section) when there are no
-    // examples -- e.g. the Hansard search hasn't finished yet, or found
-    // nothing, by the time this button is clicked.
-    val hansardSection = if (hansardExamples.isEmpty()) {
-        ""
-    } else {
-        val introTemplate = if (hansardExamplesAreExactMatch) labels.hansardExamplesExactIntroTemplate else labels.hansardExamplesShorterWordIntroTemplate
-        val intro = String.format(introTemplate, syllabicWord)
-        val examplesText = hansardExamples.joinToString("\n") { "- ${it.inuktitut} — ${it.english}" }
-        "\n\n$intro\n\n$examplesText"
-    }
-
-    return question + decompositionSection + shorterWordSection + hansardSection
-}
 
 // internal (not private): unit-tested directly in WordLookupScreenTest.kt.
 internal fun splitIntoWords(text: String): List<String> =
@@ -654,7 +483,7 @@ internal fun WordLookupScreen(
     }
     DisposableEffect(analyzer) { onDispose { runCatching { analyzer.close() } } }
     // The user's own Claude.ai API key, per Alain's request -- replaces the
-    // developer-only key baked into the build (see GuessMeaningEngine.kt).
+    // developer-only key baked into the build (see AppSettings.loadApiKey).
     // Loaded eagerly, like uiLanguage/displayScript above -- GuessMeaningSection
     // needs to know the real, current key status the first time its button is
     // tapped, not just after Settings has been opened once this session (a
@@ -1375,7 +1204,7 @@ internal fun SettingsDialog(
 
                 // Per Alain's request: Guess Meaning now uses the user's own
                 // Claude.ai key instead of one baked into the build (see
-                // GuessMeaningEngine.kt) -- GuessMeaningSection routes here
+                // AppSettings.loadApiKey) -- GuessMeaningSection routes here
                 // (see its onNeedApiKey) the first time the button is tapped
                 // with none set yet, which is why this message is phrased as
                 // an explanation, not just a field label.
