@@ -135,20 +135,28 @@ an equivalent one, not an identical one.
 ## Publishing a new version
 
 1. Build the data file — `regenerate.sh`, or reuse one you already have.
-2. Compress it: `gzip -k hansard-top100k-decomps.jsonl`.
-3. Create a GitHub release with the `.gz` attached:
-   ```sh
-   gh release create analyzed-lexicon-v2 hansard-top100k-decomps.jsonl.gz \
-     --title "Inuktitut word decompositions — v2" --notes-file datapackage.json
-   ```
-4. Update `datapackage.json`:
+2. Compress it: `gzip -k hansard-top100k-decomps.jsonl`, then note its
+   SHA-256 and byte size (`sha256sum`, `stat -c%s`).
+3. Update `datapackage.json`:
    - bump `version`
-   - set `resources[0].path` to the new asset's URL
-   - fill `resources[0].hash` (SHA-256 of the `.gz`) and `bytes`
+   - set `resources[0].path` to the new asset's URL (predictable:
+     `…/releases/download/analyzed-lexicon-v<N>/hansard-top100k-decomps.jsonl.gz`)
+   - fill `resources[0].hash` (the `.gz` SHA-256, `sha256:` prefixed) and `bytes`
    - copy the fresh numbers from `run-manifest.json` into `record_counts`
      and the `provenance` block
    - add a row to the table below
-5. Commit `datapackage.json` in the same commit the release tag points to.
+4. Commit `datapackage.json`, then `git push`. The release tag will point
+   at this commit.
+5. Write **Markdown** release notes — lead with a one-paragraph summary,
+   then the asset details, a sample record, provenance, checksums, licence.
+   Do *not* pass `datapackage.json` as the notes (GitHub shows it as a wall
+   of raw text); link to it instead. The v1 notes are a template.
+6. Cut the release:
+   ```sh
+   gh release create analyzed-lexicon-v<N> hansard-top100k-decomps.jsonl.gz \
+     --title "Inuktitut word decompositions — v<N>" --notes-file <your-notes>.md
+   ```
+7. Verify: `fetch.sh` should download and checksum the new asset cleanly.
 
 Never replace the file on an existing release. New data = new version
 number, new release tag, new `datapackage.json` commit.
