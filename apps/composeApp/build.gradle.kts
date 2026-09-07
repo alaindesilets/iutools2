@@ -42,6 +42,17 @@ android {
         }
     }
 
+    androidResources {
+        // data/lexicon/decompositions/ holds a ~240 MB word->decompositions
+        // JSONL that ships as a downloadable GitHub release asset, never in
+        // the APK (see that dir's README). It is gitignored, but the assets
+        // merge above reads the filesystem, so a dev who has run fetch.sh /
+        // regenerate.sh would otherwise bundle it. Keep the small companion
+        // files (freq TSV, README, scripts) -- only the big output is excluded.
+        // __pycache__ is a Python build byproduct next to the generator script.
+        ignoreAssetsPatterns += listOf("*.jsonl", "*.jsonl.gz", "__pycache__")
+    }
+
     // A debug keystore checked into the repo, so every debug APK carries the
     // same signature no matter who builds it or in which devcontainer.
     // Without this, each machine generates its own ~/.android/debug.keystore
