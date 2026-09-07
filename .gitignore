@@ -27,8 +27,8 @@ dist/
 .vscode/
 # JDT/Gradle-extension project-sync artifact: copies each module's sources /
 # "resources" it can't compile into a classic Eclipse-style bin/ output
-# folder (cli/bin/, fst/bin/, ...).
-*/bin/
+# folder (apps/cli/bin/, fst/bin/, ...).
+**/bin/
 # Stray compiled classes -- normally only under build/ or */bin/ (both
 # ignored above), but catch them anywhere.
 *.class

@@ -23,3 +23,11 @@ dependencyResolutionManagement {
 }
 
 include(":core", ":cli", ":composeApp", ":fst")
+
+// The entry-point modules live under apps/ (core / apps / data grouping --
+// see doc/dev/plans/module-architecture-migration.md). Their Gradle paths
+// stay ":cli" / ":composeApp" -- only the directory moved -- so
+// `./gradlew :cli:test`, IDE run configs and the android-studio-run-all-tests
+// labels are unaffected.
+project(":cli").projectDir = file("apps/cli")
+project(":composeApp").projectDir = file("apps/composeApp")

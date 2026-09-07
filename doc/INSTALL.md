@@ -118,14 +118,14 @@ This file is also included inside the delivered zip
 (`dist/segment_iu-mac-x64-v1.0.zip`), alongside `segment_iu.app` and
 `LICENSE.md`. If the code changes and the package needs to be rebuilt:
 
-1. `./gradlew installDist` (regenerates `cli/build/install/cli/lib/*.jar`
+1. `./gradlew installDist` (regenerates `apps/cli/build/install/cli/lib/*.jar`
    with up-to-date bytecode — **don't skip this step**, otherwise `jpackage`
    will use a stale jar).
 2. Use `jpackage` (from an **x86_64** JDK — see below, not the project's
    default arm64 JDK) to produce `segment_iu.app`:
    ```
    jpackage --type app-image --name segment_iu \
-     --input cli/build/install/cli/lib \
+     --input apps/cli/build/install/cli/lib \
      --main-jar cli.jar \
      --main-class org.iutools.morph.cli.MainKt \
      --app-version 1.0 --vendor "iutools" \

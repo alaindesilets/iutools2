@@ -44,25 +44,37 @@ target.
 
 ## Architecture
 
+Directory grouping: **`core/`** + **`fst/`** (the analyzer and its
+carved-out FST reader), **`apps/`** (entry-point modules), **`data/`**
+(passive data + generators). See
+`doc/dev/plans/module-architecture-migration.md`. The grouping is
+directory-level only — Gradle paths stay `:cli` / `:composeApp` (the dirs
+moved to `apps/`, the module names did not).
+
 Gradle modules:
-- **`:core`** — the morphological analyzer itself, plus reusable domain
-  logic including the Guess Meaning enrichment and its one concrete LLM
-  client (`org.iutools.llm`, `LlmClient_Anthropic`). A plain Kotlin/JVM
+- **`:core`** (`core/`) — the morphological analyzer itself, plus reusable
+  domain logic including the Guess Meaning enrichment and its one concrete
+  LLM client (`org.iutools.llm`, `LlmClient_Anthropic`). A plain Kotlin/JVM
   library (`core/src/main/kotlin/org/iutools/**`). This is the single
-  source of truth; `:cli` and `:composeApp` both depend on it and add no
-  analyzer logic of their own. Linguistic data (CSV files) lives under
+  source of truth; the app modules depend on it and add no analyzer logic
+  of their own. Linguistic data (CSV files) lives under
   `data/grammar/linguistic-data/` and is loaded by `:core` at runtime via
   the JVM classpath (`LinguisticDataCSV.kt`).
-- **`:cli`** — JVM-only command-line entry point (`--word`/`--interactive`/
-  `--pipeline`, modeled on the original iutools CLI's own option names) plus
-  the full ported accuracy/regression test suite.
-- **`:composeApp`** — the graphical app: today a plain Android app
-  (`com.android.application` + Jetpack Compose). Named `composeApp` (rather
-  than `:app`/`:mobile`) because that's the module name JetBrains' KMP
-  wizard generates for the Compose UI module; kept for continuity, not
-  because the project is multiplatform. A Compose **Desktop** build is the
-  next planned target (either by adding a desktop target here or a sibling
-  `:desktopApp`).
+- **`:fst`** (`fst/`) — `MorphologicalAnalyzer_FST` + the vendored pure-Java
+  HFST optimized-lookup reader. Its own module (not part of `:core`)
+  because `:core`'s toolchain can't compile the Java source; stays at the
+  top level, not under `apps/`. See `fst/README.md`.
+- **`:cli`** (`apps/cli/`) — JVM-only command-line entry point
+  (`--word`/`--interactive`/`--pipeline`, modeled on the original iutools
+  CLI's own option names) plus the full ported accuracy/regression test
+  suite (`:cli:test` is the regression gate).
+- **`:composeApp`** (`apps/composeApp/`) — the graphical app: today a plain
+  Android app (`com.android.application` + Jetpack Compose). Named
+  `composeApp` (rather than `:app`/`:mobile`) because that's the module
+  name JetBrains' KMP wizard generates for the Compose UI module; kept for
+  continuity, not because the project is multiplatform. A Compose
+  **Desktop** build is the next planned target (a sibling `apps/desktopApp/`
+  or a desktop target here).
 
 The real entry point into the analyzer is
 `org.iutools.morph.r2l.MorphologicalAnalyzer_R2L.decomposeWord()`.

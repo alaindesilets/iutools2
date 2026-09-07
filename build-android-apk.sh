@@ -6,8 +6,9 @@
 # container, which couldn't run Google's x86_64-only aapt2. The current
 # devcontainer image bundles a working Android SDK (ANDROID_HOME), so
 # ":composeApp:assembleDebug" runs fine in it. The debug APK is signed with
-# composeApp/debug.keystore -- a fixed keystore committed to the repo (see
-# signingConfigs.debug in composeApp/build.gradle.kts) -- so every debug
+# apps/composeApp/debug.keystore -- a fixed keystore committed to the repo
+# (see signingConfigs.debug in apps/composeApp/build.gradle.kts) -- so every
+# debug
 # build has the same signature regardless of machine/container, and installs
 # over the previous one without an uninstall.
 set -euo pipefail
@@ -27,7 +28,7 @@ cd "$SCRIPT_DIR"
 
 ./gradlew "$GRADLE_TASK"
 
-APK_DIR="composeApp/build/outputs/apk/$BUILD_TYPE"
+APK_DIR="apps/composeApp/build/outputs/apk/$BUILD_TYPE"
 echo
 echo "Build complete. APK(s):"
 while IFS= read -r apk; do

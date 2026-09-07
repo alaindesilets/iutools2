@@ -33,7 +33,7 @@ fi
 echo "==> Building the debug APK..."
 ./gradlew :composeApp:assembleDebug
 
-APK_DIR="composeApp/build/outputs/apk/debug"
+APK_DIR="apps/composeApp/build/outputs/apk/debug"
 APK="$(find "$APK_DIR" -name "*.apk" | head -1)"
 if [ -z "$APK" ]; then
     echo "No APK found under $APK_DIR after the build." >&2

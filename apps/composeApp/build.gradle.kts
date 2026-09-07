@@ -38,7 +38,7 @@ android {
             // KB, traded for keeping the dictionary at a single, flat,
             // easy-to-find path instead of nesting it under its own
             // assets/ subfolder.
-            assets.srcDirs("../data/lexicon")
+            assets.srcDirs("../../data/lexicon")
         }
     }
 
