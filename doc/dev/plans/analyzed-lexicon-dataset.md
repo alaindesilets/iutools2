@@ -15,7 +15,7 @@ scarce, and this may be the single most reusable output of the whole
 project. So it is treated as a first-class, versioned, publishable
 **dataset**, not a build byproduct.
 
-It is upstream of two things already designed elsewhere:
+It is upstream of things already designed elsewhere:
 
 - the Morpheme Dictionary "example words" feature
   (`doc/morpheme-dictionary-examples-design.md`) -- its `morphemeId → [example
@@ -23,6 +23,17 @@ It is upstream of two things already designed elsewhere:
 - the decomposition re-ranker
   (`doc/dev/plans/reranker-objectives-and-analyzers.md`) -- an R2L re-ranker
   would improve which decomposition is ranked first in this lexicon.
+
+And it is the embryo of a planned app feature (Alain, 2026-09-07):
+
+- **Word Lookup → offline dictionary.** On a word lookup, the app would
+  first consult a precomputed word → decompositions table for the ~100k
+  common words, and only fall back to running R2L live for words not in it
+  (live R2L is ~0.5-2 s/word past the top few thousand). What ships or
+  downloads is *not* S1's raw JSONL but a compact indexed form of it
+  (SQLite keyed by `word_rom` / `word_syl`, same pattern as
+  `NunavutHansardLocalIndex` / `NunavutHansardDownloader`): a new derived
+  stage from S1, with S1 staying the source of truth. Not built yet.
 
 ## Status
 
