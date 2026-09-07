@@ -5,6 +5,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import org.iutools.llm.AggregatedBackendStats
 import org.iutools.llm.BackendCallStats
 import org.iutools.llm.ChatMessage
+import org.iutools.llm.GuessMeaningCostLog
 import org.iutools.llm.GuessMeaningEngine
 import org.iutools.llm.GuessMeaningErrorLabels
 import org.iutools.llm.LlmClient_Anthropic
@@ -62,6 +63,6 @@ suspend fun sendGuessMeaningTurn(
     // Only real (non-cached) online-model calls reach here, same as the
     // stats above -- a cache replay never produces an outcome.
     estimatedCostUsd(outcome.model, outcome.inputTokens, outcome.outputTokens)?.let { costUsd ->
-        GuessMeaningCostLog.record(context, outcome.model, costUsd)
+        GuessMeaningCostLog(sharedPreferencesCostLogStore(context)).record(outcome.model, costUsd)
     }
 }

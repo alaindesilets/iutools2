@@ -28,19 +28,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    sourceSets {
-        getByName("main") {
-            // The Spalding dictionary JSON lives in data/lexicon/ (source of
-            // truth, discoverable on its own -- see that directory's README)
-            // rather than duplicated into this module's own tree. AGP merges
-            // the whole directory into the APK's assets, so data/lexicon/'s
-            // README and generator script ride along too -- a few harmless
-            // KB, traded for keeping the dictionary at a single, flat,
-            // easy-to-find path instead of nesting it under its own
-            // assets/ subfolder.
-            assets.srcDirs("../../data/lexicon")
-        }
-    }
+    // (spalding.json is no longer bundled as an app asset -- SpaldingDictionary
+    // moved to :core and loads it from the classpath, same as the linguistic
+    // CSVs. That also drops data/lexicon/decompositions/ -- a 100k-line
+    // dataset -- from the APK, which the old assets.srcDirs had pulled in.)
 
     androidResources {
         // data/lexicon/decompositions/ holds a ~240 MB word->decompositions

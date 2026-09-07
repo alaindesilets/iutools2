@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import org.iutools.i18n.AppLanguage
+import org.iutools.i18n.defaultAppLanguage
+import org.iutools.morph.AnalyzerChoice
+import org.iutools.script.DisplayScript
 
 /*
  * Persists the settings-panel choices (interface language, display script,

@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import org.iutools.corpus.BilingualExample
+import org.iutools.corpus.HansardExamplesOutcome
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
 import org.junit.Assert.assertEquals
@@ -165,7 +166,7 @@ class NunavutHansardLocalIndexTest {
 
         val result = NunavutHansardLocalIndex.fetch(context, "iglu")
 
-        assertEquals(NunavutHansardResult.IndexMissing, result)
+        assertEquals(HansardExamplesOutcome.IndexMissing, result)
     }
 
     @Test
@@ -177,7 +178,7 @@ class NunavutHansardLocalIndexTest {
 
         val result = NunavutHansardLocalIndex.fetch(context, "iglu")
 
-        assertEquals(NunavutHansardResult.IndexVersionMismatch(999, NunavutHansardLocalIndex.SCHEMA_VERSION), result)
+        assertEquals(HansardExamplesOutcome.IndexVersionMismatch(999, NunavutHansardLocalIndex.SCHEMA_VERSION), result)
     }
 
     @Test
@@ -192,8 +193,8 @@ class NunavutHansardLocalIndexTest {
         // before querying, which is the behavior under test.
         val result = NunavutHansardLocalIndex.fetch(context, "iglu")
 
-        assertTrue("expected Found, got: $result", result is NunavutHansardResult.Found)
-        assertEquals(2, (result as NunavutHansardResult.Found).examples.size)
+        assertTrue("expected Found, got: $result", result is HansardExamplesOutcome.Found)
+        assertEquals(2, (result as HansardExamplesOutcome.Found).examples.size)
     }
 
     @Test
@@ -205,7 +206,7 @@ class NunavutHansardLocalIndexTest {
 
         val result = NunavutHansardLocalIndex.fetch(context, "qanuippit")
 
-        assertEquals(NunavutHansardResult.NotFound, result)
+        assertEquals(HansardExamplesOutcome.NotFound, result)
     }
 
     @Test
@@ -219,8 +220,8 @@ class NunavutHansardLocalIndexTest {
         // real fixture word "iglu" -- fetch() should fall back to it.
         val result = NunavutHansardLocalIndex.fetch(context, syllabicIglu + syllabicAmma)
 
-        assertTrue("expected FoundForShorterWord, got: $result", result is NunavutHansardResult.FoundForShorterWord)
-        val shorterResult = result as NunavutHansardResult.FoundForShorterWord
+        assertTrue("expected FoundForShorterWord, got: $result", result is HansardExamplesOutcome.FoundForShorterWord)
+        val shorterResult = result as HansardExamplesOutcome.FoundForShorterWord
         assertEquals(syllabicIglu, shorterResult.word)
         assertEquals(2, shorterResult.examples.size)
     }

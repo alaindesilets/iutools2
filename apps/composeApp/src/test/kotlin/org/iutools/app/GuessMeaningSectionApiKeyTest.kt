@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
+import org.iutools.i18n.AppLanguage
 import org.iutools.llm.AggregatedBackendStats
 import org.iutools.llm.ChatMessage
 import org.iutools.llm.ChatRole

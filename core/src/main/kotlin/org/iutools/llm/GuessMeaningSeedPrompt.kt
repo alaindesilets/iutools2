@@ -1,7 +1,7 @@
 package org.iutools.llm
 
 import org.iutools.corpus.BilingualExample
-import org.iutools.dictionary.ShorterWordDictionaryResult
+import org.iutools.dictionary.ShorterWordDictionaryHit
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
 
@@ -11,7 +11,7 @@ import org.iutools.script.TransCoder
  * for this specific word, a plain-language sentence saying what it is and
  * how (or whether) to use it, followed by that data -- the morphological
  * decomposition(s), a dictionary definition found for a shorter/related
- * word (a [ShorterWordDictionaryResult] -- never an exact-word definition,
+ * word (a [ShorterWordDictionaryHit] -- never an exact-word definition,
  * since Guess Meaning isn't offered at all when one of those exists),
  * and/or bilingual sentence pairs. The idea (per Alain): rather than one
  * system prompt trying to describe every case a seed *might* contain, each
@@ -43,7 +43,7 @@ fun guessMeaningSeedPrompt(
     decompositions: List<List<MorphemeRow>>,
     hansardExamples: List<BilingualExample>,
     hansardExamplesAreExactMatch: Boolean,
-    shorterWordDictionaryResults: List<ShorterWordDictionaryResult>,
+    shorterWordDictionaryResults: List<ShorterWordDictionaryHit>,
     preferFrench: Boolean,
     labels: GuessMeaningSeedLabels,
 ): String {
@@ -79,8 +79,9 @@ fun guessMeaningSeedPrompt(
     } else {
         val intro = fillPlaceholder(labels.shorterWordDictionaryIntroTemplate, syllabicWord)
         val definitionsText = shorterWordDictionaryResults.joinToString("\n") {
-            val headword = TransCoder.ensureScript(Script.SYLLABIC, it.result.word)
-            "- ${it.result.title}, \"$headword\": ${it.result.meaning}"
+            val headword = TransCoder.ensureScript(Script.SYLLABIC, it.hit.word)
+            val sourceName = labels.dictionarySourceNames[it.hit.source] ?: it.hit.source.name
+            "- $sourceName, \"$headword\": ${it.hit.meaning}"
         }
         "\n\n$intro\n\n$definitionsText"
     }

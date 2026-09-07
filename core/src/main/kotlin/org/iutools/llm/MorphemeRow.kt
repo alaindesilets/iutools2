@@ -5,12 +5,11 @@ import org.iutools.linguisticdata.Morpheme
 import org.iutools.morph.Decomposition
 
 /*
- * When "Guess Meaning" builds a prompt to send to the LLM, it needs to include 
- * provide it with de word's morphological decomposition in plain text
- * natural language format.
- * 
- * This class formats one morpheme from one morphological decomposition into 
- * to plain text:
+ * When "Guess Meaning" builds a prompt to send to the LLM, it needs to give it
+ * the word's morphological decomposition in plain natural-language text.
+ *
+ * This class gathers the facts about one morpheme of one decomposition, ready
+ * to be rendered into that text:
  *
  *   - surfaceForm -- the letters as they actually appeared in the word
  *     being analyzed (e.g. "atua" inside "atuagaq"),

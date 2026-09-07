@@ -38,13 +38,18 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.iutools.corpus.HansardExamplesOutcome
+import org.iutools.i18n.AppLanguage
 import org.iutools.llm.AggregatedBackendStats
 import org.iutools.llm.ChatMessage
 import org.iutools.llm.ChatRole
 import org.iutools.llm.GuessMeaningConversationKey
 import org.iutools.llm.extractCandidateMeanings
 import org.iutools.llm.extractExplanation
+import org.iutools.lookup.DecompositionOutcome
+import org.iutools.lookup.FailureReason
 import org.iutools.script.Script
+import org.iutools.script.displayForm
 
 /*
  * "Explications": opened from "Expliquer" on WordLookupScreen (see
@@ -351,7 +356,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
         DictionaryResultSection(info.dictionaryResults, info.displayScript)
         Spacer(modifier = Modifier.height(16.dp))
     } else if (!info.dictionaryLoading &&
-        info.decomposeState is DecomposeState.Success &&
+        info.decomposeState is DecompositionOutcome.Success &&
         info.decomposeState.decompositions.isNotEmpty()
     ) {
         Text(stringResource(R.string.no_definition_found))
@@ -367,9 +372,9 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
     }
 
     when (val s = info.decomposeState) {
-        is DecomposeState.Idle -> {}
-        is DecomposeState.Loading -> CircularProgressIndicator()
-        is DecomposeState.Failure -> Text(
+        is DecompositionOutcome.Idle -> {}
+        is DecompositionOutcome.Loading -> CircularProgressIndicator()
+        is DecompositionOutcome.Failure -> Text(
             text = when (val reason = s.reason) {
                 is FailureReason.Timeout -> stringResource(R.string.error_timeout)
                 is FailureReason.AnalysisError -> stringResource(R.string.error_analysis, reason.detail ?: "")
@@ -377,7 +382,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
             },
             color = MaterialTheme.colorScheme.error,
         )
-        is DecomposeState.Success -> {
+        is DecompositionOutcome.Success -> {
             DecompositionSection(
                 success = s,
                 preferFrench = info.uiLanguage == AppLanguage.FRENCH,
@@ -387,7 +392,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
             )
         }
     }
-    if (info.decomposeState is DecomposeState.Success) {
+    if (info.decomposeState is DecompositionOutcome.Success) {
         Spacer(modifier = Modifier.height(16.dp))
     }
 
@@ -397,11 +402,11 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
     }
     info.hansardResult?.let { result ->
         when (result) {
-            is NunavutHansardResult.Found -> {
+            is HansardExamplesOutcome.Found -> {
                 HansardExamplesSection(result.word, result.examples, info.displayScript, highlightMeanings)
                 Spacer(modifier = Modifier.height(16.dp))
             }
-            is NunavutHansardResult.FoundForShorterWord -> {
+            is HansardExamplesOutcome.FoundForShorterWord -> {
                 ShorterWordNotice(
                     original = displayForm(info.lastSearchedWord, info.displayScript, info.lastSearchedWordScript),
                     matched = displayForm(result.word, info.displayScript, Script.SYLLABIC),
@@ -413,7 +418,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
                 HansardExamplesSection(result.word, result.examples, info.displayScript, highlightMeanings)
                 Spacer(modifier = Modifier.height(16.dp))
             }
-            NunavutHansardResult.NotFound -> {
+            HansardExamplesOutcome.NotFound -> {
                 Text(
                     stringResource(
                         R.string.hansard_no_examples,
@@ -426,7 +431,7 @@ internal fun WordInfoCard(info: WordInfoSnapshot, highlightMeanings: List<String
             // header comment) -- just a debug-only note that the DB wasn't
             // available at snapshot time, same audience as
             // WordLookupScreen's own equivalent debug detail.
-            NunavutHansardResult.IndexMissing, is NunavutHansardResult.IndexVersionMismatch -> {
+            HansardExamplesOutcome.IndexMissing, is HansardExamplesOutcome.IndexVersionMismatch -> {
                 if (BuildConfig.DEBUG) {
                     Text(
                         text = stringResource(R.string.hansard_index_missing),

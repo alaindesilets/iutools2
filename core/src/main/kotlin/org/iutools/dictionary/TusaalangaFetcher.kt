@@ -1,6 +1,5 @@
-package org.iutools.app
+package org.iutools.dictionary
 
-import android.text.Html
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.iutools.search.findByLongestPrefix
@@ -9,12 +8,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /*
- * See doc/spike-llm-local-iutools-mobile.md for the overall Guess Meaning
- * design: unlike Spalding, this project has no distribution rights for
- * Tusaalanga's content (Benoît Farley personally cleared rights for
- * Spalding only) -- so this is a genuine live network fetcher, queried
- * against tusaalanga.ca on every lookup, never parsed-once-and-embedded
- * like SpaldingDictionary.
+ * Looks up an Inuktitut word's meaning on tusaalanga.ca, live, over the
+ * network, one word at a time.
+ *
+ * Unlike SpaldingDictionary -- whose content Benoit Farley cleared for
+ * redistribution, so we parse it once and embed it in the app -- this
+ * project has no distribution rights for Tusaalanga's glossary. So this is
+ * a genuine live fetcher: it queries tusaalanga.ca on every lookup and
+ * keeps nothing on disk.
  *
  * Query mechanism (confirmed by inspecting a real fetched page, not guessed):
  * https://tusaalanga.ca/glossary?l=N returns every glossary entry starting
@@ -57,13 +58,13 @@ object TusaalangaFetcher {
         matchEntry(parseEntries(html), word)
     }
 
-    // internal (not private): unit-tested directly against a fixture page's
+    // public (not private): unit-tested directly against a fixture page's
     // parsed entries, without needing a real network call -- fallback
     // candidates share the same first letter as the full word (a prefix of
     // a word starts with that word's own first letter), so they're always
     // already in the same page/entries list, no extra fetch needed. See
     // PrefixFallback.kt.
-    internal fun matchEntry(entries: List<TusaalangaEntry>, word: String): TusaalangaResult {
+    fun matchEntry(entries: List<TusaalangaEntry>, word: String): TusaalangaResult {
         val match = entries.firstOrNull { it.word.equals(word, ignoreCase = true) }
         if (match != null) return TusaalangaResult.Found(match)
 
@@ -92,9 +93,10 @@ object TusaalangaFetcher {
         }
     }
 
-    // internal (not private): unit-tested directly in TusaalangaFetcherTest.kt
-    // against a saved fixture page, without needing a real network call.
-    internal fun parseEntries(html: String): List<TusaalangaEntry> =
+    // public (not private): unit-tested directly in TusaalangaFetcherTest.kt
+    // (in :cli) against a saved fixture page, without needing a real network
+    // call.
+    fun parseEntries(html: String): List<TusaalangaEntry> =
         rowPattern.findAll(html).map { match ->
             TusaalangaEntry(
                 word = decodeHtml(match.groupValues[1]),
@@ -103,6 +105,34 @@ object TusaalangaFetcher {
             )
         }.toList()
 
-    private fun decodeHtml(fragment: String): String =
-        Html.fromHtml(fragment.trim(), Html.FROM_HTML_MODE_LEGACY).toString().trim()
+    private val entityPattern = Regex("&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
+
+    // The glossary cells are plain text that carries HTML character
+    // references (e.g. "I don&#039;t" stands for "I don't"). We strip any
+    // stray tags and expand the entity forms that actually turn up: the
+    // named XML/HTML basics, plus decimal and hex numeric references. This
+    // stands in for Android's android.text.Html.fromHtml, which :core --
+    // being plain JVM, not Android -- has no access to.
+    private fun decodeHtml(fragment: String): String {
+        val withoutTags = fragment.replace(Regex("<[^>]*>"), "")
+        val decoded = entityPattern.replace(withoutTags) { match ->
+            val body = match.groupValues[1]
+            when {
+                body.startsWith("#x") || body.startsWith("#X") ->
+                    body.drop(2).toIntOrNull(16)?.let { codePoint -> String(Character.toChars(codePoint)) } ?: match.value
+                body.startsWith("#") ->
+                    body.drop(1).toIntOrNull()?.let { codePoint -> String(Character.toChars(codePoint)) } ?: match.value
+                else -> when (body.lowercase()) {
+                    "amp" -> "&"
+                    "lt" -> "<"
+                    "gt" -> ">"
+                    "quot" -> "\""
+                    "apos" -> "'"
+                    "nbsp" -> " "
+                    else -> match.value
+                }
+            }
+        }
+        return decoded.trim()
+    }
 }

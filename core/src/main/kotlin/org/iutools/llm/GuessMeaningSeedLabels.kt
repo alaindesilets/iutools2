@@ -1,5 +1,7 @@
 package org.iutools.llm
 
+import org.iutools.dictionary.DictionarySource
+
 /*
  * The pre-translated sentences that guessMeaningSeedPrompt() drops around
  * the data when it writes the message it sends to the LLM.
@@ -31,6 +33,10 @@ data class GuessMeaningSeedLabels(
     val decompositionMultipleIntro: String,
     val decompositionNumberTemplate: String,
     val unknownMorpheme: String,
+    // The localized name of each dictionary, as it should read inside the
+    // seed message (e.g. "Found in the Spalding dictionary"). Used for the
+    // shorter-word definitions the seed lists.
+    val dictionarySourceNames: Map<DictionarySource, String>,
     // "%1$s": the word, in syllabic.
     val shorterWordDictionaryIntroTemplate: String,
     // Two variants, not one -- the instruction to verify candidate meanings

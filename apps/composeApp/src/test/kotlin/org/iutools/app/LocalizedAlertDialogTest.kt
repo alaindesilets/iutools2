@@ -4,6 +4,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import org.iutools.i18n.AppLanguage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

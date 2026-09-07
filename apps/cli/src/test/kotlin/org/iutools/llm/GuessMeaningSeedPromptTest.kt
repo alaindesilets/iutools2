@@ -1,8 +1,9 @@
 package org.iutools.llm
 
 import org.iutools.corpus.BilingualExample
-import org.iutools.dictionary.DictionaryLookupResult
-import org.iutools.dictionary.ShorterWordDictionaryResult
+import org.iutools.dictionary.DictionaryHit
+import org.iutools.dictionary.DictionarySource
+import org.iutools.dictionary.ShorterWordDictionaryHit
 import org.iutools.linguisticdata.Morpheme
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
@@ -36,6 +37,7 @@ private val labels = GuessMeaningSeedLabels(
     decompositionMultipleIntro = "Here are several possible decompositions:",
     decompositionNumberTemplate = "Decomposition %1\$d:",
     unknownMorpheme = "(unknown)",
+    dictionarySourceNames = mapOf(DictionarySource.SPALDING to "Found in the Spalding dictionary"),
     shorterWordDictionaryIntroTemplate = "No definition found, but here's one for a word related to %1\$s:",
     hansardExamplesExactIntroTemplate = "Bilingual examples for the exact word %1\$s:",
     hansardExamplesShorterWordIntroTemplate = "Bilingual examples for a shorter, related word than %1\$s:",
@@ -174,15 +176,15 @@ class GuessMeaningSeedPromptTest {
     fun guessMeaningSeedPrompt_withShorterWordDictionaryResults_includesThemAsSyllabic() {
         // Per Alain: a shorter/related-word dictionary hit does NOT suppress
         // Guess Meaning (only an exact-word hit does -- see
-        // ShorterWordDictionaryResult's own comment), so it's still sent to
+        // ShorterWordDictionaryHit's own comment), so it's still sent to
         // the AI here -- converted to syllabic, same reasoning as
         // decomposition morphemes, since the headword ("iglu" below) can be
         // stored in Roman (e.g. Spalding).
         val rows = listOf(MorphemeRow("iglumut", "iglu/1n", FakeMorpheme("house", "maison")))
         val shorterWordResults = listOf(
-            ShorterWordDictionaryResult(
+            ShorterWordDictionaryHit(
                 originalWord = "iglumut",
-                result = DictionaryLookupResult("Found in the Spalding dictionary", "iglu", "house", Script.ROMAN),
+                hit = DictionaryHit(DictionarySource.SPALDING, "iglu", "house", Script.ROMAN),
             ),
         )
 

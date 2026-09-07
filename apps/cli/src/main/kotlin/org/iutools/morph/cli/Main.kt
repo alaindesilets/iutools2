@@ -1,5 +1,14 @@
 package org.iutools.morph.cli
 
+import kotlinx.coroutines.runBlocking
+import org.iutools.corpus.HansardExamplesOutcome
+import org.iutools.dictionary.TusaalangaResult
+import org.iutools.lookup.DecompositionOutcome
+import org.iutools.lookup.FailureReason
+import org.iutools.lookup.WordLookup
+import org.iutools.lookup.WordLookupPrefs
+import org.iutools.lookup.WordLookupResult
+import org.iutools.morph.AnalyzerChoice
 import org.iutools.morph.Decomposition
 import org.iutools.morph.r2l.MorphologicalAnalyzer_R2L
 import java.util.Scanner
@@ -18,15 +27,22 @@ import kotlin.system.exitProcess
  * `{surface:morphid}{...}` (Decomposition.toString()), not the original's
  * WordInfo/CompiledCorpus-based rendering, which pulls in scope explicitly
  * excluded from this port (corpus/Elasticsearch layers).
+ *
+ * --define runs the shared word lookup (:core's WordLookup, the same one the
+ * app's screen uses) instead of a bare decomposition: it adds the Spalding
+ * dictionary definition. It stays offline -- Spalding is embedded, but the
+ * Tusaalanga lookup (network) and the Hansard examples (a large local DB the
+ * app downloads) are left out here.
  */
 
 private const val OPT_WORD = "--word"
+private const val OPT_DEFINE = "--define"
 private const val OPT_LENIENT_DECOMPS = "--lenient-decomps"
 private const val OPT_TIMEOUT_SECS = "--timeout-secs"
 private const val OPT_PIPELINE = "--pipeline"
 private const val OPT_INTERACTIVE = "--interactive"
 
-private enum class Mode { SINGLE_INPUT, INTERACTIVE, PIPELINE }
+private enum class Mode { SINGLE_INPUT, DEFINE, INTERACTIVE, PIPELINE }
 
 private class UsageError(message: String) : Exception(message)
 
@@ -52,6 +68,7 @@ fun main(rawArgs: Array<String>) {
 
     when (args.mode) {
         Mode.SINGLE_INPUT -> runSingle(analyzer, args.word!!, args.lenient)
+        Mode.DEFINE -> runDefine(analyzer, args.word!!, args.lenient)
         Mode.INTERACTIVE -> runInteractive(analyzer, args.lenient)
         Mode.PIPELINE -> runPipeline(analyzer, args.lenient)
     }
@@ -59,6 +76,7 @@ fun main(rawArgs: Array<String>) {
 
 private fun parseArgs(rawArgs: Array<String>): ParsedArgs {
     var word: String? = null
+    var define: String? = null
     var lenient = false
     var timeoutSecs: Long? = null
     var pipeline = false
@@ -69,6 +87,10 @@ private fun parseArgs(rawArgs: Array<String>): ParsedArgs {
         when (val a = rawArgs[i]) {
             OPT_WORD -> {
                 word = rawArgs.getOrNull(i + 1) ?: throw UsageError("$OPT_WORD requires a value")
+                i++
+            }
+            OPT_DEFINE -> {
+                define = rawArgs.getOrNull(i + 1) ?: throw UsageError("$OPT_DEFINE requires a value")
                 i++
             }
             OPT_LENIENT_DECOMPS -> lenient = true
@@ -84,32 +106,36 @@ private fun parseArgs(rawArgs: Array<String>): ParsedArgs {
         i++
     }
 
-    val modesGiven = listOf(word != null, pipeline, interactive).count { it }
+    val modesGiven = listOf(word != null, define != null, pipeline, interactive).count { it }
     if (modesGiven > 1) {
-        throw UsageError("$OPT_WORD, $OPT_PIPELINE and $OPT_INTERACTIVE are mutually exclusive")
+        throw UsageError("$OPT_WORD, $OPT_DEFINE, $OPT_PIPELINE and $OPT_INTERACTIVE are mutually exclusive")
     }
 
     val mode = when {
+        define != null -> Mode.DEFINE
         pipeline -> Mode.PIPELINE
         interactive -> Mode.INTERACTIVE
         else -> Mode.SINGLE_INPUT
     }
 
     if (mode == Mode.SINGLE_INPUT && word == null) {
-        throw UsageError("$OPT_WORD is required unless $OPT_PIPELINE or $OPT_INTERACTIVE is given")
+        throw UsageError("$OPT_WORD is required unless $OPT_DEFINE, $OPT_PIPELINE or $OPT_INTERACTIVE is given")
     }
 
-    return ParsedArgs(word, lenient, timeoutSecs, mode)
+    return ParsedArgs(word ?: define, lenient, timeoutSecs, mode)
 }
 
 private fun usageText(): String = """
     Usage: segment_iu $OPT_WORD <word> [$OPT_LENIENT_DECOMPS] [$OPT_TIMEOUT_SECS <secs>]
+           segment_iu $OPT_DEFINE <word> [$OPT_LENIENT_DECOMPS] [$OPT_TIMEOUT_SECS <secs>]
            segment_iu $OPT_INTERACTIVE [$OPT_LENIENT_DECOMPS] [$OPT_TIMEOUT_SECS <secs>]
            segment_iu $OPT_PIPELINE [$OPT_LENIENT_DECOMPS] [$OPT_TIMEOUT_SECS <secs>]
 
     Decompose an Inuktut word into its morphemes.
 
     $OPT_WORD <word>          Decompose a single word and exit.
+    $OPT_DEFINE <word>        Look the word up: its Spalding dictionary definition
+                              (offline) plus its decomposition. No network.
     $OPT_INTERACTIVE          Prompt for words one at a time (type 'q' to quit).
     $OPT_PIPELINE             Read one word per line from stdin, print one JSON
                               result per line to stdout (for scripting).
@@ -133,6 +159,61 @@ private fun decomposeOne(
 
 private fun runSingle(analyzer: MorphologicalAnalyzer_R2L, word: String, lenient: Boolean) {
     printForUser(word, decomposeOne(analyzer, word, lenient))
+}
+
+private fun runDefine(analyzer: MorphologicalAnalyzer_R2L, word: String, lenient: Boolean) {
+    val lookup = WordLookup(
+        // Offline: no Hansard DB, no Tusaalanga network call. Spalding is
+        // embedded in :core, so WordLookup still returns its definition.
+        hansardExamples = { HansardExamplesOutcome.NotFound },
+        analyzerFor = { analyzer },
+        tusaalangaLookup = { TusaalangaResult.NotFound },
+    )
+    val result = runBlocking {
+        lookup.lookupOnce(word, WordLookupPrefs(AnalyzerChoice.UQAILAUT, lenient))
+    }
+    print(renderDefinition(word, result))
+}
+
+// internal (not private): unit-tested directly against fabricated
+// WordLookupResults in DefineRenderingTest.kt.
+internal fun renderDefinition(word: String, result: WordLookupResult): String = buildString {
+    appendLine("=== $word ===")
+    when {
+        result.dictionaryHits.isNotEmpty() -> {
+            appendLine("  Definition:")
+            result.dictionaryHits.forEach { hit ->
+                appendLine("    [${hit.source}] ${hit.word} -- ${hit.meaning}")
+            }
+        }
+        result.shorterWordHits.isNotEmpty() -> {
+            appendLine("  No definition for this word. For a shorter form of it:")
+            result.shorterWordHits.forEach { shorter ->
+                appendLine("    [${shorter.hit.source}] ${shorter.hit.word} -- ${shorter.hit.meaning}")
+            }
+        }
+        else -> appendLine("  No dictionary definition found.")
+    }
+
+    appendLine("  Decomposition:")
+    when (val decomposition = result.decomposition) {
+        is DecompositionOutcome.Success ->
+            if (decomposition.decompositions.isEmpty()) {
+                appendLine("    No decompositions found")
+            } else {
+                decomposition.decompositions.forEach { rows ->
+                    appendLine("    " + rows.joinToString("") { "{${it.surfaceForm}:${it.morphemeId}}" })
+                }
+            }
+        is DecompositionOutcome.Failure -> appendLine("    " + describe(decomposition.reason))
+        DecompositionOutcome.Idle, DecompositionOutcome.Loading -> appendLine("    (not run)")
+    }
+}
+
+private fun describe(reason: FailureReason): String = when (reason) {
+    FailureReason.Timeout -> "timed out"
+    is FailureReason.AnalysisError -> "analysis error: ${reason.detail ?: "unknown"}"
+    FailureReason.FstNotAvailable -> "FST analyzer unavailable"
 }
 
 private fun runInteractive(analyzer: MorphologicalAnalyzer_R2L, lenient: Boolean) {

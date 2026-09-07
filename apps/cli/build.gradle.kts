@@ -5,14 +5,15 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    // runBlocking, to drive :core's suspend APIs from `main` (the --define
+    // subcommand calls WordLookup) and from tests. :core depends on
+    // coroutines-core only as `implementation` (for LlmClient_Anthropic /
+    // WordLookup), so it isn't transitively on this module's classpath --
+    // declare it here too.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     testImplementation(kotlin("test"))
     // For MorphologicalAnalyzer_FST__AccuracyTest.
     testImplementation(project(":fst"))
-    // runBlocking, to drive :core's suspend APIs (e.g. GuessMeaningEngine)
-    // from tests. :core depends on coroutines-core only as `implementation`
-    // (for LlmClient_Anthropic), so it isn't on this module's classpath --
-    // declare it here too.
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 }
 
 kotlin {

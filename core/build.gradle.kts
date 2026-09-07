@@ -11,11 +11,21 @@ plugins {
 
 sourceSets {
     main {
-        // Source of truth for the linguistic CSVs is
-        // data/grammar/linguistic-data/, not core/'s own resource tree --
-        // see that directory's README. They ride the runtime classpath as
-        // resources; LinguisticDataCSV.kt loads them from there.
-        resources.srcDir("../data/grammar/linguistic-data")
+        resources {
+            // Source of truth for the linguistic CSVs and the parsed
+            // Spalding dictionary is data/ (see those directories' READMEs).
+            // Gradle maps them onto the classpath root so they load as flat
+            // resources -- LinguisticDataCSV.kt, SpaldingDictionary.kt.
+            srcDir("../data/grammar/linguistic-data")
+            srcDir("../data/lexicon")
+            // Only the data files ride the classpath -- not the per-directory
+            // READMEs (which would also collide at the classpath root), the
+            // generator script, or the multi-100k-line word-decomposition
+            // dataset that also lives under data/lexicon/. Nothing in :core
+            // reads any of those, and they must not bloat the jar (or, via
+            // :composeApp, the APK).
+            exclude("README.md", "parse_spalding_dictionary.py", "decompositions/**")
+        }
     }
 }
 
@@ -28,6 +38,11 @@ dependencies {
     // withContext(Dispatchers.IO) around that blocking SDK call. The rest
     // of :core uses only the `suspend` language feature, not the library.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    // Parsing the embedded spalding.json (SpaldingDictionary). The real
+    // JVM org.json artifact -- Android ships a non-functional stub of the
+    // same package, which is why this used to need Robolectric; :core is
+    // plain JVM so the real one just works.
+    implementation("org.json:json:20240303")
 }
 
 kotlin {

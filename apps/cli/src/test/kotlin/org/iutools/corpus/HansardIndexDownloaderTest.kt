@@ -1,18 +1,17 @@
-package org.iutools.app
+package org.iutools.corpus
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
 import java.io.File
 import java.util.zip.GZIPOutputStream
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /*
- * Plain JUnit, not Robolectric: decompressTo() only touches java.io/
- * java.util.zip, no Android framework class -- unlike the rest of this
- * fetcher, which needs a real network download and is normally Alain's to
- * exercise manually (see AGENTS.md's "Division of labor"), same reasoning
- * as TusaalangaFetcherTest.kt's dedicated real-network test.
+ * Plain JVM test: decompressTo() only touches java.io / java.util.zip, no
+ * Android and no network. The rest of HansardIndexDownloader is a real
+ * ~156 MiB network download, normally Alain's to exercise manually (see
+ * AGENTS.md's "Division of labor") -- same split as TusaalangaFetcherTest.
  */
-class NunavutHansardDownloaderTest {
+class HansardIndexDownloaderTest {
 
     @Test
     fun decompressTo_gzipFixture_producesOriginalBytes() {
@@ -21,7 +20,7 @@ class NunavutHansardDownloaderTest {
         GZIPOutputStream(compressed.outputStream()).use { it.write(original) }
         val destination = File.createTempFile("decompressed", ".db").apply { deleteOnExit() }
 
-        NunavutHansardDownloader.decompressTo(compressed, destination)
+        HansardIndexDownloader.decompressTo(compressed, destination)
 
         assertEquals(String(original, Charsets.UTF_8), destination.readText(Charsets.UTF_8))
     }

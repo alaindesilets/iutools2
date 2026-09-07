@@ -1,33 +1,27 @@
-package org.iutools.app
+package org.iutools.dictionary
 
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /*
- * parseEntries() below is tested against a fixture copied verbatim from a
- * real fetched page (https://tusaalanga.ca/glossary?l=A), same
- * copy-don't-retype discipline as SpaldingDictionaryTest.kt -- includes a
+ * Plain JVM test (no Robolectric): :core's decodeHtml() is a small
+ * hand-rolled entity expander, not Android's android.text.Html.fromHtml, so
+ * parseEntries() no longer needs an Android shadow implementation.
+ *
+ * parseEntries() is tested against a fixture copied verbatim from a real
+ * fetched page (https://tusaalanga.ca/glossary?l=A) -- same
+ * copy-don't-retype discipline as SpaldingDictionaryTest.kt. It includes a
  * row with an HTML entity (aaggaqai -> "probably not; I don't think so.",
  * with &#039; for the apostrophe) to confirm decodeHtml() unescapes it.
- * Robolectric (not plain JUnit): android.text.Html.fromHtml needs a real
- * shadow implementation, same reason SpaldingDictionaryTest.kt needs it for
- * org.json.JSONArray.
  *
- * fetch_findsRealKnownWord is Tusaalanga's dedicated fetcher test (per
- * doc/spike-llm-local-iutools-mobile.md's "Un test par fetcher") -- a real
- * network call against tusaalanga.ca, no mocking. Unlike Spalding's
- * equivalent test, this one needs real internet access; it's normally
- * Alain's to run (see AGENTS.md's "Division of labor"), but this session's
- * sandbox had tusaalanga.ca allowlisted in its firewall specifically to run
- * it here too.
+ * fetch_* are Tusaalanga's dedicated fetcher tests (per
+ * doc/spike-llm-local-iutools-mobile.md's "un test par fetcher") -- real
+ * network calls against tusaalanga.ca, no mocking. They need real internet
+ * access; per AGENTS.md's "Division of labor" they are normally Alain's to
+ * run, and will fail wherever tusaalanga.ca is unreachable.
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
 class TusaalangaFetcherTest {
 
     private val fixtureHtml = """
@@ -100,30 +94,13 @@ class TusaalangaFetcherTest {
     }
 
     @Test
-    fun fetch_findsRealKnownWord() = runBlocking {
-        val result = TusaalangaFetcher.fetch("aaggiisi")
-
-        assertTrue("expected Found, got: $result", result is TusaalangaResult.Found)
-        val entry = (result as TusaalangaResult.Found).entry
-        assertEquals("aaggiisi", entry.word)
-        assertTrue(entry.meaning, entry.meaning.contains("August"))
-    }
-
-    @Test
-    fun fetch_unknownWord_returnsNotFound() = runBlocking {
-        val result = TusaalangaFetcher.fetch("nottarealinuktitutword12345")
-
-        assertEquals(TusaalangaResult.NotFound, result)
-    }
-
-    @Test
     fun matchEntry_exactWord_returnsFound() {
         val entries = TusaalangaFetcher.parseEntries(fixtureHtml)
 
         val result = TusaalangaFetcher.matchEntry(entries, "aaggiisi")
 
-        assertTrue("expected Found, got: $result", result is TusaalangaResult.Found)
-        assertEquals("August", (result as TusaalangaResult.Found).entry.meaning)
+        assertTrue(result is TusaalangaResult.Found, "expected Found, got: $result")
+        assertEquals("August", result.entry.meaning)
     }
 
     @Test
@@ -133,8 +110,8 @@ class TusaalangaFetcherTest {
         // "aaggiisiqut" isn't a real entry, but it starts with "aaggiisi".
         val result = TusaalangaFetcher.matchEntry(entries, "aaggiisiqut")
 
-        assertTrue("expected FoundForShorterWord, got: $result", result is TusaalangaResult.FoundForShorterWord)
-        assertEquals("aaggiisi", (result as TusaalangaResult.FoundForShorterWord).entry.word)
+        assertTrue(result is TusaalangaResult.FoundForShorterWord, "expected FoundForShorterWord, got: $result")
+        assertEquals("aaggiisi", result.entry.word)
     }
 
     @Test
@@ -142,6 +119,23 @@ class TusaalangaFetcherTest {
         val entries = TusaalangaFetcher.parseEntries(fixtureHtml)
 
         val result = TusaalangaFetcher.matchEntry(entries, "zzznotarealprefixatall99")
+
+        assertEquals(TusaalangaResult.NotFound, result)
+    }
+
+    @Test
+    fun fetch_findsRealKnownWord() = runBlocking {
+        val result = TusaalangaFetcher.fetch("aaggiisi")
+
+        assertTrue(result is TusaalangaResult.Found, "expected Found, got: $result")
+        val entry = result.entry
+        assertEquals("aaggiisi", entry.word)
+        assertTrue(entry.meaning.contains("August"), entry.meaning)
+    }
+
+    @Test
+    fun fetch_unknownWord_returnsNotFound() = runBlocking {
+        val result = TusaalangaFetcher.fetch("nottarealinuktitutword12345")
 
         assertEquals(TusaalangaResult.NotFound, result)
     }

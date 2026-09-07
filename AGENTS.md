@@ -357,11 +357,15 @@ longer carries an API key (the app takes the user's Claude key from
 Settings at runtime -- see `AppSettings.loadApiKey`), so the APK carries no
 secret and would be safe to distribute more widely if ever needed.
 
-**Android Studio's test dropdown, mapped to Gradle** (root project name is
-`iutools2`, hence the `iutools2.*` label prefix): there is
-no single dropdown entry that runs every test in the whole project at
-once — run both rows below when work spans both modules (`:core` has no
-test source set of its own; its tests live in `:cli`).
+**Android Studio's test dropdown, mapped to Gradle** (`rootProject.name`
+is `iutools-mobile`, so IntelliJ module names are `iutools-mobile.<module>.test`):
+there is no single dropdown entry that runs every test in the whole project
+at once — run both rows below when work spans both modules (`:core` has no
+test source set of its own; its tests live in `:cli`). The modules moved
+under `apps/` (their Gradle paths stayed `:cli` / `:composeApp`), so a
+`.idea/runConfigurations/` file's `<dir>` must point at
+`apps/cli/src/test/kotlin` etc.; re-run the `android-studio-run-all-tests`
+skill if a stored config still references the old top-level path.
 
 | Android Studio entry | Equivalent Gradle command | Scope |
 |---|---|---|

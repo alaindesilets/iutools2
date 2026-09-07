@@ -25,6 +25,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.iutools.i18n.AppLanguage
+import org.iutools.i18n.toMeaningLanguage
 import org.iutools.llm.AggregatedBackendStats
 import org.iutools.llm.ChatMessage
 import org.iutools.llm.ChatRole

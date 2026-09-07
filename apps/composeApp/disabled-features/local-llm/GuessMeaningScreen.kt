@@ -52,6 +52,7 @@ import com.anthropic.models.messages.MessageParam
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.iutools.llm.GuessMeaningCostLog
 
 /*
  * The "Advanced" Guess Meaning screen: a debug-only tool for prompt-tuning,
@@ -344,7 +345,7 @@ fun GuessMeaningScreen(
                 // actually change. A model absent from this map (never a
                 // real priced call yet -- always true for a local model)
                 // shows zeroes, which is exactly the right answer for it.
-                val costsByModel = GuessMeaningCostLog.accumulatedByModel(baseContext)
+                val costsByModel = GuessMeaningCostLog(sharedPreferencesCostLogStore(baseContext)).accumulatedByModel()
                 modelStats.forEach { (label, stats) ->
                     Text(
                         text = stringResource(
@@ -501,7 +502,7 @@ fun GuessMeaningScreen(
                 // send() just made for the reply that triggered this
                 // recomposition.
                 val accumulatedCosts = remember(messages) {
-                    GuessMeaningCostLog.accumulatedByModel(baseContext)["claude-haiku-4-5"] ?: GuessMeaningCostLog.AccumulatedCosts()
+                    GuessMeaningCostLog(sharedPreferencesCostLogStore(baseContext)).accumulatedByModel()["claude-haiku-4-5"] ?: GuessMeaningCostLog.AccumulatedCosts()
                 }
                 Text(
                     text = stringResource(

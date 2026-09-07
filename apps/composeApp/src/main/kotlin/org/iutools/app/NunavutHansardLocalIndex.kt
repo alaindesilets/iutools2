@@ -5,6 +5,8 @@ import android.database.sqlite.SQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.iutools.corpus.BilingualExample
+import org.iutools.corpus.HansardExampleSource
+import org.iutools.corpus.HansardExamplesOutcome
 import org.iutools.script.Script
 import org.iutools.script.TransCoder
 import org.iutools.search.findByLongestPrefix
@@ -26,31 +28,18 @@ import java.io.File
  * redeploy, multiple times an hour during normal work. Instead it lands in
  * this app's external-files directory (a location that survives ordinary
  * reinstalls and needs no runtime storage permission) one of two ways: an
- * end user downloads it in-app (see NunavutHansardDownloader.kt, from a
+ * end user downloads it in-app (HansardIndexDownloader in :core, from a
  * compressed copy on this repo's GitHub Releases), or a developer pushes it
  * once per device/emulator with tools/push_hansard_db.sh. If it's missing
  * (neither has happened yet) or its schema is out of date (SCHEMA_VERSION
  * bumped since it was generated/downloaded), the feature just reports that
- * rather than crashing -- see NunavutHansardResult.
+ * rather than crashing -- see HansardExamplesOutcome.
  *
- * The BilingualExample type these queries return now lives in :core
- * (org.iutools.corpus) -- it is plain corpus data, useful beyond this
- * Android-only index.
+ * HansardExamplesOutcome and the HansardExampleSource interface this object
+ * implements both live in :core (org.iutools.corpus), alongside the
+ * BilingualExample these queries return -- plain corpus data and a
+ * platform-neutral seam, useful beyond this Android-only index.
  */
-
-sealed interface NunavutHansardResult {
-    // word is the syllabic form actually matched against the corpus (see
-    // fetch() below) -- carried along so the UI can highlight it within
-    // each example sentence, not just the original as-typed query.
-    data class Found(val word: String, val examples: List<BilingualExample>) : NunavutHansardResult
-    // The exact word wasn't found, but a shorter prefix of it was -- see
-    // PrefixFallback.kt and fetch() below. word is that shorter prefix
-    // (already guaranteed non-empty examples, same as Found).
-    data class FoundForShorterWord(val word: String, val examples: List<BilingualExample>) : NunavutHansardResult
-    data object NotFound : NunavutHansardResult
-    data object IndexMissing : NunavutHansardResult
-    data class IndexVersionMismatch(val found: Int, val expected: Int) : NunavutHansardResult
-}
 
 private sealed interface OpenResult {
     data class Ready(val database: SQLiteDatabase) : OpenResult
@@ -76,9 +65,10 @@ object NunavutHansardLocalIndex {
 
     private var cached: OpenResult? = null
 
-    // internal (not private): needed both in production, after
-    // NunavutHansardDownloader replaces the file on disk (the previously
-    // cached Missing/VersionMismatch result would otherwise stick forever),
+    // internal (not private): needed both in production, after a fresh
+    // download replaces the file on disk (the previously cached
+    // Missing/VersionMismatch result would otherwise stick forever -- see
+    // HansardDownloadSection, which calls this on a completed download),
     // and in tests -- JUnit/Robolectric reuses this object's state across
     // test methods within the same class run (it's a plain Kotlin `object`,
     // not something Robolectric resets per-test the way it does Android
@@ -92,10 +82,10 @@ object NunavutHansardLocalIndex {
     fun dbFile(context: Context): File? =
         context.getExternalFilesDir(null)?.let { File(it, DB_FILE_NAME) }
 
-    suspend fun fetch(context: Context, word: String): NunavutHansardResult = withContext(Dispatchers.IO) {
+    suspend fun fetch(context: Context, word: String): HansardExamplesOutcome = withContext(Dispatchers.IO) {
         when (val opened = ensureOpen(context)) {
-            is OpenResult.Missing -> NunavutHansardResult.IndexMissing
-            is OpenResult.VersionMismatch -> NunavutHansardResult.IndexVersionMismatch(opened.found, SCHEMA_VERSION)
+            is OpenResult.Missing -> HansardExamplesOutcome.IndexMissing
+            is OpenResult.VersionMismatch -> HansardExamplesOutcome.IndexVersionMismatch(opened.found, SCHEMA_VERSION)
             is OpenResult.Ready -> {
                 // The corpus's Inuktitut side is syllabics-only (see the
                 // corpus README) -- convert regardless of what script the
@@ -103,7 +93,7 @@ object NunavutHansardLocalIndex {
                 val syllabicWord = TransCoder.ensureScript(Script.SYLLABIC, word)
                 val examples = queryExamples(opened.database, syllabicWord, MAX_EXAMPLES)
                 when {
-                    examples.isNotEmpty() -> NunavutHansardResult.Found(syllabicWord, examples)
+                    examples.isNotEmpty() -> HansardExamplesOutcome.Found(syllabicWord, examples)
                     else -> {
                         // See PrefixFallback.kt: a specific inflected form
                         // can easily be absent from the corpus while its
@@ -114,18 +104,23 @@ object NunavutHansardLocalIndex {
                         }
                         if (shorterMatch != null) {
                             val (shorterWord, _) = shorterMatch
-                            NunavutHansardResult.FoundForShorterWord(
+                            HansardExamplesOutcome.FoundForShorterWord(
                                 shorterWord,
                                 queryExamples(opened.database, shorterWord, MAX_EXAMPLES),
                             )
                         } else {
-                            NunavutHansardResult.NotFound
+                            HansardExamplesOutcome.NotFound
                         }
                     }
                 }
             }
         }
     }
+
+    // Adapts this Android-only index to the platform-neutral seam :core's
+    // word lookup depends on (see HansardExampleSource) -- the returned
+    // source closes over [context] so callers in :core never see it.
+    fun asExampleSource(context: Context) = HansardExampleSource { word -> fetch(context, word) }
 
     private fun ensureOpen(context: Context): OpenResult {
         cached?.let { return it }

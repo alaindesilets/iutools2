@@ -32,9 +32,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.iutools.i18n.AppLanguage
 import org.iutools.linguisticdata.MorphemeHumanReadableDescr
 import org.iutools.morphemedict.MorphemeDictionary
+import org.iutools.script.DisplayScript
 import org.iutools.script.Script
+import org.iutools.script.displayForm
 
 /*
  * The Morpheme Dictionary screen: type the start of a morpheme's canonical
