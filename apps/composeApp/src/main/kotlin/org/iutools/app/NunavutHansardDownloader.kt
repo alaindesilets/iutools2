@@ -37,7 +37,7 @@ sealed interface HansardDownloadProgress {
 
 object NunavutHansardDownloader {
     const val DOWNLOAD_URL =
-        "https://github.com/alaindesilets/iutools-mobile/releases/download/hansard-db-v1/hansard.db.gz"
+        "https://github.com/alaindesilets/iutools2/releases/download/hansard-db-v1/hansard.db.gz"
     private const val TIMEOUT_MS = 15_000
 
     // Progress is only emitted every ~1 MiB downloaded, not per read() call --
