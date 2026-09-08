@@ -225,7 +225,7 @@ the host side; agents only read it.
   copyrighted third-party dictionaries (only the Schneider subset is
   licensed). Treat it as *look-but-don't-incorporate* — it may inform your
   own judgement, but its content does not go into iutools2 code, data, or
-  prompts. See `doc/dev/plans/offline-dictionary.md` → "Rights".
+  prompts. See `doc/dev/plans/offline-dictionary-generation.md` → "Rights".
 
 ## Git guidelines
 

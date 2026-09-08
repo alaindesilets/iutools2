@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mine R2L decompositions for the N most frequent Nunavut Hansard word forms.
 
-Stage S1 of the analyzed-lexicon dataset (doc/dev/plans/analyzed-lexicon-dataset.md).
+Stage S1 of the offline dictionary's analyzed lexicon (doc/dev/plans/offline-dictionary-generation.md).
 R2L only, no re-ranking; `--lenient-decomps` ON; every decomposition R2L
 produces per word, each tagged strict vs lenient (guessed dropped final
 consonant) from the CLI's `decompositionsLenient` array.

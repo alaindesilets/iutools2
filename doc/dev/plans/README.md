@@ -39,10 +39,14 @@ Current plans:
   models so far per analyzer (R2L vs FST) × objective, and the case for
   multiple re-rankers. Strategic layer above
   `data/grammar/fst/reranker-experiment.md`.
-- [`offline-dictionary.md`](offline-dictionary.md) -- an offline LLM pass
-  over the top ~10k Hansard word forms: pre-computed Guess Meaning plus a
-  per-decomposition annotation of whether it matches a real bilingual
-  corpus usage, feeding the Morpheme Dictionary "good example words" gate.
+- [`offline-dictionary-generation.md`](offline-dictionary-generation.md) -- pre-compute Word
+  Lookup content (decompositions, meanings, idiomaticity flags) so every
+  user gets it without a live analyzer or LLM call. Covers: the analyzed
+  lexicon as a publishable dataset (S1, shipped as GitHub release
+  `analyzed-lexicon-v1`); the stem-clustering coverage strategy (analyze a
+  large N, ship the M-word stem base); the R2L `reference@1` re-ranker; and
+  the LLM annotation pass feeding the Morpheme Dictionary "good example
+  words" gate.
 - [`agent-parallelism-two-clones.md`](agent-parallelism-two-clones.md) --
   retire the container's linked `git worktree`; run each parallel agent in
   its own independent clone, both on `main`, one amended commit per task,

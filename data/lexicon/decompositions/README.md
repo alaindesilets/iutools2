@@ -13,8 +13,9 @@ offline, over a big word list; the result is this dataset.
 Analyzed Inuktitut data is scarce, so this is meant to be useful beyond
 iutools and is treated as a real, versioned, published dataset. It is the
 first stage (sometimes called "S1") of a longer plan — later stages attach
-plain-language meanings to the morphemes — described in
-[`doc/dev/plans/analyzed-lexicon-dataset.md`](../../../doc/dev/plans/analyzed-lexicon-dataset.md).
+plain-language meanings to the morphemes and cluster the words into stems —
+described in
+[`doc/dev/plans/offline-dictionary-generation.md`](../../../doc/dev/plans/offline-dictionary-generation.md).
 
 ## What if I just want the data
 
