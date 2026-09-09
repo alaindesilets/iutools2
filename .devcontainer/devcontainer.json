@@ -72,7 +72,7 @@
     // Shared, read-only reference data managed by Alain on the host: the
     // recovered Living Dictionary, the gov.nu.ca crawl, raw .bak / corpus
     // archives. Read-only so an agent can't clobber it and can't leak it
-    // into git in place; see AGENTS.md "Shared reference data (/shared)".
+    // into git in place; see doc/dev/developer-handbook.md "Private data on /shared".
     "source=${localEnv:HOME}/iutools-agent-shared/ref,target=/shared/ref,type=bind,readonly"
 
   ],

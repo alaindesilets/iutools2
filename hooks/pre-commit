@@ -5,7 +5,7 @@
 # Guards the reference material that lives read-only under /shared/ref in the
 # agent containers -- the recovered Living Dictionary, the gov.nu.ca crawl,
 # raw .bak / corpus archives, etc. Nothing copied out of /shared may be
-# committed. See AGENTS.md "Shared reference data (/shared)".
+# committed. See doc/dev/developer-handbook.md "Private data on /shared".
 #
 # Enable once per clone:      git config core.hooksPath hooks
 # Deliberate override:        git commit --no-verify   (be certain -- see below)

@@ -15,7 +15,7 @@ Blocks a commit when a staged file is larger than 5 MiB or its content looks
 like private / licensed reference data — the recovered Living Dictionary, the
 gov.nu.ca crawl, raw `.bak` / corpus archives. That material lives read-only
 under `/shared/ref` in the agent containers and must never enter git history.
-See `AGENTS.md` → "Shared reference data (`/shared`)".
+See `doc/dev/developer-handbook.md` → "Private data on `/shared`".
 
 Override for a genuine false positive: `git commit --no-verify` (and consider
 narrowing the pattern list in the hook, or adding a real build artifact to
