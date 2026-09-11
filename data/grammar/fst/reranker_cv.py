@@ -30,12 +30,16 @@ build_reranker_table.py.
 """
 import json
 import math
+import os
 import random
 import re
 import sys
 from collections import Counter
 
-TABLE = "scratchpad/reranker_table.jsonl"
+# Overridable so the same CV / GBDT machinery runs unchanged on the R2L
+# candidate table (build_reranker_table_r2l.py) as on the FST one:
+#   RERANKER_TABLE=scratchpad/reranker_table_r2l.jsonl python3 reranker_cv.py
+TABLE = os.environ.get("RERANKER_TABLE", "scratchpad/reranker_table.jsonl")
 FOLDS = 10
 EPOCHS = 40
 LR = 0.05

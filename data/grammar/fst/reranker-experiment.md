@@ -15,6 +15,16 @@ tooling under `data/grammar/fst/`, and the model is a set of `.py` scripts plus 
 feature table. Porting the model to a Kotlin re-ranker in the FST path is a
 separate, not-yet-done step.
 
+**R2L re-ranker (2026-09-08).** The same machinery, retargeted at R2L's own
+candidate lists via `build_reranker_table_r2l.py` +
+`RERANKER_TABLE=scratchpad/reranker_table_r2l.jsonl`, reaches **90.8% fair
+reference@1** (nested CV, 3-seed mean) vs R2L's 73.1% native order -- the
+same ~90% plateau, slightly higher on R2L's shorter, all-valid lists. For
+R2L that is the *only* objective (correct@1 / R-precision are 100% by
+construction). Full write-up:
+`doc/dev/plans/reranker-objectives-and-analyzers.md` §3; pipeline: the
+offline-dictionary plan's Appendix. The rest of this file is FST-specific.
+
 ---
 
 ## The number to beat

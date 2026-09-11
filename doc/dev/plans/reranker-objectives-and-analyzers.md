@@ -149,14 +149,45 @@ GBDT config: `trees` 150-200, `depth` 4, `lr` 0.1, `leaf` 20, `lambda` 1.0,
 Pure stdlib histogram GBDT (`reranker_gbdt.py`) -- no LightGBM (no pip in
 the devcontainer).
 
-### R2L re-ranker
+### R2L re-ranker -- built (offline), 2026-09-08
 
-**Not built.** Idea from the 2026-09-06 discussion (§4). Would retarget the
-same feature extraction + model onto R2L's candidate lists instead of the
-FST's. Expected: reference@1 73.2% → ~90% (same lever, same ~90% plateau --
-see §4). Data partly exists:
-`data/grammar/fst/hansard-cache/top10k_words_benoit_decomps.jsonl` already
-has multiple R2L decomps per word.
+Retargets the same feature extraction + models onto R2L's own candidate
+lists. `data/grammar/fst/build_reranker_table_r2l.py` builds the table from
+`hansard-cache/top10k_words_benoit_decomps.jsonl` (R2L over the top-10k
+Hansard types -- covers all 917 rankable fair gold words, no live `:cli`
+run); candidates are deduped to (canonical, id) sequences at their earliest
+native rank; every other script runs unchanged via
+`RERANKER_TABLE=scratchpad/reranker_table_r2l.jsonl`.
+
+Table: 12 101 rows / 919 words (917 fair); 97 gold words absent from the
+10k cache and 37 where R2L never produces the reference decomp are dropped.
+`correct@1` / `R-precision` / `P@min(5,N)` are all ~99.9% for every config
+(hand sort included) -- as §2 predicts, **for R2L the only live objective
+is reference@1.**
+
+| model | train target | reference@1 (fair) | P@3 | MRR |
+|---|---|---|---|---|
+| R2L native order (hand sort) | -- | 73.1 (670/917) | 85.8 | 0.808 |
+| linear pairwise-logistic, all features, `--loo` | reference | 81.8 (750/917) | 97.8 | 0.898 |
+| linear + quantile bucketing (`--buckets 10 --loo`) | reference | 87.7 (804/917) | 98.3 | 0.930 |
+| **GBDT, nested CV, 3 seeds (20260902 / 7 / 101)** | **reference** | **90.6 / 90.8 / 91.1 (mean 90.8)** | ~98.9 | ~0.948 |
+
+**Net: +17.5 points / ~+161 words over R2L parity** -- the same ~90%
+plateau the FST re-ranker hit, slightly higher and tighter on R2L's
+shorter, all-valid lists. Every outer fold's inner CV picks tree depth 4.
+
+Error analysis (`reranker_gbdt_errors.py` on the R2L table, flat CV, 86
+misses): 77% are rank-2 near-misses, 88% land in the top 3, only 10 words
+(1.1%) fall outside the top 3. 3% miss rate on words the hand sort also
+gets right vs 28% on words it gets wrong; 18 GBDT-only regressions against
+179 recoveries. The residual wrong pick is systematically closer to the
+surface string (`edit_dist` −0.44) and shorter (`n_morphemes` −0.35) than
+the correct parse -- the same surface-literalness bias the FST re-ranker
+showed, i.e. the ~15-word genuinely context-ambiguous core that needs
+sentence context, not more features.
+
+Not frozen to Kotlin yet, not wired into `:core` / `:cli` / the shipped
+analyzer.
 
 ---
 
@@ -267,8 +298,8 @@ of a morphological analyzer.
 
 | direction | targets | needs | status |
 |---|---|---|---|
-| **R2L `reference` re-ranker** | R2L reference@1 73→~90 | retarget `build_reranker_table.py` at R2L lists; train | not started; data partly cached |
-| **freeze FST re-ranker in Kotlin** | ship the ~90.6% GBDT into `:fst` | Kotlin port of the GBDT + a committed snapshot/gate | not started |
+| **R2L `reference` re-ranker** | R2L reference@1 73→~90 | retarget the table builder at R2L lists; train | **done (offline) 2026-09-08: 90.8% nested, 3-seed** (§3); not frozen to Kotlin |
+| **freeze a `reference` re-ranker in Kotlin** | ship the ~90% GBDT (R2L first -- it is the mainline path) into `:core` | Kotlin port of the GBDT + a committed per-word snapshot/gate | not started |
 | **LLM silver standard** (sentence context) | break the ~90% reference@1 plateau on *both* analyzers | crawl bilingual sentence pairs (non-datacenter IP); LLM ranking calls; `:cli --rank-decomps` subcommand | decided direction, Gate 1 (300-400 gold words) not run; see `gov-nu-ca-crawling-investigation.md` |
 | **gov.nu.ca correct-set silver standard** | FST over-generation diagnostic at scale; cross-domain `correct@1` validation | gov.nu.ca word-frequency list (Cloudflare-blocked from container); run R2L over 10k new words | discussed 2026-09-06; **cannot help reference@1** (no attestation) -- only the correct-set objectives and FST precision |
 | **FST precision work** | P@min(5,N) FST 72→toward 81 | lexicon / morphotactics tightening under the never-drop-coverage rule | ongoing (FST gold-fitting cleanup) |
