@@ -180,6 +180,20 @@ so a French speaker can check it over later.
     has said to push freely for this stretch of work.)
   - Commit your changes on main. Avoid using branches, except for work that is highly experimental and likely to be abandoned. Routine use of branches tends to result in orphan branches, where nobody remembers what they were about.
   - Before you push your changes, make sure to fetch, rebase and test (FRT), to make sure pulled changes haven't borken anything in your own design.
+  - **Do this FRT `git pull --rebase origin main` periodically during a long
+    session too, not only right before a push.** A session that runs for
+    days without ever syncing can drift far enough from `origin/main` that
+    a routine rebase turns into reconciling two independently-evolved
+    designs of the same feature by hand. That happened on 2026-09-11: a
+    container stayed on a stale local `main` for about three days while
+    another agent pushed a large composeApp→`:core` refactor
+    (`WordLookup`/`DecompositionOutcome`/`HansardExamplesOutcome`) that
+    happened to touch the exact same CLI subsystem (`PipelineDispatcher.kt`,
+    `GuessMeaningCommand.kt`) this session was independently extending with
+    a staged LLM-querying approach — the eventual rebase had to drop the
+    superseded files and defer re-porting the new capability onto the
+    refactored architecture as separate follow-up work, instead of being a
+    small mechanical merge.
 - **Multiple agents in parallel.** Again, this is a recommaned workflow. Each dev may prefer a different one. We recommend that each agent runs in its **own independent clone**,
   all on `main`; `origin` is the only channel between them. Because every
   commit is pushed as above, an agent that needs the other's work just
