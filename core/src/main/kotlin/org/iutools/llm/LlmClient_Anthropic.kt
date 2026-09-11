@@ -1,7 +1,9 @@
 package org.iutools.llm
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
+import com.anthropic.errors.AnthropicServiceException
 import com.anthropic.errors.UnauthorizedException
+import com.anthropic.models.ErrorType
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.MessageParam
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,15 @@ class LlmClient_Anthropic(private val apiKey: () -> String) : LlmClient {
             // Same 401 for a missing, invalid, revoked, or expired key --
             // no need (or way) to tell them apart here.
             LlmResponse.Unauthorized
+        } catch (e: AnthropicServiceException) {
+            // Anthropic reports "prepaid credit balance too low" as its own
+            // errorType (billing_error), distinct from the 401 above -- not
+            // a string match on the (English, unstable) message text.
+            if (e.errorType().orElse(null) == ErrorType.BILLING_ERROR) {
+                LlmResponse.InsufficientCredits(causeChainMessage(e))
+            } else {
+                LlmResponse.Failed(causeChainMessage(e))
+            }
         } catch (e: Exception) {
             LlmResponse.Failed(causeChainMessage(e))
         }

@@ -25,6 +25,14 @@ sourceSets {
             // reads any of those, and they must not bloat the jar (or, via
             // :composeApp, the APK).
             exclude("README.md", "parse_spalding_dictionary.py", "decompositions/**")
+            // The frozen R2L reference@1 re-ranker model (see
+            // org.iutools.morph.rerank.ReferenceReranker and
+            // data/grammar/reference-reranker/README.md). Only the model
+            // itself ships -- the golden fixture in that same directory is
+            // test-only data, wired separately into :cli's test resources
+            // instead of the shipped jar.
+            srcDir("../data/grammar/reference-reranker")
+            exclude("reranker_golden_fixture.json")
         }
     }
 }
@@ -43,6 +51,11 @@ dependencies {
     // same package, which is why this used to need Robolectric; :core is
     // plain JVM so the real one just works.
     implementation("org.json:json:20240303")
+    // Parses reranker_model.json (ReferenceRerankerModel). Already on the
+    // classpath transitively via anthropic-java; declared explicitly (same
+    // pinned version) so that stays true on purpose, not by accident of the
+    // Anthropic SDK's own dependencies.
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 }
 
 kotlin {

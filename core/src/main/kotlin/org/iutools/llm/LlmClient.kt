@@ -37,10 +37,16 @@ data class LlmRequest(
  * call took and how many tokens went in and came back. [Unauthorized] is
  * the specific "the API key was missing, invalid, revoked, or expired"
  * case, kept separate because callers show a different, actionable message
- * for it. [Failed] is everything else (no network, timeout, a server
- * error, a malformed reply); its [message] is already flattened to a
- * single human-readable string, in English -- a caller that shows it to a
- * user is expected to wrap it in its own translated template.
+ * for it. [InsufficientCredits] is similarly specific -- the account's
+ * prepaid balance ran out (Anthropic's API reports this as a distinct
+ * `billing_error`, not a 401, so it needs its own case rather than falling
+ * into [Unauthorized] or the generic [Failed] -- a caller driving a batch,
+ * e.g. a Python script running :cli --pipeline, needs to tell "stop and
+ * top up" apart from "this one word failed, keep going"). [Failed] is
+ * everything else (no network, timeout, a server error, a malformed
+ * reply); its [message] is already flattened to a single human-readable
+ * string, in English -- a caller that shows it to a user is expected to
+ * wrap it in its own translated template.
  */
 sealed interface LlmResponse {
     data class Ok(
@@ -51,6 +57,8 @@ sealed interface LlmResponse {
     ) : LlmResponse
 
     data object Unauthorized : LlmResponse
+
+    data class InsufficientCredits(val message: String) : LlmResponse
 
     data class Failed(val message: String) : LlmResponse
 }

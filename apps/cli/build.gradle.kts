@@ -3,6 +3,17 @@ plugins {
     application
 }
 
+sourceSets {
+    test {
+        // Test-only fixture for ReferenceRerankerParityTest -- see
+        // data/grammar/reference-reranker/README.md. The model itself
+        // (reranker_model.json, in the same directory) ships in :core;
+        // this fixture doesn't, so it's wired here rather than there.
+        resources.srcDir("../../data/grammar/reference-reranker")
+        resources.include("reranker_golden_fixture.json")
+    }
+}
+
 dependencies {
     implementation(project(":core"))
     // runBlocking, to drive :core's suspend APIs from `main` (the --define
@@ -14,6 +25,11 @@ dependencies {
     testImplementation(kotlin("test"))
     // For MorphologicalAnalyzer_FST__AccuracyTest.
     testImplementation(project(":fst"))
+    // Parses reranker_golden_fixture.json directly in
+    // ReferenceRerankerParityTest -- :core depends on jackson-module-kotlin
+    // only as `implementation` (see that build file's comment), so it isn't
+    // transitively on this module's test classpath.
+    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 }
 
 kotlin {

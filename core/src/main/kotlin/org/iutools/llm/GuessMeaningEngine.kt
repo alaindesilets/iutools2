@@ -74,6 +74,16 @@ class GuessMeaningEngine(private val llm: LlmClient) {
                 null
             }
 
+            // No dedicated label for this app-facing chat engine (unlike
+            // GuessMeaningStructured.kt's batch/pipeline path, which a
+            // script needs to tell apart from an ordinary failure) -- the
+            // generic template's message text already says "credit
+            // balance", which is informative enough for a human reader.
+            is LlmResponse.InsufficientCredits -> {
+                onMessagesChanged(withUserTurn + errorTurn(fillPlaceholder(labels.genericTemplate, response.message)))
+                null
+            }
+
             is LlmResponse.Failed -> {
                 onMessagesChanged(withUserTurn + errorTurn(fillPlaceholder(labels.genericTemplate, response.message)))
                 null
