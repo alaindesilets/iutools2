@@ -109,6 +109,7 @@ for domain in \
     "inuktitutcomputing.ca" \
     "www.gov.nu.ca" \
     "gov.nu.ca" \
+    "nrc-digital-repository.canada.ca" \
     "deb.debian.org"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
